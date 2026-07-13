@@ -1,0 +1,30 @@
+name: transescort-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: transescort-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: transescort_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Local SMTP catcher for dev — verification/contact emails land here, not in real inboxes.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: transescort-mailhog
+    ports:
+      - "1026:1025" # SMTP
+      - "8026:8025" # Web UI
+
+volumes:
+  postgres_data:

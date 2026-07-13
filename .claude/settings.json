@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(ps --ppid 1 -o pid,ppid,cmd)",
+      "Bash(kill 210224 220434 220447)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3011/hero-bg.png)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+/**
+ * Root module: ConfigModule (reads repo-root .env) -> DatabaseModule (DRIZZLE provider)
+ * -> feature modules with HTTP controllers.
+ */
+
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { DatabaseModule } from './database/database.module';
+import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { AuthGuardsModule } from './auth/guards/auth-guards.module';
+import { RateLimitModule } from './security/rate-limit.config';
+import { EmailModule } from './email/email.module';
+import { ContactModule } from './contact/contact.module';
+
+function resolveEnvFilePath(): string {
+  const cwd = process.cwd();
+  for (let depth = 0; depth < 8; depth++) {
+    const base = depth === 0 ? cwd : resolve(cwd, ...Array(depth).fill('..'));
+    const envPath = resolve(base, '.env');
+    if (existsSync(envPath)) return envPath;
+  }
+  return resolve(cwd, '.env');
+}
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: resolveEnvFilePath(),
+    }),
+    DatabaseModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    AuthGuardsModule,
+    RateLimitModule,
+    EmailModule,
+    ContactModule,
+  ],
+})
+export class AppModule {}
