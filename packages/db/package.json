@@ -9,6 +9,7 @@
     "db:migrate": "node ./run-migrate.mjs",
     "db:studio": "drizzle-kit studio",
     "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
     "clean": "rm -rf .turbo node_modules dist",
     "lint": "tsc --noEmit",
     "check-types": "tsc --noEmit"
