@@ -37,28 +37,28 @@ export default function HomePage() {
           priority
           className="object-cover object-[75%_20%] sm:object-[70%_22%] md:object-[65%_25%] lg:object-[60%_28%] xl:object-[55%_30%]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/80 via-[#0a0a0a]/60 to-[#0a0a0a]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/95 via-[#0a0a0a]/70 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-transparent to-[#0a0a0a]" />
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(60% 50% at 50% 0%, rgba(200,30,74,0.18), transparent 70%)',
+              'radial-gradient(60% 50% at 30% 0%, rgba(201,168,106,0.18), transparent 70%)',
           }}
         />
-        <div className="relative mx-auto max-w-[800px] px-6 text-center md:px-10">
-          <h1 className="font-display text-3xl font-extrabold leading-tight md:text-5xl">
-            Платформа <span className="text-gradient-crimson">проверенных анкет</span>
-          </h1>
-          <p className="mt-5 font-body text-base text-white/50 md:text-lg">
-            Сервис по подбору моделей для досуга в Москве и Московской области
-          </p>
-          <p className="mx-auto mt-4 max-w-xl font-body text-sm text-white/35 md:text-base">
-            Платформа предоставляет каталог верифицированных анкет моделей. Все профили проходят модерацию и проверку достоверности
-          </p>
-          <div className="mt-10">
-            <button type="button" className="btn-primary">
-              Перейти в каталог
-            </button>
+        <div className="relative mx-auto max-w-[1200px] px-6 md:px-10">
+          <div className="max-w-xl text-left">
+            <h1 className="font-display text-3xl font-extrabold leading-tight md:text-5xl">
+              Платформа <span className="text-[#C9A86A]">проверенных</span> анкет
+            </h1>
+            <p className="mt-5 font-body text-base text-[#C9CDD3] md:text-lg">
+              Сервис по подбору моделей для досуга в Москве и Московской области
+            </p>
+            <div className="mt-10">
+              <button type="button" className="btn-primary">
+                Перейти в каталог
+              </button>
+            </div>
           </div>
         </div>
       </section>

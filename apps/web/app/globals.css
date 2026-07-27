@@ -3,20 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --crimson-primary: #c81e4a;
-  --crimson-light: #ff4d78;
+  --crimson-primary: #C9A86A;
+  --crimson-light: #E3C48F;
   color-scheme: dark;
 }
 
 body {
   @apply bg-[#0a0a0a] text-white;
-}
-
-.text-gradient-crimson {
-  background: linear-gradient(135deg, var(--crimson-primary), var(--crimson-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .card {
@@ -31,7 +24,7 @@ body {
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-crimson to-crimson-dark px-7 py-3 font-body text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-crimson/30;
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-crimson px-7 py-3 font-body text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-crimson/30;
 }
 
 .btn-secondary {

@@ -75,7 +75,7 @@ export const MOCK_TARIFFS: MockTariff[] = [
   },
   {
     id: 'elite',
-    name: 'Elite',
+    name: 'Элит',
     price: '40 000 ₽',
     features: ['Топ каталога', 'Персональный менеджер', 'Максимальная видимость анкеты'],
   },

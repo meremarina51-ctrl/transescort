@@ -12,9 +12,9 @@ module.exports = {
       },
       colors: {
         crimson: {
-          DEFAULT: '#c81e4a',
-          light: '#ff4d78',
-          dark: '#6e0f2a',
+          DEFAULT: '#C9A86A',
+          light: '#E3C48F',
+          dark: '#8A6B3C',
         },
         surface: '#141414',
         elevated: '#1e1e1e',
