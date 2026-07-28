@@ -1,7 +1,7 @@
-import { Controller, Post, Get, Patch, Body, Query, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsIn, IsOptional, MinLength } from 'class-validator';
-import { Throttle } from '@nestjs/throttler';
+import { IsEmail, IsString, IsIn, IsOptional, MinLength, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
@@ -14,9 +14,11 @@ export class RegisterDto {
   @ApiProperty({ example: 'password123' })
   @IsString()
   @MinLength(8)
+  @Matches(/(?:.*\S){8,}/, { message: 'Пароль должен содержать минимум 8 значащих символов' })
   password!: string;
 
   @ApiProperty({ example: 'Иван Петров' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(2, { message: 'Имя слишком короткое' })
   fullName!: string;
@@ -43,12 +45,6 @@ export class RefreshTokenDto {
   refreshToken!: string;
 }
 
-export class ResendVerificationDto {
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  email!: string;
-}
-
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -59,7 +55,7 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Регистрация нового пользователя' })
-  @ApiResponse({ status: 201, description: 'Аккаунт создан, письмо с подтверждением отправлено' })
+  @ApiResponse({ status: 201, description: 'Аккаунт создан' })
   @ApiResponse({ status: 409, description: 'Email уже занят' })
   async register(@Body() body: RegisterDto) {
     return this.authService.register(body.email, body.password, body.fullName, body.role ?? 'client');
@@ -70,25 +66,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Вход в систему' })
   @ApiResponse({ status: 200, description: 'Успешный вход' })
   @ApiResponse({ status: 401, description: 'Неверные учётные данные' })
-  @ApiResponse({ status: 403, description: 'Email не подтверждён' })
   async login(@Body() body: LoginDto) {
     return this.authService.login(body.email, body.password);
-  }
-
-  @Get('verify-email')
-  @ApiOperation({ summary: 'Подтвердить email по токену из письма' })
-  @ApiResponse({ status: 200, description: 'Email подтверждён, выданы токены' })
-  @ApiResponse({ status: 400, description: 'Токен недействителен или истёк' })
-  async verifyEmail(@Query('token') token: string) {
-    return this.authService.verifyEmail(token);
-  }
-
-  @Post('resend-verification')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 3, ttl: 300_000 } })
-  @ApiOperation({ summary: 'Повторно отправить письмо с подтверждением email' })
-  async resendVerification(@Body() body: ResendVerificationDto) {
-    return this.authService.resendVerification(body.email);
   }
 
   @Post('refresh')

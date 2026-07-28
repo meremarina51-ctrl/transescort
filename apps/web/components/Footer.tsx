@@ -14,7 +14,6 @@ export function Footer() {
           <nav className="flex flex-wrap items-center justify-center gap-6 font-body text-xs text-white/40">
             <Link href="/#about" className="transition-colors hover:text-crimson">О нас</Link>
             <Link href="/#pricing" className="transition-colors hover:text-crimson">Тарифы</Link>
-            <Link href="/contacts" className="transition-colors hover:text-crimson">Контакты</Link>
           </nav>
 
           <p className="font-body text-xs text-white/20">&copy; {new Date().getFullYear()} TransEscort</p>

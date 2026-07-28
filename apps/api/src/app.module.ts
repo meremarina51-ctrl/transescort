@@ -13,8 +13,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuardsModule } from './auth/guards/auth-guards.module';
 import { RateLimitModule } from './security/rate-limit.config';
-import { EmailModule } from './email/email.module';
-import { ContactModule } from './contact/contact.module';
+import { ListingsModule } from './listings/listings.module';
 
 function resolveEnvFilePath(): string {
   const cwd = process.cwd();
@@ -38,8 +37,7 @@ function resolveEnvFilePath(): string {
     AuthModule,
     AuthGuardsModule,
     RateLimitModule,
-    EmailModule,
-    ContactModule,
+    ListingsModule,
   ],
 })
 export class AppModule {}

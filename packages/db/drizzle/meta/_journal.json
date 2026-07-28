@@ -8,6 +8,41 @@
       "when": 1783951196755,
       "tag": "0000_silent_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785257265083,
+      "tag": "0001_familiar_vargas",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785260745082,
+      "tag": "0002_loud_grandmaster",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785262429220,
+      "tag": "0003_mysterious_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785263392558,
+      "tag": "0004_lonely_phil_sheldon",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785264894157,
+      "tag": "0005_premium_abomination",
+      "breakpoints": true
     }
   ]
 }

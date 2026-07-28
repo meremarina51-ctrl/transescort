@@ -16,21 +16,12 @@ export const users = pgTable(
       .notNull()
       .default('active'),
 
-    /** NULL until the user clicks the link from the verification email. */
-    emailVerifiedAt: timestamp('email_verified_at'),
-    /** sha256(token); the plain token is only ever in the emailed link. */
-    emailVerificationTokenHash: varchar('email_verification_token_hash', { length: 64 }),
-    emailVerificationExpiresAt: timestamp('email_verification_expires_at'),
-
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
     emailIdx: uniqueIndex('users_email_idx').on(table.email),
-    verificationTokenIdx: uniqueIndex('users_email_verification_token_idx').on(
-      table.emailVerificationTokenHash,
-    ),
   }),
 );
 

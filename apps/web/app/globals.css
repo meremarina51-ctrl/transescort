@@ -24,7 +24,7 @@ body {
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-full bg-crimson px-7 py-3 font-body text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-crimson/30;
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-crimson px-7 py-3 font-body text-sm font-semibold text-black transition-all hover:shadow-lg hover:shadow-crimson/30;
 }
 
 .btn-secondary {

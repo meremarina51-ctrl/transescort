@@ -1,30 +1,20 @@
-import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { EmailService } from '../email/email.service';
 import type { User } from '@transescort/db';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
   async register(email: string, password: string, fullName: string, role: 'client' | 'performer') {
-    const { user, verificationToken } = await this.usersService.createUser(email, password, fullName, role);
+    const user = await this.usersService.createUser(email, password, fullName, role);
 
-    if (this.emailVerificationEnabled()) {
-      await this.sendVerificationEmail(user, verificationToken);
-    } else {
-      // No SMTP configured — nothing to verify against, mark verified immediately.
-      await this.usersService.markEmailVerified(user.id);
-    }
-
-    // Registration logs the user in right away; email verification (if enabled) happens in the background.
     await this.usersService.updateLastLogin(user.id);
     const tokens = await this.generateTokens(user);
     return { user: this.toPublicUser(user), ...tokens };
@@ -45,35 +35,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.emailVerifiedAt && this.emailVerificationEnabled()) {
-      throw new ForbiddenException({ code: 'EMAIL_NOT_VERIFIED', message: 'Email ещё не подтверждён' });
-    }
-
     await this.usersService.updateLastLogin(user.id);
     const tokens = await this.generateTokens(user);
 
     return { user: this.toPublicUser(user), ...tokens };
-  }
-
-  async verifyEmail(token: string) {
-    const user = await this.usersService.verifyEmailByToken(token);
-    if (!user) {
-      throw new BadRequestException('Ссылка недействительна или устарела');
-    }
-
-    await this.usersService.updateLastLogin(user.id);
-    const tokens = await this.generateTokens(user);
-    return { user: this.toPublicUser(user), ...tokens };
-  }
-
-  async resendVerification(email: string) {
-    const user = await this.usersService.findByEmail(email);
-    // Same response whether or not the account exists/is already verified — avoid leaking which emails are registered.
-    if (user && !user.emailVerifiedAt && this.emailVerificationEnabled()) {
-      const token = await this.usersService.issueVerificationToken(user.id);
-      await this.sendVerificationEmail(user, token);
-    }
-    return { message: 'Если аккаунт существует и не подтверждён, письмо отправлено повторно.' };
   }
 
   async refreshTokens(refreshToken: string) {
@@ -83,17 +48,6 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     return this.generateTokens(user);
-  }
-
-  /** SMTP_HOST unset — most likely local/dev without Mailhog, or a deploy that hasn't wired email yet. */
-  private emailVerificationEnabled(): boolean {
-    return !!this.configService.get<string>('SMTP_HOST')?.trim();
-  }
-
-  private async sendVerificationEmail(user: User, token: string) {
-    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '');
-    const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
-    await this.emailService.sendVerificationEmail(user.email, user.fullName, verifyUrl);
   }
 
   private toPublicUser(user: User) {
