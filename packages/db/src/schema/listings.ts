@@ -15,6 +15,9 @@ export const listings = pgTable(
       .notNull()
       .default('draft'),
 
+    /** URL slug, transliterated from `name` at creation time — stable, doesn't change on rename. */
+    slug: varchar('slug', { length: 160 }),
+
     bio: text('bio'),
     photos: jsonb('photos').$type<string[]>().notNull().default([]),
     videoUrl: varchar('video_url', { length: 500 }),
@@ -38,6 +41,7 @@ export const listings = pgTable(
   },
   (table) => ({
     userIdx: uniqueIndex('listings_user_idx').on(table.userId),
+    slugIdx: uniqueIndex('listings_slug_idx').on(table.slug),
   }),
 );
 

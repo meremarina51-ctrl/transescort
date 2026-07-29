@@ -43,7 +43,7 @@ interface ListingParams {
 
 const EMPTY_PARAMS: ListingParams = {
   bio: '',
-  name: '',
+  name: 'Новая анкета',
   age: 25,
   height: 165,
   weight: 55,
@@ -123,7 +123,7 @@ export default function ListingPage() {
           if (data) {
             const loaded: ListingParams = {
               bio: data.bio ?? '',
-              name: data.name ?? '',
+              name: data.name ?? EMPTY_PARAMS.name,
               age: data.age ?? EMPTY_PARAMS.age,
               height: data.height ?? EMPTY_PARAMS.height,
               weight: data.weight ?? EMPTY_PARAMS.weight,
@@ -184,7 +184,6 @@ export default function ListingPage() {
   };
 
   const isDirty = JSON.stringify(params) !== JSON.stringify(initialParams);
-  const nameMissing = !params.name.trim();
 
   const authedFetch = (url: string, init: RequestInit = {}) => {
     const token = localStorage.getItem('accessToken');
@@ -392,7 +391,7 @@ export default function ListingPage() {
           <div className="card p-6">
             <TileHeader icon={BookOpen} title="Биография" description="Расскажите о себе — это увидят клиенты в анкете" />
             <div className="mt-5">
-              <Field label="Имя" required>
+              <Field label="Имя">
                 <input
                   type="text"
                   value={params.name}
@@ -510,14 +509,11 @@ export default function ListingPage() {
 
         <div className="flex items-center justify-end gap-3">
           {saved ? <span className="font-body text-sm text-emerald-400">Сохранено</span> : null}
-          {nameMissing ? (
-            <span className="font-body text-sm text-red-400">Укажите имя для анкеты</span>
-          ) : null}
           {status === null ? (
             <button
               type="button"
               onClick={() => save('draft')}
-              disabled={saving || nameMissing}
+              disabled={saving}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Создаём…' : 'Создать'}
@@ -527,7 +523,7 @@ export default function ListingPage() {
               <button
                 type="button"
                 onClick={() => save('draft')}
-                disabled={saving || nameMissing || (!isDirty && status === 'draft')}
+                disabled={saving || (!isDirty && status === 'draft')}
                 className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Сохраняем…' : 'Сохранить как черновик'}
@@ -535,7 +531,7 @@ export default function ListingPage() {
               <button
                 type="button"
                 onClick={() => save('published')}
-                disabled={saving || nameMissing || (!isDirty && status === 'published')}
+                disabled={saving || (!isDirty && status === 'published')}
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Публикуем…' : 'Опубликовать'}

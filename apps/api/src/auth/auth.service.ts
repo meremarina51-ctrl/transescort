@@ -4,6 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import type { User } from '@transescort/db';
 
+interface RegisterExtra {
+  phone?: string;
+  contactMethod?: 'telegram' | 'email' | 'phone' | 'whatsapp';
+  contactValue?: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -12,16 +18,22 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(email: string, password: string, fullName: string, role: 'client' | 'performer') {
-    const user = await this.usersService.createUser(email, password, fullName, role);
+  async register(
+    login: string,
+    password: string,
+    fullName: string,
+    role: 'client' | 'performer',
+    extra: RegisterExtra = {},
+  ) {
+    const user = await this.usersService.createUser(login, password, fullName, role, extra);
 
     await this.usersService.updateLastLogin(user.id);
     const tokens = await this.generateTokens(user);
     return { user: this.toPublicUser(user), ...tokens };
   }
 
-  async login(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+  async login(login: string, password: string) {
+    const user = await this.usersService.findByLogin(login);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -51,19 +63,19 @@ export class AuthService {
   }
 
   private toPublicUser(user: User) {
-    return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
+    return { id: user.id, login: user.login, fullName: user.fullName, role: user.role };
   }
 
   private async generateTokens(user: User) {
     const [accessToken, refreshToken] = await Promise.all([
-      this.signToken(user.id, user.role, user.email, 'access'),
-      this.signToken(user.id, user.role, user.email, 'refresh'),
+      this.signToken(user.id, user.role, user.login, 'access'),
+      this.signToken(user.id, user.role, user.login, 'refresh'),
     ]);
     return { accessToken, refreshToken };
   }
 
-  private async signToken(userId: string, role: string, email: string, type: 'access' | 'refresh') {
-    const payload = { sub: userId, email, role, type };
+  private async signToken(userId: string, role: string, login: string, type: 'access' | 'refresh') {
+    const payload = { sub: userId, login, role, type };
     const secret = this.configService.getOrThrow<string>('JWT_SECRET');
     const expiresIn = type === 'access' ? '15m' : '7d';
 

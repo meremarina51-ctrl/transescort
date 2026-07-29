@@ -160,7 +160,7 @@ function CabinetShell({ children }: { children: ReactNode }) {
           </button>
         </header>
         <header className="hidden h-16 items-center justify-end border-b border-white/[0.06] px-6 lg:flex">
-          <span className="font-body text-sm text-white/50">{user?.fullName ?? user?.email}</span>
+          <span className="font-body text-sm text-white/50">{user?.fullName ?? user?.login}</span>
         </header>
         <main className="p-6">{children}</main>
       </div>

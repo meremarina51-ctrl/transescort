@@ -4,7 +4,7 @@ export const users = pgTable(
   'users',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    email: varchar('email', { length: 255 }).notNull(),
+    login: varchar('login', { length: 255 }).notNull(),
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
     fullName: varchar('full_name', { length: 255 }).notNull(),
     role: varchar('role', { length: 20 })
@@ -16,12 +16,20 @@ export const users = pgTable(
       .notNull()
       .default('active'),
 
+    /** Client-only, optional. */
+    phone: varchar('phone', { length: 32 }),
+    /** Performer-only, required at registration — how clients reach them. */
+    contactMethod: varchar('contact_method', { length: 20 }).$type<
+      'telegram' | 'email' | 'phone' | 'whatsapp'
+    >(),
+    contactValue: varchar('contact_value', { length: 255 }),
+
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    emailIdx: uniqueIndex('users_email_idx').on(table.email),
+    loginIdx: uniqueIndex('users_login_idx').on(table.login),
   }),
 );
 

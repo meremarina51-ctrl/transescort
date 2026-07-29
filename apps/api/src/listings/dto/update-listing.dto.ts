@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export const STATUS_OPTIONS = ['draft', 'published'] as const;
 export const TYPE_OPTIONS = ['Активный', 'Универсал', 'Пассивный'] as const;
@@ -31,11 +31,11 @@ export class UpdateListingDto {
   @MaxLength(3000)
   bio?: string;
 
-  @ApiProperty({ maxLength: 100 })
+  @ApiProperty({ required: false, maxLength: 100 })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Укажите имя для анкеты' })
   @MaxLength(100)
-  name!: string;
+  name?: string;
 
   @ApiProperty({ required: false, minimum: 18, maximum: 80 })
   @IsOptional()

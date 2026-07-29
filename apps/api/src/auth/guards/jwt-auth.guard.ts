@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 
 export interface JwtPayload {
   sub: string;
-  email: string;
+  login: string;
   role: 'client' | 'performer' | 'admin';
   type: 'access' | 'refresh';
   jti?: string;
@@ -16,7 +16,7 @@ export interface JwtPayload {
 export interface RequestWithUser extends Request {
   user?: {
     userId: string;
-    email: string;
+    login: string;
     role: string;
     iat: number;
     exp: number;
@@ -52,7 +52,7 @@ export class JwtAuthGuard implements CanActivate {
 
       request.user = {
         userId: payload.sub,
-        email: payload.email || '',
+        login: payload.login || '',
         role: payload.role,
         iat: payload.iat,
         exp: payload.exp,

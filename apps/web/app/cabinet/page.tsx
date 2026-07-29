@@ -9,7 +9,7 @@ const TILES = [
     href: '/cabinet/profile',
     icon: User,
     title: 'Профиль',
-    description: 'Имя, email и данные аккаунта',
+    description: 'Имя, логин и данные аккаунта',
   },
   {
     href: '/cabinet/settings',
@@ -24,7 +24,7 @@ export default function CabinetOverviewPage() {
 
   return (
     <div>
-      <h1 className="mb-2 font-display text-2xl font-bold">Привет, {user?.fullName || user?.email}!</h1>
+      <h1 className="mb-2 font-display text-2xl font-bold">Привет, {user?.fullName || user?.login}!</h1>
       <p className="mb-6 font-body text-white/40">Это личный кабинет — добавляйте сюда свои разделы.</p>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

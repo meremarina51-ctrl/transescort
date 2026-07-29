@@ -7,29 +7,57 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
+import { Select } from '@/components/Select';
 
 type Role = 'client' | 'performer';
 
+const CONTACT_METHOD_OPTIONS = [
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Телефон' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+];
+
+function RequiredMark() {
+  return <span className="text-red-400"> *</span>;
+}
+
 export default function RegisterPage() {
-  const { login } = useAuth();
+  const { login: authLogin } = useAuth();
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('client');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [contactMethod, setContactMethod] = useState<string | null>(null);
+  const [contactValue, setContactValue] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (role === 'performer' && (!contactMethod || !contactValue.trim())) {
+      setError('Укажите способ связи и контакт');
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const payload: Record<string, unknown> = { login, password, role };
+      if (role === 'client') {
+        if (phone.trim()) payload.phone = phone.trim();
+      } else {
+        payload.contactMethod = contactMethod;
+        payload.contactValue = contactValue.trim();
+      }
+
       const response = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, email, password, role }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -40,7 +68,7 @@ export default function RegisterPage() {
       }
 
       const data = await response.json();
-      login(data.accessToken, data.refreshToken, data.user);
+      authLogin(data.accessToken, data.refreshToken, data.user);
       router.push('/cabinet');
     } catch (err: any) {
       setError(err.message || 'Не удалось зарегистрироваться');
@@ -83,29 +111,25 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Имя</label>
+              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
+                Логин
+                <RequiredMark />
+              </label>
               <input
                 type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
                 required
-                placeholder="Иван Петров"
+                minLength={3}
+                placeholder="ivan_petrov"
                 className="input"
               />
             </div>
             <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Пароль</label>
+              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
+                Пароль
+                <RequiredMark />
+              </label>
               <input
                 type="password"
                 value={password}
@@ -116,6 +140,43 @@ export default function RegisterPage() {
                 className="input"
               />
             </div>
+
+            {role === 'client' ? (
+              <div>
+                <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Телефон</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+7 999 123-45-67"
+                  className="input"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
+                    Способ связи
+                    <RequiredMark />
+                  </label>
+                  <Select value={contactMethod} onChange={setContactMethod} options={CONTACT_METHOD_OPTIONS} />
+                </div>
+                <div>
+                  <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
+                    Контакт
+                    <RequiredMark />
+                  </label>
+                  <input
+                    type="text"
+                    value={contactValue}
+                    onChange={(e) => setContactValue(e.target.value)}
+                    required
+                    placeholder="@username, номер или email"
+                    className="input"
+                  />
+                </div>
+              </>
+            )}
 
             {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
 

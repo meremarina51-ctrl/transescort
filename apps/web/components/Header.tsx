@@ -9,6 +9,7 @@ import { useAuthOrGuest } from './AuthProvider';
 
 const NAV_LINKS = [
   { href: '/#about', label: 'О нас' },
+  { href: '/catalog', label: 'Каталог' },
   { href: '/#pricing', label: 'Тарифы' },
 ] as const;
 
@@ -42,7 +43,7 @@ export function Header() {
   return (
     <>
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl">
-      <div className="mx-auto grid h-16 max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center px-6 md:px-10">
+      <div className="mx-auto grid h-16 max-w-[1400px] grid-cols-[1fr_auto_1fr] items-center px-6 md:px-10">
         <Link href="/" className="col-start-1 text-xl justify-self-start">
           <Logo />
         </Link>

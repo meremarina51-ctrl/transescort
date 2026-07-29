@@ -43,6 +43,27 @@
       "when": 1785264894157,
       "tag": "0005_premium_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785341252209,
+      "tag": "0006_puzzling_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785342444675,
+      "tag": "0007_chunky_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785342477802,
+      "tag": "0008_cultured_black_tom",
+      "breakpoints": true
     }
   ]
 }

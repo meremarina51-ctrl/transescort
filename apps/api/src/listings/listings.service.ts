@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { listings, type Listing, type NewListing } from '@transescort/db';
+import { slugify } from './slug.util';
 
 @Injectable()
 export class ListingsService {
@@ -11,23 +12,67 @@ export class ListingsService {
     return found[0] || null;
   }
 
+  /** Public catalog feed — published anketas only, newest first. */
+  async listPublished(): Promise<Listing[]> {
+    return this.db
+      .select()
+      .from(listings)
+      .where(eq(listings.status, 'published'))
+      .orderBy(desc(listings.updatedAt));
+  }
+
+  /** Public anketa page — only if it's actually published. */
+  async findPublishedBySlug(slug: string): Promise<Listing | null> {
+    const found = await this.db
+      .select()
+      .from(listings)
+      .where(and(eq(listings.slug, slug), eq(listings.status, 'published')))
+      .limit(1);
+    return found[0] || null;
+  }
+
   async upsert(userId: string, data: Partial<NewListing>): Promise<Listing> {
     const existing = await this.findByUserId(userId);
 
     if (existing) {
+      const patch: Partial<NewListing> = { ...data, updatedAt: new Date() };
+      // Backfills a missing slug (e.g. rows created before this feature) without ever overwriting one already set.
+      if (!existing.slug) {
+        patch.slug = await this.generateUniqueSlug(data.name ?? existing.name);
+      }
       const updated = await this.db
         .update(listings)
-        .set({ ...data, updatedAt: new Date() })
+        .set(patch)
         .where(eq(listings.userId, userId))
         .returning();
       return updated[0];
     }
 
+    const slug = await this.generateUniqueSlug(data.name);
     const inserted = await this.db
       .insert(listings)
-      .values({ userId, ...data })
+      .values({ userId, slug, ...data })
       .returning();
     return inserted[0];
+  }
+
+  /** Slug is derived from the name once, at creation — it stays stable even if the name changes later. */
+  private async generateUniqueSlug(name?: string | null): Promise<string> {
+    const base = slugify(name) || 'anketa';
+    let candidate = base;
+    let suffix = 1;
+
+    while (await this.slugTaken(candidate)) {
+      suffix += 1;
+      candidate = `${base}-${suffix}`;
+    }
+
+    return candidate;
+  }
+
+  private async slugTaken(slug: string): Promise<boolean> {
+    const found = await this.db.select({ id: listings.id }).from(listings).where(eq(listings.slug, slug)).limit(1);
+    return found.length > 0;
   }
 
   async addPhotos(userId: string, urls: string[]): Promise<Listing> {

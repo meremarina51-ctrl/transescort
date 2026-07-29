@@ -1,19 +1,3 @@
-export interface MockProfile {
-  id: string;
-  name: string;
-  age: number;
-  city: string;
-  photoSeed: string;
-}
-
-export const MOCK_PROFILES: MockProfile[] = [
-  { id: '1', name: 'Алина', age: 24, city: 'Москва, Центр', photoSeed: 'profile-1' },
-  { id: '2', name: 'Мария', age: 27, city: 'Санкт-Петербург, Центр', photoSeed: 'profile-2' },
-  { id: '3', name: 'Виктория', age: 23, city: 'Москва, Юг', photoSeed: 'profile-3' },
-  { id: '4', name: 'Дарья', age: 26, city: 'Казань, Центр', photoSeed: 'profile-4' },
-  { id: '5', name: 'Екатерина', age: 25, city: 'Москва, Запад', photoSeed: 'profile-5' },
-];
-
 export interface MockReview {
   id: string;
   name: string;

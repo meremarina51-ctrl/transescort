@@ -37,8 +37,8 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit} className="card space-y-4 p-6">
         <div>
-          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Email</label>
-          <input value={user?.email ?? ''} disabled className="input opacity-50" />
+          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Логин</label>
+          <input value={user?.login ?? ''} disabled className="input opacity-50" />
         </div>
         <div>
           <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Имя</label>

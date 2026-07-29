@@ -1,15 +1,20 @@
 import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsIn, IsOptional, MinLength, Matches } from 'class-validator';
+import { IsString, IsIn, IsOptional, IsNotEmpty, MinLength, MaxLength, Matches, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 
+export const CONTACT_METHOD_OPTIONS = ['telegram', 'email', 'phone', 'whatsapp'] as const;
+
 export class RegisterDto {
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  email!: string;
+  @ApiProperty({ example: 'ivan_petrov' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(3, { message: 'Логин слишком короткий' })
+  @MaxLength(100)
+  login!: string;
 
   @ApiProperty({ example: 'password123' })
   @IsString()
@@ -17,22 +22,34 @@ export class RegisterDto {
   @Matches(/(?:.*\S){8,}/, { message: 'Пароль должен содержать минимум 8 значащих символов' })
   password!: string;
 
-  @ApiProperty({ example: 'Иван Петров' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
-  @MinLength(2, { message: 'Имя слишком короткое' })
-  fullName!: string;
-
   @ApiProperty({ required: false, enum: ['client', 'performer'], default: 'client' })
   @IsOptional()
   @IsIn(['client', 'performer'])
   role?: 'client' | 'performer';
+
+  @ApiProperty({ required: false, description: 'Клиент: необязательно' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+
+  @ApiProperty({ required: false, enum: CONTACT_METHOD_OPTIONS, description: 'Обязательно для исполнителя' })
+  @ValidateIf((o) => o.role === 'performer')
+  @IsIn(CONTACT_METHOD_OPTIONS, { message: 'Укажите способ связи' })
+  contactMethod?: (typeof CONTACT_METHOD_OPTIONS)[number];
+
+  @ApiProperty({ required: false, example: '@ivan_petrov', description: 'Обязательно для исполнителя' })
+  @ValidateIf((o) => o.role === 'performer')
+  @IsString()
+  @IsNotEmpty({ message: 'Укажите контакт' })
+  @MaxLength(255)
+  contactValue?: string;
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  email!: string;
+  @ApiProperty({ example: 'ivan_petrov' })
+  @IsString()
+  login!: string;
 
   @ApiProperty({ example: 'password123' })
   @IsString()
@@ -56,9 +73,13 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Регистрация нового пользователя' })
   @ApiResponse({ status: 201, description: 'Аккаунт создан' })
-  @ApiResponse({ status: 409, description: 'Email уже занят' })
+  @ApiResponse({ status: 409, description: 'Логин уже занят' })
   async register(@Body() body: RegisterDto) {
-    return this.authService.register(body.email, body.password, body.fullName, body.role ?? 'client');
+    return this.authService.register(body.login, body.password, body.login, body.role ?? 'client', {
+      phone: body.phone,
+      contactMethod: body.contactMethod,
+      contactValue: body.contactValue,
+    });
   }
 
   @Post('login')
@@ -67,7 +88,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Успешный вход' })
   @ApiResponse({ status: 401, description: 'Неверные учётные данные' })
   async login(@Body() body: LoginDto) {
-    return this.authService.login(body.email, body.password);
+    return this.authService.login(body.login, body.password);
   }
 
   @Post('refresh')
@@ -95,7 +116,7 @@ export class AuthController {
     const user = await this.usersService.findById(userId);
     return {
       id: user?.id ?? req.user.userId,
-      email: user?.email ?? req.user.email,
+      login: user?.login ?? req.user.login,
       role: user?.role ?? req.user.role,
       status: user?.status ?? 'active',
       fullName: user?.fullName ?? null,

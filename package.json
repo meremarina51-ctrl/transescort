@@ -16,7 +16,8 @@
     "db:migrate": "turbo run db:migrate",
     "db:studio": "turbo run db:studio",
     "db:bootstrap": "npm run db:migrate --workspace=@transescort/db",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "deploy:vps": "npm install && npm run db:migrate && npm run build && pm2 restart transescort-api transescort-web --update-env"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

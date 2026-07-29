@@ -3,21 +3,28 @@ import { eq } from 'drizzle-orm';
 import { users, type User } from '@transescort/db';
 import * as bcrypt from 'bcrypt';
 
+interface CreateUserExtra {
+  phone?: string;
+  contactMethod?: 'telegram' | 'email' | 'phone' | 'whatsapp';
+  contactValue?: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(@Inject('DRIZZLE') private readonly db: any) {}
 
   async createUser(
-    email: string,
+    login: string,
     password: string,
     fullName: string,
     role: 'client' | 'performer' = 'client',
+    extra: CreateUserExtra = {},
   ): Promise<User> {
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedLogin = login.toLowerCase().trim();
 
-    const existing = await this.findByEmail(normalizedEmail);
+    const existing = await this.findByLogin(normalizedLogin);
     if (existing) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('User with this login already exists');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -25,21 +32,24 @@ export class UsersService {
     const inserted = await this.db
       .insert(users)
       .values({
-        email: normalizedEmail,
+        login: normalizedLogin,
         passwordHash,
         fullName,
         role,
+        phone: extra.phone,
+        contactMethod: extra.contactMethod,
+        contactValue: extra.contactValue,
       })
       .returning();
 
     return inserted[0];
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByLogin(login: string): Promise<User | null> {
     const found = await this.db
       .select()
       .from(users)
-      .where(eq(users.email, email.toLowerCase().trim()))
+      .where(eq(users.login, login.toLowerCase().trim()))
       .limit(1);
     return found[0] || null;
   }

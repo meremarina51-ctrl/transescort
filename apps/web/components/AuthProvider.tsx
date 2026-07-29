@@ -10,7 +10,7 @@ import { apiUrl } from '@/lib/api-url';
 
 interface User {
   id: string;
-  email: string;
+  login: string;
   fullName: string | null;
   role: 'client' | 'performer' | 'admin';
 }
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const fresh = await res.json();
       const updated: User = {
         id: fresh.id,
-        email: fresh.email,
+        login: fresh.login,
         fullName: fresh.fullName,
         role: fresh.role,
       };

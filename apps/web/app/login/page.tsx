@@ -9,9 +9,9 @@ import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login: authLogin } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [login, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function LoginPage() {
       const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ login, password }),
       });
 
       if (!response.ok) {
@@ -36,7 +36,7 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      login(data.accessToken, data.refreshToken, data.user);
+      authLogin(data.accessToken, data.refreshToken, data.user);
       router.push('/cabinet');
     } catch (err: any) {
       setError(err.message || 'Не удалось войти');
@@ -54,13 +54,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Email</label>
+              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Логин</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={login}
+                onChange={(e) => setLoginValue(e.target.value)}
                 required
-                placeholder="you@example.com"
+                placeholder="ivan_petrov"
                 className="input"
               />
             </div>

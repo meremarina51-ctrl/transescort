@@ -4,7 +4,7 @@ import Logo from './Logo';
 export function Footer() {
   return (
     <footer className="border-t border-white/[0.06] py-12">
-      <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           <div className="text-center md:text-left">
             <Logo className="text-xl" />
@@ -13,6 +13,7 @@ export function Footer() {
 
           <nav className="flex flex-wrap items-center justify-center gap-6 font-body text-xs text-white/40">
             <Link href="/#about" className="transition-colors hover:text-crimson">О нас</Link>
+            <Link href="/catalog" className="transition-colors hover:text-crimson">Каталог</Link>
             <Link href="/#pricing" className="transition-colors hover:text-crimson">Тарифы</Link>
           </nav>
 

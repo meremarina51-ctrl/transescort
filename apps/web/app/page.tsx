@@ -1,9 +1,31 @@
 import Image from 'next/image';
-import { Lock, BadgeCheck, Smartphone, Star } from 'lucide-react';
+import Link from 'next/link';
+import { Lock, BadgeCheck, Smartphone, Star, ImageOff } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { HomeCtaButtons } from '@/components/HomeCtaButtons';
-import { MOCK_PROFILES, MOCK_REVIEWS, MOCK_TARIFFS } from '@/lib/mock-data';
+import { MOCK_REVIEWS, MOCK_TARIFFS } from '@/lib/mock-data';
+import { apiUrl } from '@/lib/api-url';
+
+interface CatalogListing {
+  id: string;
+  slug: string | null;
+  name: string | null;
+  age: number | null;
+  city: string | null;
+  photos: string[];
+}
+
+async function getLatestListings(): Promise<CatalogListing[]> {
+  try {
+    const res = await fetch(apiUrl('/catalog'), { cache: 'no-store' });
+    if (!res.ok) return [];
+    const listings: CatalogListing[] = await res.json();
+    return listings.slice(0, 5);
+  } catch {
+    return [];
+  }
+}
 
 const FEATURES = [
   {
@@ -23,7 +45,9 @@ const FEATURES = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const latestListings = await getLatestListings();
+
   return (
     <div className="bg-[#0a0a0a] text-white">
       <Header />
@@ -46,7 +70,7 @@ export default function HomePage() {
               'radial-gradient(60% 50% at 30% 0%, rgba(201,168,106,0.18), transparent 70%)',
           }}
         />
-        <div className="relative mx-auto max-w-[1200px] px-6 md:px-10">
+        <div className="relative mx-auto max-w-[1400px] px-6 md:px-10">
           <div className="max-w-xl text-left">
             <h1 className="font-display text-3xl font-extrabold leading-tight md:text-5xl">
               Платформа <span className="text-[#C9A86A]">проверенных</span> анкет
@@ -65,7 +89,7 @@ export default function HomePage() {
 
       {/* BENEFITS */}
       <section className="border-t border-white/[0.04] py-20 md:py-28">
-        <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+        <div className="mx-auto max-w-[1400px] px-6 md:px-10">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {FEATURES.map(({ Icon, title, text }) => (
               <div key={title} className="card group p-6">
@@ -82,30 +106,48 @@ export default function HomePage() {
 
       {/* ИСПОЛНИТЕЛИ */}
       <section className="border-t border-white/[0.04] py-20 md:py-28">
-        <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+        <div className="mx-auto max-w-[1400px] px-6 md:px-10">
           <div className="mb-12 flex items-end justify-between gap-4">
             <h2 className="font-display text-2xl font-extrabold md:text-4xl">Исполнители</h2>
-            <button type="button" className="font-body text-sm font-medium text-crimson hover:underline">
+            <Link href="/catalog" className="font-body text-sm font-medium text-crimson hover:underline">
               Показать все &rarr;
-            </button>
+            </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
-            {MOCK_PROFILES.map((p) => (
-              <div key={p.id} className="card overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://picsum.photos/seed/${p.photoSeed}/300/400`}
-                  alt={p.name}
-                  className="aspect-[3/4] w-full object-cover"
-                />
-                <div className="p-3">
-                  <h3 className="font-display text-sm font-bold">{p.name}</h3>
-                  <p className="mt-1 font-body text-xs text-white/40">{p.age} лет &middot; {p.city}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {latestListings.length === 0 ? (
+            <p className="font-body text-sm text-white/40">Пока нет опубликованных анкет</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+              {latestListings.map((listing) => (
+                <Link
+                  key={listing.id}
+                  href={`/catalog/${listing.slug ?? listing.id}`}
+                  className="card group overflow-hidden"
+                >
+                  {listing.photos[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={listing.photos[0]}
+                      alt={listing.name ?? ''}
+                      className="aspect-[3/4] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex aspect-[3/4] w-full items-center justify-center bg-white/[0.03]">
+                      <ImageOff className="h-8 w-8 text-white/15" strokeWidth={1.4} />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <h3 className="font-display text-sm font-bold group-hover:text-crimson transition-colors">
+                      {listing.name || 'Без имени'}
+                    </h3>
+                    <p className="mt-1 font-body text-xs text-white/40">
+                      {[listing.age ? `${listing.age} лет` : null, listing.city].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -137,7 +179,7 @@ export default function HomePage() {
 
       {/* ТАРИФЫ */}
       <section id="pricing" className="border-t border-white/[0.04] py-20 md:py-28">
-        <div className="mx-auto max-w-[1200px] px-6 text-center md:px-10">
+        <div className="mx-auto max-w-[1400px] px-6 text-center md:px-10">
           <h2 className="font-display text-2xl font-extrabold md:text-4xl">Тарифы</h2>
           <p className="mt-3 font-body text-white/40">Выберите тариф, который подходит именно вам</p>
 
