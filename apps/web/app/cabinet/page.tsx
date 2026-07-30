@@ -1,23 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { User, Settings } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
-
-const TILES = [
-  {
-    href: '/cabinet/profile',
-    icon: User,
-    title: 'Профиль',
-    description: 'Имя, логин и данные аккаунта',
-  },
-  {
-    href: '/cabinet/settings',
-    icon: Settings,
-    title: 'Настройки',
-    description: 'Сессия и выход из аккаунта',
-  },
-] as const;
+import { OVERVIEW_TILES } from './cabinet.constants';
 
 export default function CabinetOverviewPage() {
   const { user } = useAuth();
@@ -28,7 +13,7 @@ export default function CabinetOverviewPage() {
       <p className="mb-6 font-body text-white/40">Это личный кабинет — добавляйте сюда свои разделы.</p>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        {TILES.map(({ href, icon: Icon, title, description }) => (
+        {OVERVIEW_TILES.map(({ href, icon: Icon, title, description }) => (
           <Link key={href} href={href} className="card group p-6">
             <Icon className="mb-4 h-9 w-9 text-crimson" strokeWidth={1.4} />
             <h3 className="font-display text-base font-bold transition-colors group-hover:text-crimson">

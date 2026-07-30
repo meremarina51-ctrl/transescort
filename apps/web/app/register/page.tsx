@@ -8,15 +8,7 @@ import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { Select } from '@/components/Select';
-
-type Role = 'client' | 'performer';
-
-const CONTACT_METHOD_OPTIONS = [
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Телефон' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-];
+import { type Role, CONTACT_METHOD_OPTIONS } from './register.constants';
 
 function RequiredMark() {
   return <span className="text-red-400"> *</span>;

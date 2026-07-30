@@ -1,20 +1,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Lock, BadgeCheck, Smartphone, Star, ImageOff } from 'lucide-react';
+import { Star, ImageOff } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { HomeCtaButtons } from '@/components/HomeCtaButtons';
 import { MOCK_REVIEWS, MOCK_TARIFFS } from '@/lib/mock-data';
 import { apiUrl } from '@/lib/api-url';
-
-interface CatalogListing {
-  id: string;
-  slug: string | null;
-  name: string | null;
-  age: number | null;
-  city: string | null;
-  photos: string[];
-}
+import type { CatalogListing } from './catalog/catalog.types';
+import { FEATURES } from './home.constants';
 
 async function getLatestListings(): Promise<CatalogListing[]> {
   try {
@@ -26,24 +19,6 @@ async function getLatestListings(): Promise<CatalogListing[]> {
     return [];
   }
 }
-
-const FEATURES = [
-  {
-    Icon: Lock,
-    title: 'Приватность',
-    text: 'Полная анонимность и конфиденциальность всех взаимодействий',
-  },
-  {
-    Icon: BadgeCheck,
-    title: 'Верификация',
-    text: 'Каждая модель проходит тщательную проверку подлинности и качества',
-  },
-  {
-    Icon: Smartphone,
-    title: 'Удобная платформа',
-    text: 'Современный интерфейс с мгновенной связью и защищенным бронированием',
-  },
-];
 
 export default async function HomePage() {
   const latestListings = await getLatestListings();

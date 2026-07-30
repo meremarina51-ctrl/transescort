@@ -3,21 +3,10 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ListingGallery } from '@/components/ListingGallery';
 import { apiUrl } from '@/lib/api-url';
+import type { ListingAttributes } from '@/lib/listing.types';
 
-interface ListingDetail {
+interface ListingDetail extends ListingAttributes {
   id: string;
-  name: string | null;
-  age: number | null;
-  height: number | null;
-  weight: number | null;
-  breastSize: number | null;
-  type: string | null;
-  figure: string | null;
-  temperament: string | null;
-  hairColor: string | null;
-  eyeColor: string | null;
-  country: string | null;
-  city: string | null;
   bio: string | null;
   photos: string[];
   videoUrl: string | null;

@@ -14,31 +14,22 @@ import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
+import {
+  TYPE_OPTIONS,
+  FIGURE_OPTIONS,
+  TEMPERAMENT_OPTIONS,
+  HAIR_COLOR_OPTIONS,
+  EYE_COLOR_OPTIONS,
+  COUNTRY_OPTIONS,
+  CITY_OPTIONS,
+  toSelectOptions,
+} from '@/lib/listing-options';
+import type { ListingAttributes } from '@/lib/listing.types';
 
-const TYPE_OPTIONS = ['Активный', 'Универсал', 'Пассивный'];
-const FIGURE_OPTIONS = ['Стройная', 'Спортивная', 'Худощавая', 'Пышная', 'Модельная'];
-const TEMPERAMENT_OPTIONS = ['Нежная', 'Страстная', 'Доминантная', 'Игривая', 'Спокойная'];
-const HAIR_COLOR_OPTIONS = ['Блондинка', 'Брюнетка', 'Шатенка', 'Рыжая', 'Другой'];
-const EYE_COLOR_OPTIONS = ['Голубые', 'Зелёные', 'Карие', 'Серые', 'Чёрные'];
-const COUNTRY_OPTIONS = ['Россия', 'Беларусь', 'Украина', 'Казахстан', 'Другая'];
-const CITY_OPTIONS = ['Москва', 'Балашиха', 'Люберцы', 'Одинцово', 'Химки', 'Мытищи', 'Подольск', 'Другой'];
-
-const toSelectOptions = (values: string[]) => values.map((v) => ({ value: v, label: v }));
-
-interface ListingParams {
+/** Form state — unlike the read-only ListingAttributes shape, name/bio are always controlled strings, never null. */
+interface ListingParams extends Omit<ListingAttributes, 'name'> {
   bio: string;
   name: string;
-  age: number | null;
-  height: number | null;
-  weight: number | null;
-  breastSize: number | null;
-  type: string | null;
-  figure: string | null;
-  temperament: string | null;
-  hairColor: string | null;
-  eyeColor: string | null;
-  country: string | null;
-  city: string | null;
 }
 
 const EMPTY_PARAMS: ListingParams = {

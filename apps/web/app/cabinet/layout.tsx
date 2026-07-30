@@ -3,45 +3,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Home,
-  User,
-  Settings,
-  LogOut,
-  FileText,
-  BarChart3,
-  CreditCard,
-  ChevronLeft,
-  ChevronRight,
-  Globe,
-  Menu,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight, Globe, Menu, X } from 'lucide-react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthProvider';
 import Logo from '@/components/Logo';
-
-const SIDEBAR_COLLAPSED_KEY = 'cabinet-sidebar-collapsed';
-
-const BASE_NAV = [{ href: '/cabinet', label: 'Обзор', icon: Home }] as const;
-
-const PERFORMER_NAV = [
-  { href: '/cabinet/listing', label: 'Моя анкета', icon: FileText },
-  { href: '/cabinet/profile', label: 'Профиль', icon: User },
-  { href: '/cabinet/stats', label: 'Статистика', icon: BarChart3 },
-  { href: '/cabinet/tariff', label: 'Тариф', icon: CreditCard },
-] as const;
-
-const DEFAULT_NAV = [{ href: '/cabinet/profile', label: 'Профиль', icon: User }] as const;
-
-const TAIL_NAV = [{ href: '/cabinet/settings', label: 'Настройки', icon: Settings }] as const;
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
+import { SIDEBAR_COLLAPSED_KEY, BASE_NAV, PERFORMER_NAV, DEFAULT_NAV, TAIL_NAV, type NavItem } from './cabinet.constants';
 
 /** Nav links + bottom actions, shared between the desktop rail and the mobile overlay. */
 function SidebarNav({

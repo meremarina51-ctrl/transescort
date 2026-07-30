@@ -6,12 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
 import { useAuthOrGuest } from './AuthProvider';
-
-const NAV_LINKS = [
-  { href: '/#about', label: 'О нас' },
-  { href: '/catalog', label: 'Каталог' },
-  { href: '/#pricing', label: 'Тарифы' },
-] as const;
+import { NAV_LINKS } from './Header.constants';
 
 export function Header() {
   const { user, privateAreaHref, privateAreaLabel } = useAuthOrGuest();
