@@ -58,9 +58,16 @@ export function Header() {
 
         <div className="col-start-3 hidden items-center gap-4 justify-self-end md:flex">
           {user ? (
-            <Link href={privateAreaHref} className="btn-secondary !px-6 !py-2.5">
-              {privateAreaLabel}
-            </Link>
+            <>
+              <Link href={privateAreaHref} className="btn-secondary !px-6 !py-2.5">
+                {privateAreaLabel}
+              </Link>
+              {user.role === 'admin' ? (
+                <Link href="/admin" className="btn-primary !px-6 !py-2.5">
+                  Панель
+                </Link>
+              ) : null}
+            </>
           ) : (
             <Link href="/login" className="btn-primary !px-6 !py-2.5">
               Войти
@@ -93,9 +100,16 @@ export function Header() {
             </Link>
           ))}
           {user ? (
-            <Link href={privateAreaHref} className="btn-secondary mt-4" onClick={() => setOpen(false)}>
-              {privateAreaLabel}
-            </Link>
+            <>
+              <Link href={privateAreaHref} className="btn-secondary mt-4" onClick={() => setOpen(false)}>
+                {privateAreaLabel}
+              </Link>
+              {user.role === 'admin' ? (
+                <Link href="/admin" className="btn-primary" onClick={() => setOpen(false)}>
+                  Панель
+                </Link>
+              ) : null}
+            </>
           ) : (
             <Link href="/login" className="btn-primary mt-4" onClick={() => setOpen(false)}>
               Войти

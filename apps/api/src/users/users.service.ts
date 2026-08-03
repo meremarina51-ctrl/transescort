@@ -1,7 +1,13 @@
 import { Injectable, Inject, ConflictException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { users, type User } from '@transescort/db';
 import * as bcrypt from 'bcrypt';
+
+export type PublicUser = Omit<User, 'passwordHash'>;
+
+function toPublicUser({ passwordHash: _passwordHash, ...rest }: User): PublicUser {
+  return rest;
+}
 
 interface CreateUserExtra {
   phone?: string;
@@ -77,5 +83,23 @@ export class UsersService {
     if (data.phone !== undefined) patch.phone = data.phone || null;
 
     await this.db.update(users).set(patch).where(eq(users.id, id));
+  }
+
+  async listAll(): Promise<PublicUser[]> {
+    const rows: User[] = await this.db.select().from(users).orderBy(desc(users.createdAt));
+    return rows.map(toPublicUser);
+  }
+
+  async findPublicById(id: string): Promise<PublicUser | null> {
+    const user = await this.findById(id);
+    return user ? toPublicUser(user) : null;
+  }
+
+  async setStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
+    await this.db.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, id));
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.db.delete(users).where(eq(users.id, id));
   }
 }

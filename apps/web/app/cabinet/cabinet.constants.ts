@@ -10,7 +10,6 @@ import {
   MessageCircle,
   Star,
   LifeBuoy,
-  type LucideIcon,
 } from 'lucide-react';
 
 export const OVERVIEW_TILES = [
@@ -29,12 +28,6 @@ export const OVERVIEW_TILES = [
 ] as const;
 
 export const SIDEBAR_COLLAPSED_KEY = 'cabinet-sidebar-collapsed';
-
-export interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
 
 export const BASE_NAV = [{ href: '/cabinet', label: 'Обзор', icon: Home }] as const;
 
