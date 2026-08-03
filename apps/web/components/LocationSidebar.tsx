@@ -48,7 +48,7 @@ function SidebarContent({
         type="button"
         onClick={() => handleSelect('', '')}
         className={`flex items-center gap-2.5 px-4 py-2 text-left font-body text-sm transition-colors ${
-          !selectedCountry && !selectedCity ? 'bg-crimson/[0.08] text-crimson' : 'text-white/45 hover:text-white/75'
+          !selectedCountry && !selectedCity ? 'bg-accent/[0.08] text-accent' : 'text-white/45 hover:text-white/75'
         }`}
       >
         <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
@@ -68,7 +68,7 @@ function SidebarContent({
                 type="button"
                 onClick={() => handleSelect(country, '')}
                 className={`flex flex-1 items-center gap-2.5 px-4 py-2 text-left font-body text-sm transition-colors ${
-                  countryActive ? 'bg-crimson/[0.08] text-crimson' : 'text-white/55 hover:text-white/85'
+                  countryActive ? 'bg-accent/[0.08] text-accent' : 'text-white/55 hover:text-white/85'
                 }`}
               >
                 <span className="flex-1 truncate">{country}</span>
@@ -98,11 +98,11 @@ function SidebarContent({
                         type="button"
                         onClick={() => handleSelect(country, city)}
                         className={`relative flex w-full items-center py-1.5 pl-10 pr-4 text-left font-body text-xs transition-colors ${
-                          cityActive ? 'text-crimson' : 'text-white/32 hover:text-white/60'
+                          cityActive ? 'text-accent' : 'text-white/32 hover:text-white/60'
                         }`}
                       >
                         {cityActive && (
-                          <span className="absolute left-0 top-0 h-full w-[2px] rounded-r-full bg-crimson" aria-hidden />
+                          <span className="absolute left-0 top-0 h-full w-[2px] rounded-r-full bg-accent" aria-hidden />
                         )}
                         {city}
                       </button>

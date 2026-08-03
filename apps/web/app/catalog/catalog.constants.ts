@@ -43,4 +43,4 @@ export const EMPTY_CATEGORICAL: Filters['categorical'] = {
 };
 
 export const numberInputClass =
-  'w-16 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-2 py-1.5 text-center font-body text-xs text-white outline-none placeholder:text-white/20 focus:border-crimson [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+  'w-16 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-2 py-1.5 text-center font-body text-xs text-white outline-none placeholder:text-white/20 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';

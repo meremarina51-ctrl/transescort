@@ -14,7 +14,7 @@ export default function SettingsPage() {
         <div className="card p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-crimson/10 text-crimson">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <Send className="h-5 w-5" strokeWidth={1.6} />
               </div>
               <div>

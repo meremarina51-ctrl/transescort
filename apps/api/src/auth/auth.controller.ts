@@ -1,6 +1,16 @@
 import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
-import { IsString, IsIn, IsOptional, IsNotEmpty, MinLength, MaxLength, Matches, ValidateIf } from 'class-validator';
+import {
+  IsString,
+  IsIn,
+  IsEmail,
+  IsOptional,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -62,6 +72,27 @@ export class RefreshTokenDto {
   refreshToken!: string;
 }
 
+export class UpdateProfileDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  fullName?: string;
+
+  @ApiProperty({ required: false, description: 'Необязательно, для профиля клиента' })
+  @IsOptional()
+  @ValidateIf((o) => o.email !== undefined && o.email !== '')
+  @IsEmail({}, { message: 'Некорректный email' })
+  @MaxLength(255)
+  email?: string;
+
+  @ApiProperty({ required: false, description: 'WhatsApp, необязательно' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+}
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -120,18 +151,34 @@ export class AuthController {
       role: user?.role ?? req.user.role,
       status: user?.status ?? 'active',
       fullName: user?.fullName ?? null,
+      email: user?.email ?? null,
+      phone: user?.phone ?? null,
+      createdAt: user?.createdAt ?? null,
     };
   }
 
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Обновить имя пользователя' })
-  async updateProfile(@Request() req: any, @Body() body: { fullName?: string }) {
+  @ApiOperation({ summary: 'Обновить профиль пользователя' })
+  async updateProfile(@Request() req: any, @Body() body: UpdateProfileDto) {
     const userId = req.user.userId as string;
-    if (body.fullName?.trim()) {
-      await this.usersService.updateFullName(userId, body.fullName.trim());
-    }
-    return { ok: true };
+    await this.usersService.updateProfile(userId, {
+      fullName: body.fullName?.trim(),
+      email: body.email !== undefined ? body.email.trim() : undefined,
+      phone: body.phone !== undefined ? body.phone.trim() : undefined,
+    });
+
+    const user = await this.usersService.findById(userId);
+    return {
+      id: user?.id ?? userId,
+      login: user?.login,
+      role: user?.role,
+      status: user?.status ?? 'active',
+      fullName: user?.fullName ?? null,
+      email: user?.email ?? null,
+      phone: user?.phone ?? null,
+      createdAt: user?.createdAt ?? null,
+    };
   }
 }

@@ -28,7 +28,7 @@ export function Select({ value, onChange, options, placeholder = '-', light = fa
 
   const buttonBase = L
     ? 'w-full rounded border border-[#8c8f94] bg-white px-2 py-1.5 text-sm text-[#2c3338] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] outline-none focus:border-[#2271b1] focus:shadow-[0_0_0_1px_#2271b1]'
-    : 'w-full rounded-lg border border-white/[0.06] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none focus:border-crimson';
+    : 'w-full rounded-lg border border-white/[0.06] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none focus:border-accent';
 
   return (
     <div ref={ref} className="relative">
@@ -37,13 +37,13 @@ export function Select({ value, onChange, options, placeholder = '-', light = fa
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={`${buttonBase} flex w-full cursor-pointer items-center justify-between gap-2 text-left transition-colors ${
-          open ? (L ? 'border-[#2271b1]' : 'border-crimson/40') : ''
+          open ? (L ? 'border-[#2271b1]' : 'border-accent/40') : ''
         }`}
       >
         <span className="truncate">{currentLabel}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${
-            L ? 'text-[#2271b1]/60' : 'text-crimson/60'
+            L ? 'text-[#2271b1]/60' : 'text-accent/60'
           }`}
         />
       </button>
@@ -68,7 +68,7 @@ export function Select({ value, onChange, options, placeholder = '-', light = fa
                   active
                     ? L
                       ? 'bg-[#f0f6fc] text-[#2271b1]'
-                      : 'bg-crimson/10 text-crimson'
+                      : 'bg-accent/10 text-accent'
                     : L
                       ? 'text-[#2c3338] hover:bg-[#f6f7f7]'
                       : 'text-white/60 hover:bg-white/[0.04] hover:text-white'

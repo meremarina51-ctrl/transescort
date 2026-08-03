@@ -16,6 +16,8 @@ export const users = pgTable(
       .notNull()
       .default('active'),
 
+    /** Optional profile contact info, editable in the cabinet — not used for auth. */
+    email: varchar('email', { length: 255 }),
     /** Client-only, optional. */
     phone: varchar('phone', { length: 32 }),
     /** Performer-only, required at registration — how clients reach them. */

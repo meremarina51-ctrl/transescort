@@ -23,7 +23,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
       type="button"
       onClick={onClick}
       className={`rounded-full px-3.5 py-1.5 font-body text-xs font-medium transition-colors ${
-        active ? 'bg-crimson text-black' : 'text-white/40 hover:text-white/70'
+        active ? 'bg-accent text-white' : 'text-white/40 hover:text-white/70'
       }`}
     >
       {children}
@@ -122,7 +122,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Поиск по имени"
-              className="w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2.5 pl-10 pr-4 font-body text-sm text-white outline-none placeholder:text-white/30 focus:border-crimson/50"
+              className="w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2.5 pl-10 pr-4 font-body text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/50"
             />
           </div>
 
@@ -139,7 +139,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
               onClick={() => setMobileLocationOpen(true)}
               className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-body text-xs font-medium transition-colors md:hidden ${
                 locationLabel
-                  ? 'border-crimson/40 bg-crimson/10 text-crimson'
+                  ? 'border-accent/40 bg-accent/10 text-accent'
                   : 'border-white/10 text-white/40 hover:text-white/70'
               }`}
             >
@@ -163,7 +163,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                   onClick={() => setPanelOpen((v) => !v)}
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-body text-xs font-medium transition-colors ${
                     panelOpen || hasAdvancedFilters
-                      ? 'border-crimson/40 bg-crimson/10 text-crimson'
+                      ? 'border-accent/40 bg-accent/10 text-accent'
                       : 'border-white/10 text-white/40 hover:text-white/70'
                   }`}
                 >
@@ -244,7 +244,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                   </div>
                 )}
                 <div className="p-5">
-                  <h3 className="font-display text-xl font-bold transition-colors group-hover:text-crimson">
+                  <h3 className="font-display text-xl font-bold transition-colors group-hover:text-accent">
                     {listing.name || 'Без имени'}
                   </h3>
                   <p className="mt-1 font-body text-sm text-white/40">

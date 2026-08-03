@@ -6,7 +6,7 @@
  */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiUrl } from '@/lib/api-url';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface User {
   id: string;
@@ -47,9 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
     try {
-      const res = await fetch(apiUrl('/auth/me'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch('/auth/me');
       if (!res.ok) return;
       const fresh = await res.json();
       const updated: User = {

@@ -15,10 +15,10 @@ export default function Logo({ className = '' }: { className?: string }) {
           onMouseEnter={() => setHovered(i)}
           onMouseLeave={() => setHovered(null)}
           style={{
-            color: hovered === i ? 'var(--crimson-light)' : 'var(--crimson-primary)',
+            color: hovered === i ? 'var(--accent-light)' : 'var(--accent-primary)',
             textShadow:
               hovered === i
-                ? '0 0 14px rgba(201,168,106,0.85), 0 0 28px rgba(227,196,143,0.4)'
+                ? '0 0 14px rgba(108,92,231,0.85), 0 0 28px rgba(162,155,254,0.4)'
                 : 'none',
             transition: 'color 120ms ease-out, text-shadow 120ms ease-out',
           }}

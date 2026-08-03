@@ -67,7 +67,15 @@ export class UsersService {
     await this.db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
   }
 
-  async updateFullName(id: string, fullName: string): Promise<void> {
-    await this.db.update(users).set({ fullName, updatedAt: new Date() }).where(eq(users.id, id));
+  async updateProfile(
+    id: string,
+    data: { fullName?: string; email?: string; phone?: string },
+  ): Promise<void> {
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.fullName !== undefined && data.fullName !== '') patch.fullName = data.fullName;
+    if (data.email !== undefined) patch.email = data.email || null;
+    if (data.phone !== undefined) patch.phone = data.phone || null;
+
+    await this.db.update(users).set(patch).where(eq(users.id, id));
   }
 }

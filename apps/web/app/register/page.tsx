@@ -20,7 +20,6 @@ export default function RegisterPage() {
   const [role, setRole] = useState<Role>('client');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
   const [contactMethod, setContactMethod] = useState<string | null>(null);
   const [contactValue, setContactValue] = useState('');
   const [error, setError] = useState('');
@@ -39,9 +38,7 @@ export default function RegisterPage() {
 
     try {
       const payload: Record<string, unknown> = { login, password, role };
-      if (role === 'client') {
-        if (phone.trim()) payload.phone = phone.trim();
-      } else {
+      if (role !== 'client') {
         payload.contactMethod = contactMethod;
         payload.contactValue = contactValue.trim();
       }
@@ -92,7 +89,7 @@ export default function RegisterPage() {
                     onClick={() => setRole(value)}
                     className={`rounded-lg border py-2.5 font-body text-sm font-medium transition-colors ${
                       role === value
-                        ? 'border-crimson/40 bg-crimson/10 text-crimson'
+                        ? 'border-accent/40 bg-accent/10 text-accent'
                         : 'border-white/10 text-white/40 hover:text-white/70'
                     }`}
                   >
@@ -133,18 +130,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {role === 'client' ? (
-              <div>
-                <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Телефон</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+7 999 123-45-67"
-                  className="input"
-                />
-              </div>
-            ) : (
+            {role === 'performer' ? (
               <>
                 <div>
                   <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
@@ -168,7 +154,7 @@ export default function RegisterPage() {
                   />
                 </div>
               </>
-            )}
+            ) : null}
 
             {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
 
@@ -179,7 +165,7 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center font-body text-sm text-white/40">
             Уже есть аккаунт?{' '}
-            <Link href="/login" className="font-medium text-crimson hover:underline">
+            <Link href="/login" className="font-medium text-accent hover:underline">
               Войти
             </Link>
           </p>

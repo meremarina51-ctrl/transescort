@@ -11,10 +11,10 @@ module.exports = {
         body: ['var(--font-inter)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       colors: {
-        crimson: {
-          DEFAULT: '#C9A86A',
-          light: '#E3C48F',
-          dark: '#8A6B3C',
+        accent: {
+          DEFAULT: '#6C5CE7',
+          light: '#A29BFE',
+          dark: '#4834B0',
         },
         surface: '#141414',
         elevated: '#1e1e1e',

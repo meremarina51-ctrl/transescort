@@ -49,7 +49,7 @@ export function Header() {
               key={link.href}
               href={link.href}
               onClick={(e) => handleNavClick(e, link.href)}
-              className="font-body text-sm text-white/60 transition-colors hover:text-crimson"
+              className="font-body text-sm text-white/60 transition-colors hover:text-accent"
             >
               {link.label}
             </Link>
@@ -87,7 +87,7 @@ export function Header() {
               key={link.href}
               href={link.href}
               onClick={(e) => handleNavClick(e, link.href)}
-              className="font-display text-2xl font-semibold text-white/80 transition-colors hover:text-crimson"
+              className="font-display text-2xl font-semibold text-white/80 transition-colors hover:text-accent"
             >
               {link.label}
             </Link>

@@ -86,10 +86,10 @@ export function ListingGallery({ name, photos, videoUrl, vitals, bio }: Props) {
       </div>
 
       <div className="border-t border-white/[0.06] bg-black p-3 lg:h-[calc(100vh-4rem)] lg:w-[26%] lg:border-l lg:border-t-0">
-        <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border-[3px] border-crimson/40 bg-[#161616]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border-[3px] border-accent/40 bg-[#161616]">
           <div className="flex-shrink-0 px-4 pb-3 pt-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-white/10 ring-2 ring-crimson/40 ring-offset-1 ring-offset-[#161616]">
+              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-white/10 ring-2 ring-accent/40 ring-offset-1 ring-offset-[#161616]">
                 {photos[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photos[0]} alt={name} className="h-full w-full object-cover" />
@@ -125,13 +125,13 @@ export function ListingGallery({ name, photos, videoUrl, vitals, bio }: Props) {
                         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                         <video src={item.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-crimson">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-accent">
                             <Play className="h-3 w-3 fill-current" strokeWidth={0} />
                           </span>
                         </div>
                       </>
                     )}
-                    {active === i && <div className="pointer-events-none absolute inset-0 border-2 border-crimson" />}
+                    {active === i && <div className="pointer-events-none absolute inset-0 border-2 border-accent" />}
                   </button>
                 ))}
               </div>

@@ -1,4 +1,17 @@
-import { Home, User, Settings, FileText, BarChart3, CreditCard, type LucideIcon } from 'lucide-react';
+import {
+  Home,
+  User,
+  Settings,
+  FileText,
+  BarChart3,
+  CreditCard,
+  LayoutGrid,
+  Heart,
+  MessageCircle,
+  Star,
+  LifeBuoy,
+  type LucideIcon,
+} from 'lucide-react';
 
 export const OVERVIEW_TILES = [
   {
@@ -30,6 +43,15 @@ export const PERFORMER_NAV = [
   { href: '/cabinet/profile', label: 'Профиль', icon: User },
   { href: '/cabinet/stats', label: 'Статистика', icon: BarChart3 },
   { href: '/cabinet/tariff', label: 'Тариф', icon: CreditCard },
+] as const;
+
+export const CLIENT_NAV = [
+  { href: '/catalog', label: 'Каталог', icon: LayoutGrid },
+  { href: '/cabinet/favorites', label: 'Избранное', icon: Heart },
+  { href: '/cabinet/messages', label: 'Сообщения', icon: MessageCircle },
+  { href: '/cabinet/reviews', label: 'Мои отзывы', icon: Star },
+  { href: '/cabinet/profile', label: 'Профиль', icon: User },
+  { href: '/cabinet/support', label: 'Поддержка', icon: LifeBuoy },
 ] as const;
 
 export const DEFAULT_NAV = [{ href: '/cabinet/profile', label: 'Профиль', icon: User }] as const;

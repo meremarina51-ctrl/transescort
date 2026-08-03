@@ -42,13 +42,13 @@ export default async function HomePage() {
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(60% 50% at 30% 0%, rgba(201,168,106,0.18), transparent 70%)',
+              'radial-gradient(60% 50% at 30% 0%, rgba(108,92,231,0.22), transparent 70%)',
           }}
         />
         <div className="relative mx-auto max-w-[1400px] px-6 md:px-10">
           <div className="max-w-xl text-left">
             <h1 className="font-display text-3xl font-extrabold leading-tight md:text-5xl">
-              Платформа <span className="text-[#C9A86A]">проверенных</span> анкет
+              Платформа <span className="text-accent">проверенных</span> анкет
             </h1>
             <p className="mt-5 font-body text-base text-[#C9CDD3] md:text-lg">
               Сервис по подбору моделей для досуга в Москве и Московской области
@@ -68,8 +68,8 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {FEATURES.map(({ Icon, title, text }) => (
               <div key={title} className="card group p-6">
-                <Icon className="mb-4 h-9 w-9 text-crimson" strokeWidth={1.4} />
-                <h3 className="font-display text-base font-bold group-hover:text-crimson transition-colors">
+                <Icon className="mb-4 h-9 w-9 text-accent" strokeWidth={1.4} />
+                <h3 className="font-display text-base font-bold group-hover:text-accent transition-colors">
                   {title}
                 </h3>
                 <p className="mt-2 font-body text-sm leading-relaxed text-white/40">{text}</p>
@@ -84,7 +84,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-[1400px] px-6 md:px-10">
           <div className="mb-12 flex items-end justify-between gap-4">
             <h2 className="font-display text-2xl font-extrabold md:text-4xl">Исполнители</h2>
-            <Link href="/catalog" className="font-body text-sm font-medium text-crimson hover:underline">
+            <Link href="/catalog" className="font-body text-sm font-medium text-accent hover:underline">
               Показать все &rarr;
             </Link>
           </div>
@@ -112,7 +112,7 @@ export default async function HomePage() {
                     </div>
                   )}
                   <div className="p-3">
-                    <h3 className="font-display text-sm font-bold group-hover:text-crimson transition-colors">
+                    <h3 className="font-display text-sm font-bold group-hover:text-accent transition-colors">
                       {listing.name || 'Без имени'}
                     </h3>
                     <p className="mt-1 font-body text-xs text-white/40">
@@ -138,7 +138,7 @@ export default async function HomePage() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-4 w-4 ${i < r.rating ? 'fill-crimson text-crimson' : 'text-white/15'}`}
+                      className={`h-4 w-4 ${i < r.rating ? 'fill-accent text-accent' : 'text-white/15'}`}
                     />
                   ))}
                 </div>
@@ -162,7 +162,7 @@ export default async function HomePage() {
             {MOCK_TARIFFS.map((tariff) => (
               <div key={tariff.id} className="card p-8">
                 <h3 className="font-display text-lg font-bold">{tariff.name}</h3>
-                <p className="mt-2 font-display text-3xl font-extrabold text-crimson">{tariff.price}</p>
+                <p className="mt-2 font-display text-3xl font-extrabold text-accent">{tariff.price}</p>
                 <ul className="mt-6 space-y-2 font-body text-sm text-white/45">
                   {tariff.features.map((f) => (
                     <li key={f}>&bull; {f}</li>

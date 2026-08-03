@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
-import { apiUrl } from '@/lib/api-url';
+import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
 import {
@@ -51,7 +51,7 @@ const EMPTY_PARAMS: ListingParams = {
 function TileHeader({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-crimson/10 text-crimson">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
         <Icon className="h-5 w-5" strokeWidth={1.6} />
       </div>
       <div>
@@ -99,15 +99,12 @@ export default function ListingPage() {
     }
 
     (async () => {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
+      if (!localStorage.getItem('accessToken')) {
         setLoading(false);
         return;
       }
       try {
-        const res = await fetch(apiUrl('/listings/me'), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch('/listings/me');
         if (res.ok) {
           const text = await res.text();
           const data = text ? JSON.parse(text) : null;
@@ -141,10 +138,9 @@ export default function ListingPage() {
   }, [user]);
 
   const patchListing = async (payload: Record<string, unknown>) => {
-    const token = localStorage.getItem('accessToken');
-    await fetch(apiUrl('/listings/me'), {
+    await authFetch('/listings/me', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
   };
@@ -176,14 +172,6 @@ export default function ListingPage() {
 
   const isDirty = JSON.stringify(params) !== JSON.stringify(initialParams);
 
-  const authedFetch = (url: string, init: RequestInit = {}) => {
-    const token = localStorage.getItem('accessToken');
-    return fetch(apiUrl(url), {
-      ...init,
-      headers: { ...init.headers, Authorization: `Bearer ${token}` },
-    });
-  };
-
   const parseBody = async (res: Response) => {
     const text = await res.text();
     return text ? JSON.parse(text) : null;
@@ -199,7 +187,7 @@ export default function ListingPage() {
     try {
       const formData = new FormData();
       files.forEach((file) => formData.append('files', file));
-      const res = await authedFetch('/listings/me/photos', { method: 'POST', body: formData });
+      const res = await authFetch('/listings/me/photos', { method: 'POST', body: formData });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить фото');
       setPhotos(data.photos ?? []);
@@ -213,7 +201,7 @@ export default function ListingPage() {
   const removePhoto = async (url: string) => {
     setPhotosError('');
     try {
-      const res = await authedFetch('/listings/me/photos', {
+      const res = await authFetch('/listings/me/photos', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -236,7 +224,7 @@ export default function ListingPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await authedFetch('/listings/me/video', { method: 'POST', body: formData });
+      const res = await authFetch('/listings/me/video', { method: 'POST', body: formData });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить видео');
       setVideoUrl(data.videoUrl ?? null);
@@ -250,7 +238,7 @@ export default function ListingPage() {
   const removeVideo = async () => {
     setVideoError('');
     try {
-      const res = await authedFetch('/listings/me/video', { method: 'DELETE' });
+      const res = await authFetch('/listings/me/video', { method: 'DELETE' });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить видео');
       setVideoUrl(data.videoUrl ?? null);
@@ -284,7 +272,7 @@ export default function ListingPage() {
       <div className="mb-6 flex items-center gap-3">
         <h1 className="font-display text-2xl font-bold">Моя анкета</h1>
         {status === 'published' ? (
-          <span className="badge badge-crimson">Опубликовано</span>
+          <span className="badge badge-accent">Опубликовано</span>
         ) : status === 'draft' ? (
           <span className="badge border border-white/10 bg-white/[0.06] text-white/40">Черновик</span>
         ) : null}
@@ -317,7 +305,7 @@ export default function ListingPage() {
                     </div>
                   ))}
                   <label
-                    className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-crimson/40 hover:text-crimson ${
+                    className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
                       uploadingPhotos ? 'pointer-events-none opacity-50' : ''
                     }`}
                   >
@@ -359,7 +347,7 @@ export default function ListingPage() {
               </div>
             ) : (
               <label
-                className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 py-10 text-white/30 transition-colors hover:border-crimson/40 hover:text-crimson ${
+                className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 py-10 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
                   uploadingVideo ? 'pointer-events-none opacity-50' : ''
                 }`}
               >
@@ -389,7 +377,7 @@ export default function ListingPage() {
                   onChange={(e) => setParams((p) => ({ ...p, name: e.target.value }))}
                   maxLength={100}
                   placeholder="Например, Алиса"
-                  className="w-full rounded-lg border border-white/[0.06] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-crimson"
+                  className="w-full rounded-lg border border-white/[0.06] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-accent"
                 />
               </Field>
             </div>

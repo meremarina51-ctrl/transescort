@@ -20,7 +20,7 @@ export function NumberStepper({ value, onChange, min = 0, max = 99, step = 1, pl
 
   return (
     <div
-      className={`flex items-center overflow-hidden rounded-lg border transition-colors focus-within:border-crimson/40 ${
+      className={`flex items-center overflow-hidden rounded-lg border transition-colors focus-within:border-accent/40 ${
         L ? 'border-[#8c8f94] bg-white focus-within:border-[#2271b1]' : 'border-white/[0.08] bg-[#0a0a0a]'
       }`}
     >

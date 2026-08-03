@@ -7,7 +7,15 @@ import { LogOut, ChevronLeft, ChevronRight, Globe, Menu, X } from 'lucide-react'
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthProvider';
 import Logo from '@/components/Logo';
-import { SIDEBAR_COLLAPSED_KEY, BASE_NAV, PERFORMER_NAV, DEFAULT_NAV, TAIL_NAV, type NavItem } from './cabinet.constants';
+import {
+  SIDEBAR_COLLAPSED_KEY,
+  BASE_NAV,
+  PERFORMER_NAV,
+  CLIENT_NAV,
+  DEFAULT_NAV,
+  TAIL_NAV,
+  type NavItem,
+} from './cabinet.constants';
 
 /** Nav links + bottom actions, shared between the desktop rail and the mobile overlay. */
 function SidebarNav({
@@ -43,7 +51,7 @@ function SidebarNav({
         </Link>
         <button
           onClick={logout}
-          className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-crimson px-4 py-3 font-body text-base font-semibold text-black transition-all hover:shadow-lg hover:shadow-crimson/30"
+          className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 py-3 font-body text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
           Выйти
@@ -77,13 +85,13 @@ function CabinetShell({ children }: { children: ReactNode }) {
 
   const nav: NavItem[] = [
     ...BASE_NAV,
-    ...(user?.role === 'performer' ? PERFORMER_NAV : DEFAULT_NAV),
+    ...(user?.role === 'performer' ? PERFORMER_NAV : user?.role === 'client' ? CLIENT_NAV : DEFAULT_NAV),
     ...TAIL_NAV,
   ];
 
   const linkClass = (active: boolean) =>
     `flex items-center gap-3 whitespace-nowrap rounded-lg px-4 py-3 font-body text-base font-medium transition-colors ${
-      active ? 'bg-crimson/10 text-crimson' : 'text-white/50 hover:bg-white/[0.04] hover:text-white'
+      active ? 'bg-accent/10 text-accent' : 'text-white/50 hover:bg-white/[0.04] hover:text-white'
     }`;
 
   return (

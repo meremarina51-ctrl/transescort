@@ -17,7 +17,7 @@ export default function Icon() {
           borderRadius: 6,
           fontSize: 20,
           fontWeight: 800,
-          color: '#C9A86A',
+          color: '#6C5CE7',
         }}
       >
         T
