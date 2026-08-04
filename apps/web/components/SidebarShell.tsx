@@ -20,6 +20,7 @@ function SidebarNav({
   pathname,
   linkClass,
   logout,
+  hideSiteLink,
   onNavigate,
 }: {
   nav: NavItem[];
@@ -27,6 +28,7 @@ function SidebarNav({
   pathname: string | null;
   linkClass: (active: boolean) => string;
   logout: () => void;
+  hideSiteLink?: boolean;
   onNavigate?: () => void;
 }) {
   return (
@@ -43,10 +45,12 @@ function SidebarNav({
         })}
       </nav>
       <div className="space-y-2">
-        <Link href="/" className={linkClass(false)} onClick={onNavigate}>
-          <Globe className="h-5 w-5 flex-shrink-0" />
-          На сайт
-        </Link>
+        {hideSiteLink ? null : (
+          <Link href="/" className={linkClass(false)} onClick={onNavigate}>
+            <Globe className="h-5 w-5 flex-shrink-0" />
+            На сайт
+          </Link>
+        )}
         <button
           onClick={logout}
           className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 py-3 font-body text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
@@ -64,11 +68,14 @@ export function SidebarShell({
   nav,
   rootHref,
   storageKey,
+  headerLinks,
   children,
 }: {
   nav: NavItem[];
   rootHref: string;
   storageKey: string;
+  /** Rendered in the top header instead of the sidebar (e.g. quick links like "Каталог" / "На сайт"). */
+  headerLinks?: NavItem[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -97,8 +104,10 @@ export function SidebarShell({
       active ? 'bg-accent/10 text-accent' : 'text-white/50 hover:bg-white/[0.04] hover:text-white'
     }`;
 
+  const hasHeaderLinks = Boolean(headerLinks && headerLinks.length > 0);
+
   return (
-    <div className="flex min-h-screen bg-[#0a0a0a] text-white">
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
       <div className="relative hidden flex-shrink-0 lg:block">
         <aside
           className={`flex h-full flex-col overflow-hidden border-r border-white/[0.06] py-6 transition-[width,padding] duration-200 ${
@@ -108,7 +117,14 @@ export function SidebarShell({
           <Link href="/" className="mb-8 block whitespace-nowrap text-lg">
             <Logo />
           </Link>
-          <SidebarNav nav={nav} rootHref={rootHref} pathname={pathname} linkClass={linkClass} logout={logout} />
+          <SidebarNav
+            nav={nav}
+            rootHref={rootHref}
+            pathname={pathname}
+            linkClass={linkClass}
+            logout={logout}
+            hideSiteLink={hasHeaderLinks}
+          />
         </aside>
 
         <button
@@ -120,8 +136,8 @@ export function SidebarShell({
         </button>
       </div>
 
-      <div className="min-w-0 flex-1">
-        <header className="flex h-16 items-center justify-between border-b border-white/[0.06] px-6 lg:hidden">
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-6 lg:hidden">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
@@ -132,14 +148,39 @@ export function SidebarShell({
             </button>
             <Logo className="text-lg" />
           </div>
-          <button onClick={logout} className="font-body text-sm text-white/50">
-            Выйти
-          </button>
+          <div className="flex items-center gap-2">
+            {headerLinks?.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                aria-label={item.label}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/25 bg-accent/10 text-accent transition-colors hover:bg-accent/20"
+              >
+                <item.icon className="h-4 w-4" />
+              </Link>
+            ))}
+            <button onClick={logout} className="ml-2 font-body text-sm text-white/50">
+              Выйти
+            </button>
+          </div>
         </header>
-        <header className="hidden h-16 items-center justify-end border-b border-white/[0.06] px-6 lg:flex">
+        <header className="hidden h-16 flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-6 lg:flex">
+          <div className="flex items-center gap-3">
+            {headerLinks?.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-4 py-2 font-body text-sm font-semibold text-accent transition-colors hover:bg-accent/20"
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            ))}
+          </div>
           <span className="font-body text-sm text-white/50">{user?.fullName ?? user?.login}</span>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
 
       <div
@@ -175,6 +216,7 @@ export function SidebarShell({
             pathname={pathname}
             linkClass={linkClass}
             logout={logout}
+            hideSiteLink={hasHeaderLinks}
             onNavigate={() => setMobileOpen(false)}
           />
         </aside>

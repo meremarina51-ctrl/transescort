@@ -99,4 +99,34 @@ export class UpdateListingDto {
   @IsOptional()
   @IsIn(CITY_OPTIONS)
   city?: string;
+
+  @ApiProperty({ required: false, description: 'Цена за час, ₽', minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  priceHour?: number;
+
+  @ApiProperty({ required: false, description: 'Цена за ночь, ₽', minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  priceNight?: number;
+
+  @ApiProperty({ required: false, maxLength: 32 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  contactPhone?: string;
+
+  @ApiProperty({ required: false, maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  contactTelegram?: string;
+
+  @ApiProperty({ required: false, maxLength: 32 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  contactWhatsapp?: string;
 }

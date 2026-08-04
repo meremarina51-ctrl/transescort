@@ -11,11 +11,11 @@ export function Footer() {
             <p className="mt-1 font-body text-xs text-white/30">Платформа проверенных анкет</p>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-6 font-body text-xs text-white/40">
+          {/* <nav className="flex flex-wrap items-center justify-center gap-6 font-body text-xs text-white/40">
             <Link href="/#about" className="transition-colors hover:text-accent">О нас</Link>
             <Link href="/catalog" className="transition-colors hover:text-accent">Каталог</Link>
             <Link href="/#pricing" className="transition-colors hover:text-accent">Тарифы</Link>
-          </nav>
+          </nav> */}
 
           <p className="font-body text-xs text-white/20">&copy; {new Date().getFullYear()} TransEscort</p>
         </div>

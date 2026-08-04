@@ -14,6 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuardsModule } from './auth/guards/auth-guards.module';
 import { RateLimitModule } from './security/rate-limit.config';
 import { ListingsModule } from './listings/listings.module';
+import { ModerationModule } from './moderation/moderation.module';
+import { FavoritesModule } from './favorites/favorites.module';
 
 function resolveEnvFilePath(): string {
   const cwd = process.cwd();
@@ -38,6 +40,8 @@ function resolveEnvFilePath(): string {
     AuthGuardsModule,
     RateLimitModule,
     ListingsModule,
+    ModerationModule,
+    FavoritesModule,
   ],
 })
 export class AppModule {}

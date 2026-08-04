@@ -3,10 +3,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   BookOpen,
+  Contact,
   Image as ImageIcon,
   Plus,
   SlidersHorizontal,
   Video as VideoIcon,
+  Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -30,6 +32,11 @@ import type { ListingAttributes } from '@/lib/listing.types';
 interface ListingParams extends Omit<ListingAttributes, 'name'> {
   bio: string;
   name: string;
+  priceHour: number | null;
+  priceNight: number | null;
+  contactPhone: string;
+  contactTelegram: string;
+  contactWhatsapp: string;
 }
 
 const EMPTY_PARAMS: ListingParams = {
@@ -46,6 +53,11 @@ const EMPTY_PARAMS: ListingParams = {
   eyeColor: EYE_COLOR_OPTIONS[0],
   country: COUNTRY_OPTIONS[0],
   city: CITY_OPTIONS[0],
+  priceHour: null,
+  priceNight: null,
+  contactPhone: '',
+  contactTelegram: '',
+  contactWhatsapp: '',
 };
 
 function TileHeader({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
@@ -74,15 +86,26 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
+type VerificationStatus = 'unverified' | 'pending' | 'approved' | 'rejected' | 'changes_requested';
+
+const MIN_PHOTOS_FOR_REVIEW = 3;
+
 export default function ListingPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [params, setParams] = useState<ListingParams>(EMPTY_PARAMS);
   const [initialParams, setInitialParams] = useState<ListingParams>(EMPTY_PARAMS);
   const [status, setStatus] = useState<'draft' | 'published' | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
+  const [verificationNote, setVerificationNote] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  /** Tracks edits made after the anketa was already approved — lets the performer re-submit only when something actually changed. */
+  const [changedSinceVerification, setChangedSinceVerification] = useState(false);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -123,10 +146,17 @@ export default function ListingPage() {
               eyeColor: data.eyeColor ?? EMPTY_PARAMS.eyeColor,
               country: data.country ?? EMPTY_PARAMS.country,
               city: data.city ?? EMPTY_PARAMS.city,
+              priceHour: data.priceHour ?? null,
+              priceNight: data.priceNight ?? null,
+              contactPhone: data.contactPhone ?? '',
+              contactTelegram: data.contactTelegram ?? '',
+              contactWhatsapp: data.contactWhatsapp ?? '',
             };
             setParams(loaded);
             setInitialParams(loaded);
             setStatus(data.status === 'published' ? 'published' : 'draft');
+            setVerificationStatus(data.verificationStatus ?? 'unverified');
+            setVerificationNote(data.verificationNote ?? null);
             setPhotos(data.photos ?? []);
             setVideoUrl(data.videoUrl ?? null);
           }
@@ -145,11 +175,11 @@ export default function ListingPage() {
     });
   };
 
-  const save = async (newStatus: 'draft' | 'published') => {
+  const save = async () => {
     setSaving(true);
     setSaved(false);
     try {
-      const payload: Record<string, unknown> = { bio: params.bio, status: newStatus, name: params.name };
+      const payload: Record<string, unknown> = { bio: params.bio, name: params.name };
       if (params.age !== null) payload.age = params.age;
       if (params.height !== null) payload.height = params.height;
       if (params.weight !== null) payload.weight = params.weight;
@@ -161,9 +191,16 @@ export default function ListingPage() {
       if (params.eyeColor) payload.eyeColor = params.eyeColor;
       if (params.country) payload.country = params.country;
       if (params.city) payload.city = params.city;
+      if (params.priceHour !== null) payload.priceHour = params.priceHour;
+      if (params.priceNight !== null) payload.priceNight = params.priceNight;
+      payload.contactPhone = params.contactPhone;
+      payload.contactTelegram = params.contactTelegram;
+      payload.contactWhatsapp = params.contactWhatsapp;
+      const wasDirty = isDirty;
       await patchListing(payload);
       setInitialParams(params);
-      setStatus(newStatus);
+      setStatus((prev) => prev ?? 'draft');
+      if (wasDirty) setChangedSinceVerification(true);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -175,6 +212,24 @@ export default function ListingPage() {
   const parseBody = async (res: Response) => {
     const text = await res.text();
     return text ? JSON.parse(text) : null;
+  };
+
+  const submitForReview = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await authFetch('/listings/me/submit', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось отправить анкету на проверку');
+      setStatus(data.status);
+      setVerificationStatus(data.verificationStatus);
+      setVerificationNote(data.verificationNote ?? null);
+      setChangedSinceVerification(false);
+    } catch (err: any) {
+      setSubmitError(err.message || 'Не удалось отправить анкету на проверку');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handlePhotosSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +246,7 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить фото');
       setPhotos(data.photos ?? []);
+      setChangedSinceVerification(true);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось загрузить фото');
     } finally {
@@ -209,6 +265,7 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить фото');
       setPhotos(data.photos ?? []);
+      setChangedSinceVerification(true);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось удалить фото');
     }
@@ -228,6 +285,7 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить видео');
       setVideoUrl(data.videoUrl ?? null);
+      setChangedSinceVerification(true);
     } catch (err: any) {
       setVideoError(err.message || 'Не удалось загрузить видео');
     } finally {
@@ -242,6 +300,7 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить видео');
       setVideoUrl(data.videoUrl ?? null);
+      setChangedSinceVerification(true);
     } catch (err: any) {
       setVideoError(err.message || 'Не удалось удалить видео');
     }
@@ -269,19 +328,41 @@ export default function ListingPage() {
 
   return (
     <>
-      <div className="mb-6 flex items-center gap-3">
+      <div
+        className={`flex flex-wrap items-center gap-3 ${
+          (verificationStatus === 'rejected' || verificationStatus === 'changes_requested') && verificationNote
+            ? 'mb-2'
+            : 'mb-6'
+        }`}
+      >
         <h1 className="font-display text-2xl font-bold">Моя анкета</h1>
-        {status === 'published' ? (
+        {status === null ? null : verificationStatus === 'approved' ? (
           <span className="badge badge-accent">Опубликовано</span>
-        ) : status === 'draft' ? (
+        ) : verificationStatus === 'pending' ? (
+          <span className="badge border border-accent/25 bg-accent/10 text-accent">На проверке</span>
+        ) : verificationStatus === 'rejected' ? (
+          <span className="badge border border-red-500/25 bg-red-500/10 text-red-400">Отклонено</span>
+        ) : verificationStatus === 'changes_requested' ? (
+          <span className="badge border border-orange-400/25 bg-orange-400/10 text-orange-300">Требуется замена</span>
+        ) : (
           <span className="badge border border-white/10 bg-white/[0.06] text-white/40">Черновик</span>
-        ) : null}
+        )}
       </div>
+      {(verificationStatus === 'rejected' || verificationStatus === 'changes_requested') && verificationNote ? (
+        <p
+          className={`mb-6 font-body text-sm ${
+            verificationStatus === 'rejected' ? 'text-red-400' : 'text-orange-300'
+          }`}
+        >
+          {verificationStatus === 'rejected' ? 'Причина отклонения: ' : 'Комментарий админа: '}
+          {verificationNote}
+        </p>
+      ) : null}
 
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="card p-6">
-            <TileHeader icon={ImageIcon} title="Фотографии" description="Добавьте несколько фото для анкеты" />
+            <TileHeader icon={ImageIcon} title="Фотографии" description="Добавьте не менее 3 фото для анкеты" />
 
             {status === null ? (
               <p className="mt-5 font-body text-sm text-white/30">
@@ -321,7 +402,13 @@ export default function ListingPage() {
                     />
                   </label>
                 </div>
-                {photosError ? <p className="mt-3 font-body text-xs text-red-400">{photosError}</p> : null}
+                {photosError ? (
+                  <p className="mt-3 font-body text-xs text-red-400">{photosError}</p>
+                ) : photos.length < MIN_PHOTOS_FOR_REVIEW ? (
+                  <p className="mt-3 font-body text-xs text-white/30">
+                    Ещё {MIN_PHOTOS_FOR_REVIEW - photos.length} фото до минимума для отправки на проверку
+                  </p>
+                ) : null}
               </>
             )}
           </div>
@@ -486,12 +573,78 @@ export default function ListingPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="card p-6">
+            <TileHeader icon={Wallet} title="Стоимость" description="Укажите цены за час и ночь" />
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <Field label="Цена за час, ₽">
+                <NumberStepper
+                  value={params.priceHour}
+                  onChange={(v) => setParams((p) => ({ ...p, priceHour: v }))}
+                  min={0}
+                  max={100000}
+                  step={500}
+                  placeholder="Руб."
+                />
+              </Field>
+              <Field label="Цена за ночь, ₽">
+                <NumberStepper
+                  value={params.priceNight}
+                  onChange={(v) => setParams((p) => ({ ...p, priceNight: v }))}
+                  min={0}
+                  max={500000}
+                  step={1000}
+                  placeholder="Руб."
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <TileHeader icon={Contact} title="Контакты" description="Показывается клиентам после оплаты тарифа" />
+            <div className="mt-5 space-y-4">
+              <Field label="Номер телефона">
+                <input
+                  type="tel"
+                  value={params.contactPhone}
+                  onChange={(e) => setParams((p) => ({ ...p, contactPhone: e.target.value }))}
+                  maxLength={32}
+                  placeholder="+7 999 123-45-67"
+                  className="input"
+                />
+              </Field>
+              <Field label="Telegram">
+                <input
+                  type="text"
+                  value={params.contactTelegram}
+                  onChange={(e) => setParams((p) => ({ ...p, contactTelegram: e.target.value }))}
+                  maxLength={100}
+                  placeholder="@username"
+                  className="input"
+                />
+              </Field>
+              <Field label="WhatsApp">
+                <input
+                  type="tel"
+                  value={params.contactWhatsapp}
+                  onChange={(e) => setParams((p) => ({ ...p, contactWhatsapp: e.target.value }))}
+                  maxLength={32}
+                  placeholder="+7 999 123-45-67"
+                  className="input"
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {saved ? <span className="font-body text-sm text-emerald-400">Сохранено</span> : null}
+          {submitError ? <span className="font-body text-sm text-red-400">{submitError}</span> : null}
+
           {status === null ? (
             <button
               type="button"
-              onClick={() => save('draft')}
+              onClick={() => save()}
               disabled={saving}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -501,20 +654,34 @@ export default function ListingPage() {
             <>
               <button
                 type="button"
-                onClick={() => save('draft')}
-                disabled={saving || (!isDirty && status === 'draft')}
+                onClick={() => save()}
+                disabled={saving || !isDirty}
                 className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? 'Сохраняем…' : 'Сохранить как черновик'}
+                {saving ? 'Сохраняем…' : 'Сохранить'}
               </button>
-              <button
-                type="button"
-                onClick={() => save('published')}
-                disabled={saving || (!isDirty && status === 'published')}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Публикуем…' : 'Опубликовать'}
-              </button>
+
+              {verificationStatus === 'pending' ? (
+                <span className="font-body text-sm text-white/40">Анкета на проверке у администратора</span>
+              ) : verificationStatus === 'approved' && !changedSinceVerification ? (
+                <span className="font-body text-sm text-white/40">Анкета опубликована, новых изменений нет</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submitForReview}
+                  disabled={submitting || saving || isDirty || photos.length < MIN_PHOTOS_FOR_REVIEW}
+                  title={
+                    photos.length < MIN_PHOTOS_FOR_REVIEW
+                      ? `Добавьте не менее ${MIN_PHOTOS_FOR_REVIEW} фото`
+                      : isDirty
+                        ? 'Сначала сохраните изменения'
+                        : undefined
+                  }
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Отправляем…' : 'Отправить на проверку'}
+                </button>
+              )}
             </>
           )}
         </div>

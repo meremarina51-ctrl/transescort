@@ -8,7 +8,6 @@ import { authFetch } from '@/lib/auth-fetch';
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
-  const isClient = user?.role === 'client';
 
   const [fullName, setFullName] = useState(user?.fullName ?? '');
   const [email, setEmail] = useState('');
@@ -20,8 +19,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const isDirty =
-    fullName !== initial.fullName || (isClient && (email !== initial.email || phone !== initial.phone));
+  const isDirty = fullName !== initial.fullName || email !== initial.email || phone !== initial.phone;
 
   useEffect(() => {
     let cancelled = false;
@@ -55,16 +53,10 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const body: Record<string, unknown> = { fullName };
-      if (isClient) {
-        body.email = email;
-        body.phone = phone;
-      }
-
       const res = await authFetch('/auth/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ fullName, email, phone }),
       });
 
       if (!res.ok) {
@@ -75,7 +67,7 @@ export default function ProfilePage() {
       }
 
       await refreshUser();
-      setInitial({ fullName, email: isClient ? email : initial.email, phone: isClient ? phone : initial.phone });
+      setInitial({ fullName, email, phone });
       setSaved(true);
     } catch (err: any) {
       setError(err.message || 'Не удалось сохранить изменения');
@@ -98,54 +90,48 @@ export default function ProfilePage() {
           <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" />
         </div>
 
-        {isClient ? (
-          <>
-            <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">WhatsApp</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+7 999 123-45-67"
-                className="input"
-              />
-            </div>
+        <div>
+          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="input"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">WhatsApp</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+7 999 123-45-67"
+            className="input"
+          />
+        </div>
 
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Send className="h-4 w-4 flex-shrink-0 text-white/40" strokeWidth={1.6} />
-                <div>
-                  <p className="font-body text-sm text-white/70">Telegram</p>
-                  <p className="font-body text-xs text-white/35">Не привязан</p>
-                </div>
-              </div>
-              <Link href="/cabinet/settings" className="font-body text-xs font-medium text-accent hover:underline">
-                Перейти в настройки
-              </Link>
-            </div>
-
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Send className="h-4 w-4 flex-shrink-0 text-white/40" strokeWidth={1.6} />
             <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
-                Дата регистрации
-              </label>
-              <input
-                value={createdAt ? new Date(createdAt).toLocaleDateString('ru-RU') : '—'}
-                disabled
-                className="input opacity-50"
-              />
+              <p className="font-body text-sm text-white/70">Telegram</p>
+              <p className="font-body text-xs text-white/35">Не привязан</p>
             </div>
-          </>
-        ) : null}
+          </div>
+          <Link href="/cabinet/settings" className="font-body text-xs font-medium text-accent hover:underline">
+            Перейти в настройки
+          </Link>
+        </div>
+
+        <div>
+          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Дата регистрации</label>
+          <input
+            value={createdAt ? new Date(createdAt).toLocaleDateString('ru-RU') : '—'}
+            disabled
+            className="input opacity-50"
+          />
+        </div>
 
         <button type="submit" disabled={saving || !isDirty} className="btn-primary disabled:opacity-50">
           {saving ? 'Сохраняем…' : 'Сохранить'}

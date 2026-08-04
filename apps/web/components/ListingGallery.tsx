@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ImageOff, Play } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ImageOff, Play, X } from 'lucide-react';
+import { FavoriteButton } from '@/components/FavoriteButton';
 
 type Media = { type: 'photo' | 'video'; url: string };
 
@@ -11,6 +13,7 @@ interface Vital {
 }
 
 interface Props {
+  id: string;
   name: string;
   photos: string[];
   videoUrl: string | null;
@@ -20,7 +23,8 @@ interface Props {
 
 const PLACEHOLDER_COUNT = 6;
 
-export function ListingGallery({ name, photos, videoUrl, vitals, bio }: Props) {
+export function ListingGallery({ id, name, photos, videoUrl, vitals, bio }: Props) {
+  const router = useRouter();
   const media: Media[] = [
     ...photos.map((url): Media => ({ type: 'photo', url })),
     ...(videoUrl ? [{ type: 'video', url: videoUrl } as Media] : []),
@@ -64,11 +68,26 @@ export function ListingGallery({ name, photos, videoUrl, vitals, bio }: Props) {
             >
               ›
             </button>
-            <div className="absolute right-4 top-4 rounded-full bg-black/50 px-3 py-1 font-body text-xs text-white/60">
-              {active + 1} / {total}
-            </div>
           </>
         )}
+
+        <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+          {total > 1 && (
+            <div className="rounded-full bg-black/50 px-3 py-1 font-body text-xs text-white/60">
+              {active + 1} / {total}
+            </div>
+          )}
+          <FavoriteButton listingId={id} positionClassName="" />
+          <button
+            type="button"
+            onClick={() => router.push('/catalog')}
+            aria-label="Закрыть просмотр анкеты"
+            title="Закрыть просмотр анкеты"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-6 pt-16">
           <h1 className="mb-1 font-display text-3xl font-extrabold text-white drop-shadow-sm">{name}</h1>

@@ -15,6 +15,17 @@ export const listings = pgTable(
       .notNull()
       .default('draft'),
 
+    /**
+     * Admin verification gate — performers can only move `status` to 'published' by going
+     * through this (see ListingsService.verify); their own PATCH /listings/me can never set it.
+     */
+    verificationStatus: varchar('verification_status', { length: 20 })
+      .$type<'unverified' | 'pending' | 'approved' | 'rejected' | 'changes_requested'>()
+      .notNull()
+      .default('unverified'),
+    verificationNote: text('verification_note'),
+    submittedAt: timestamp('submitted_at'),
+
     /** URL slug, transliterated from `name` at creation time — stable, doesn't change on rename. */
     slug: varchar('slug', { length: 160 }),
 
@@ -35,6 +46,15 @@ export const listings = pgTable(
     eyeColor: varchar('eye_color', { length: 30 }),
     country: varchar('country', { length: 50 }),
     city: varchar('city', { length: 50 }),
+
+    /** Rubles. Shown to clients only once the performer has a paid tariff (not enforced yet). */
+    priceHour: integer('price_hour'),
+    priceNight: integer('price_night'),
+
+    /** Same visibility rule as pricing. */
+    contactPhone: varchar('contact_phone', { length: 32 }),
+    contactTelegram: varchar('contact_telegram', { length: 100 }),
+    contactWhatsapp: varchar('contact_whatsapp', { length: 32 }),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -66,7 +66,19 @@ export class ListingsController {
   @ApiResponse({ status: 403, description: 'Доступно только для исполнителей' })
   async updateMine(@Request() req: RequestWithUser, @Body() body: UpdateListingDto) {
     this.assertPerformer(req);
-    return this.listingsService.upsert(req.user!.userId, body);
+    // Publication only happens through admin verification (see /me/submit + admin moderation) —
+    // never let a direct PATCH sneak `status` in, whatever the DTO says.
+    const { status: _ignoredStatus, ...safeBody } = body;
+    return this.listingsService.upsert(req.user!.userId, safeBody);
+  }
+
+  @Post('me/submit')
+  @ApiOperation({ summary: 'Отправить анкету на проверку админом' })
+  @ApiResponse({ status: 200, description: 'Анкета отправлена на проверку' })
+  @ApiResponse({ status: 404, description: 'Анкета ещё не создана' })
+  async submit(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    return this.listingsService.submitForReview(req.user!.userId);
   }
 
   @Post('me/photos')

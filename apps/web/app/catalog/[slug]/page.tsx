@@ -55,6 +55,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       <Header />
       <main className="flex-1">
         <ListingGallery
+          id={listing.id}
           name={listing.name || 'Без имени'}
           photos={listing.photos}
           videoUrl={listing.videoUrl}

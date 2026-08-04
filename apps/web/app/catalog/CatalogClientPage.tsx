@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { Select } from '@/components/Select';
+import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';
 import { toSelectOptions } from '@/lib/listing-options';
@@ -230,7 +231,12 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
         ) : (
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing) => (
-              <Link key={listing.id} href={`/catalog/${listing.slug ?? listing.id}`} className="card group overflow-hidden">
+              <Link
+                key={listing.id}
+                href={`/catalog/${listing.slug ?? listing.id}`}
+                className="card group relative overflow-hidden"
+              >
+                <FavoriteButton listingId={listing.id} />
                 {listing.photos[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
