@@ -1,4 +1,16 @@
-import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -72,6 +84,38 @@ export class RefreshTokenDto {
   refreshToken!: string;
 }
 
+export class DeleteAccountDto {
+  @ApiProperty({ description: 'Текущий пароль — обязателен для подтверждения удаления' })
+  @IsString()
+  @IsNotEmpty({ message: 'Введите пароль для подтверждения' })
+  password!: string;
+}
+
+export class RecoverAccountDto {
+  @ApiProperty({ example: 'ivan_petrov' })
+  @IsString()
+  @IsNotEmpty()
+  login!: string;
+
+  @ApiProperty({ example: 'A7K9-XQ2R-BC3D-FG4H', description: 'Код восстановления, выданный при регистрации' })
+  @IsString()
+  @IsNotEmpty({ message: 'Введите код восстановления' })
+  recoveryCode!: string;
+
+  @ApiProperty({ example: 'newPassword123' })
+  @IsString()
+  @MinLength(8)
+  @Matches(/(?:.*\S){8,}/, { message: 'Пароль должен содержать минимум 8 значащих символов' })
+  newPassword!: string;
+}
+
+export class RegenerateRecoveryCodeDto {
+  @ApiProperty({ description: 'Текущий пароль — обязателен для перевыпуска кода' })
+  @IsString()
+  @IsNotEmpty({ message: 'Введите пароль для подтверждения' })
+  password!: string;
+}
+
 export class UpdateProfileDto {
   @ApiProperty({ required: false })
   @IsOptional()
@@ -136,6 +180,57 @@ export class AuthController {
   @ApiOperation({ summary: 'Выход из системы' })
   async logout() {
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('recover')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Восстановить доступ по коду восстановления и задать новый пароль' })
+  @ApiResponse({ status: 401, description: 'Неверный логин или код восстановления' })
+  async recover(@Body() body: RecoverAccountDto) {
+    return this.authService.recover(body.login, body.recoveryCode, body.newPassword);
+  }
+
+  @Post('recovery-code/regenerate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Перевыпустить код восстановления' })
+  @ApiResponse({ status: 401, description: 'Неверный пароль' })
+  async regenerateRecoveryCode(@Request() req: any, @Body() body: RegenerateRecoveryCodeDto) {
+    const recoveryCode = await this.authService.regenerateRecoveryCode(req.user.userId as string, body.password);
+    return { recoveryCode };
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Завершить все активные сессии пользователя' })
+  async logoutAll(@Request() req: any) {
+    await this.authService.logoutAllDevices(req.user.userId as string);
+    return { message: 'Все сессии завершены' };
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Удалить свой аккаунт' })
+  @ApiResponse({ status: 401, description: 'Неверный пароль' })
+  async deleteOwnAccount(@Request() req: any, @Body() body: DeleteAccountDto) {
+    const userId = req.user.userId as string;
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await this.usersService.validatePassword(user, body.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Неверный пароль');
+    }
+
+    await this.usersService.deleteUser(userId);
+    return { message: 'Аккаунт удалён' };
   }
 
   @Get('me')

@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-export const STATUS_OPTIONS = ['draft', 'published'] as const;
 export const TYPE_OPTIONS = ['Активный', 'Универсал', 'Пассивный'] as const;
 export const FIGURE_OPTIONS = ['Стройная', 'Спортивная', 'Худощавая', 'Пышная', 'Модельная'] as const;
 export const TEMPERAMENT_OPTIONS = ['Нежная', 'Страстная', 'Доминантная', 'Игривая', 'Спокойная'] as const;
@@ -20,11 +19,6 @@ export const CITY_OPTIONS = [
 ] as const;
 
 export class UpdateListingDto {
-  @ApiProperty({ required: false, enum: STATUS_OPTIONS })
-  @IsOptional()
-  @IsIn(STATUS_OPTIONS)
-  status?: 'draft' | 'published';
-
   @ApiProperty({ required: false, maxLength: 3000 })
   @IsOptional()
   @IsString()

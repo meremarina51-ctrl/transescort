@@ -20,7 +20,7 @@ export default function Icon() {
           color: '#6C5CE7',
         }}
       >
-        T
+        V
       </div>
     ),
     size,

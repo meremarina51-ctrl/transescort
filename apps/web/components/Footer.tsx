@@ -17,7 +17,7 @@ export function Footer() {
             <Link href="/#pricing" className="transition-colors hover:text-accent">Тарифы</Link>
           </nav> */}
 
-          <p className="font-body text-xs text-white/20">&copy; {new Date().getFullYear()} TransEscort</p>
+          <p className="font-body text-xs text-white/20">&copy; {new Date().getFullYear()} Verself</p>
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/[0.06] pt-6 font-body text-[11px] text-white/25">

@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { ListingsService } from '../listings/listings.service';
 
-export const VERIFY_DECISIONS = ['approved', 'rejected', 'changes_requested'] as const;
+export const VERIFY_DECISIONS = ['approved', 'changes_requested'] as const;
 
 class VerifyListingDto {
   @ApiProperty({ enum: VERIFY_DECISIONS })
@@ -14,11 +14,11 @@ class VerifyListingDto {
 
   @ApiProperty({
     required: false,
-    description: 'Комментарий админа — обязателен при отклонении или запросе замены, показывается исполнителю',
+    description: 'Комментарий админа — обязателен при запросе исправлений, показывается исполнителю',
   })
   @ValidateIf((o) => o.decision !== 'approved')
   @IsString()
-  @IsNotEmpty({ message: 'Комментарий обязателен при отклонении или запросе замены' })
+  @IsNotEmpty({ message: 'Комментарий обязателен при запросе исправлений' })
   @MaxLength(1000)
   note?: string;
 }
@@ -38,7 +38,7 @@ export class ModerationController {
   }
 
   @Patch('listings/:id/verify')
-  @ApiOperation({ summary: 'Подтвердить (публикует), отклонить или запросить замену (оба — с обязательным комментарием)' })
+  @ApiOperation({ summary: 'Подтвердить (публикует) или запросить исправления (с обязательным комментарием)' })
   async verifyListing(@Param('id') id: string, @Body() body: VerifyListingDto) {
     const existing = await this.listingsService.findByIdForAdmin(id);
     if (!existing) throw new NotFoundException('Анкета не найдена');

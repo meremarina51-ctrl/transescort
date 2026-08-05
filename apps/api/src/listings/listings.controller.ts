@@ -22,6 +22,7 @@ import { JwtAuthGuard, type RequestWithUser } from '../auth/guards/jwt-auth.guar
 import { StorageService } from '../storage/storage.service';
 import { ListingsService } from './listings.service';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
@@ -66,10 +67,9 @@ export class ListingsController {
   @ApiResponse({ status: 403, description: 'Доступно только для исполнителей' })
   async updateMine(@Request() req: RequestWithUser, @Body() body: UpdateListingDto) {
     this.assertPerformer(req);
-    // Publication only happens through admin verification (see /me/submit + admin moderation) —
-    // never let a direct PATCH sneak `status` in, whatever the DTO says.
-    const { status: _ignoredStatus, ...safeBody } = body;
-    return this.listingsService.upsert(req.user!.userId, safeBody);
+    // Status transitions only ever happen through the dedicated endpoints below (submit/hide/unhide)
+    // or admin decisions — UpdateListingDto has no `status` field, so there's nothing to strip here.
+    return this.listingsService.upsert(req.user!.userId, body);
   }
 
   @Post('me/submit')
@@ -79,6 +79,22 @@ export class ListingsController {
   async submit(@Request() req: RequestWithUser) {
     this.assertPerformer(req);
     return this.listingsService.submitForReview(req.user!.userId);
+  }
+
+  @Post('me/hide')
+  @ApiOperation({ summary: 'Скрыть свою опубликованную анкету из каталога' })
+  @ApiResponse({ status: 400, description: 'Скрыть можно только опубликованную анкету' })
+  async hide(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    return this.listingsService.hide(req.user!.userId);
+  }
+
+  @Post('me/unhide')
+  @ApiOperation({ summary: 'Вернуть скрытую анкету обратно в каталог' })
+  @ApiResponse({ status: 400, description: 'Анкета не скрыта' })
+  async unhide(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    return this.listingsService.unhide(req.user!.userId);
   }
 
   @Post('me/photos')
@@ -103,6 +119,15 @@ export class ListingsController {
     }
 
     return this.listingsService.addPhotos(req.user!.userId, urls);
+  }
+
+  @Patch('me/photos/order')
+  @ApiOperation({ summary: 'Изменить порядок фото анкеты — первое фото становится главным (в каталоге)' })
+  @ApiResponse({ status: 200, description: 'Порядок фото обновлён' })
+  @ApiResponse({ status: 400, description: 'Список фото не совпадает с текущими фото анкеты' })
+  async reorderPhotos(@Request() req: RequestWithUser, @Body() body: ReorderPhotosDto) {
+    this.assertPerformer(req);
+    return this.listingsService.reorderPhotos(req.user!.userId, body.photos);
   }
 
   @Delete('me/photos')

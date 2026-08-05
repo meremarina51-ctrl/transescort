@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { Select } from '@/components/Select';
+import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
 import { type Role, CONTACT_METHOD_OPTIONS } from './register.constants';
 
 function RequiredMark() {
@@ -24,6 +25,12 @@ export default function RegisterPage() {
   const [contactValue, setContactValue] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingAuth, setPendingAuth] = useState<{
+    accessToken: string;
+    refreshToken: string;
+    user: any;
+    recoveryCode: string;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,13 +64,23 @@ export default function RegisterPage() {
       }
 
       const data = await response.json();
-      authLogin(data.accessToken, data.refreshToken, data.user);
-      router.push('/cabinet');
+      setPendingAuth({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+        recoveryCode: data.recoveryCode,
+      });
     } catch (err: any) {
       setError(err.message || 'Не удалось зарегистрироваться');
     } finally {
       setLoading(false);
     }
+  };
+
+  const finishRegistration = () => {
+    if (!pendingAuth) return;
+    authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
+    router.push('/cabinet');
   };
 
   return (
@@ -172,6 +189,14 @@ export default function RegisterPage() {
         </div>
       </main>
       <Footer />
+
+      {pendingAuth ? (
+        <RecoveryCodeModal
+          code={pendingAuth.recoveryCode}
+          confirmLabel="Я сохранил(а) код — перейти в кабинет"
+          onConfirm={finishRegistration}
+        />
+      ) : null}
     </div>
   );
 }

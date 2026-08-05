@@ -1,16 +1,10 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsIn } from 'class-validator';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { ListingsService } from './listings.service';
-import { STATUS_OPTIONS, UpdateListingDto } from './dto/update-listing.dto';
-
-class SetListingStatusDto {
-  @ApiProperty({ enum: STATUS_OPTIONS })
-  @IsIn(STATUS_OPTIONS)
-  status!: 'draft' | 'published';
-}
+import { UpdateListingDto } from './dto/update-listing.dto';
+import { BlockListingDto } from './dto/block-listing.dto';
 
 @ApiTags('Admin Listings')
 @ApiBearerAuth()
@@ -44,14 +38,28 @@ export class AdminListingsController {
     return this.listingsService.findByIdForAdmin(id);
   }
 
-  @Patch(':id/status')
-  @ApiOperation({ summary: 'Опубликовать / скрыть анкету' })
-  async setStatus(@Param('id') id: string, @Body() body: SetListingStatusDto) {
-    const existing = await this.listingsService.findByIdForAdmin(id);
-    if (!existing) throw new NotFoundException('Анкета не найдена');
+  @Patch(':id/hide')
+  @ApiOperation({ summary: 'Скрыть опубликованную анкету из каталога' })
+  async hide(@Param('id') id: string) {
+    return this.listingsService.adminHide(id);
+  }
 
-    await this.listingsService.updateById(id, { status: body.status });
-    return this.listingsService.findByIdForAdmin(id);
+  @Patch(':id/unhide')
+  @ApiOperation({ summary: 'Вернуть скрытую анкету обратно в каталог' })
+  async unhide(@Param('id') id: string) {
+    return this.listingsService.adminUnhide(id);
+  }
+
+  @Patch(':id/block')
+  @ApiOperation({ summary: 'Заблокировать анкету — причина обязательна' })
+  async block(@Param('id') id: string, @Body() body: BlockListingDto) {
+    return this.listingsService.block(id, body.note);
+  }
+
+  @Patch(':id/unblock')
+  @ApiOperation({ summary: 'Снять блокировку — анкета возвращается в черновик' })
+  async unblock(@Param('id') id: string) {
+    return this.listingsService.unblock(id);
   }
 
   @Delete(':id')

@@ -77,8 +77,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('TransEscort API')
-    .setDescription('Auth + user API documentation for TransEscort')
+    .setTitle('Verself API')
+    .setDescription('Auth + user API documentation for Verself')
     .setVersion('0.1.0')
     .addBearerAuth({
       description: 'JWT token obtained from /auth/login',

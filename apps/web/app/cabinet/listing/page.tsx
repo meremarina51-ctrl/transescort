@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   BookOpen,
   Contact,
+  Eye,
+  EyeOff,
   Image as ImageIcon,
   Plus,
   SlidersHorizontal,
@@ -12,10 +14,13 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
+import { SortablePhotoTile } from '@/components/SortablePhotoTile';
 import {
   TYPE_OPTIONS,
   FIGURE_OPTIONS,
@@ -86,7 +91,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-type VerificationStatus = 'unverified' | 'pending' | 'approved' | 'rejected' | 'changes_requested';
+type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
 
 const MIN_PHOTOS_FOR_REVIEW = 3;
 
@@ -95,8 +100,7 @@ export default function ListingPage() {
   const [loading, setLoading] = useState(true);
   const [params, setParams] = useState<ListingParams>(EMPTY_PARAMS);
   const [initialParams, setInitialParams] = useState<ListingParams>(EMPTY_PARAMS);
-  const [status, setStatus] = useState<'draft' | 'published' | null>(null);
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
+  const [status, setStatus] = useState<ListingStatus | null>(null);
   const [verificationNote, setVerificationNote] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
@@ -104,8 +108,9 @@ export default function ListingPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  /** Tracks edits made after the anketa was already approved — lets the performer re-submit only when something actually changed. */
-  const [changedSinceVerification, setChangedSinceVerification] = useState(false);
+
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -154,8 +159,7 @@ export default function ListingPage() {
             };
             setParams(loaded);
             setInitialParams(loaded);
-            setStatus(data.status === 'published' ? 'published' : 'draft');
-            setVerificationStatus(data.verificationStatus ?? 'unverified');
+            setStatus(data.status ?? 'draft');
             setVerificationNote(data.verificationNote ?? null);
             setPhotos(data.photos ?? []);
             setVideoUrl(data.videoUrl ?? null);
@@ -196,11 +200,9 @@ export default function ListingPage() {
       payload.contactPhone = params.contactPhone;
       payload.contactTelegram = params.contactTelegram;
       payload.contactWhatsapp = params.contactWhatsapp;
-      const wasDirty = isDirty;
       await patchListing(payload);
       setInitialParams(params);
       setStatus((prev) => prev ?? 'draft');
-      if (wasDirty) setChangedSinceVerification(true);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -222,13 +224,41 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось отправить анкету на проверку');
       setStatus(data.status);
-      setVerificationStatus(data.verificationStatus);
       setVerificationNote(data.verificationNote ?? null);
-      setChangedSinceVerification(false);
     } catch (err: any) {
       setSubmitError(err.message || 'Не удалось отправить анкету на проверку');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const hideListing = async () => {
+    setVisibilityBusy(true);
+    setVisibilityError('');
+    try {
+      const res = await authFetch('/listings/me/hide', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось скрыть анкету');
+      setStatus(data.status);
+    } catch (err: any) {
+      setVisibilityError(err.message || 'Не удалось скрыть анкету');
+    } finally {
+      setVisibilityBusy(false);
+    }
+  };
+
+  const unhideListing = async () => {
+    setVisibilityBusy(true);
+    setVisibilityError('');
+    try {
+      const res = await authFetch('/listings/me/unhide', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось вернуть анкету в каталог');
+      setStatus(data.status);
+    } catch (err: any) {
+      setVisibilityError(err.message || 'Не удалось вернуть анкету в каталог');
+    } finally {
+      setVisibilityBusy(false);
     }
   };
 
@@ -246,7 +276,6 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить фото');
       setPhotos(data.photos ?? []);
-      setChangedSinceVerification(true);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось загрузить фото');
     } finally {
@@ -265,10 +294,45 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить фото');
       setPhotos(data.photos ?? []);
-      setChangedSinceVerification(true);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось удалить фото');
     }
+  };
+
+  const photoSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  /** Persists a new photo order — reordering (and choosing a main photo) doesn't touch the anketa's status. */
+  const reorderPhotos = async (newOrder: string[]) => {
+    const previous = photos;
+    setPhotos(newOrder);
+    setPhotosError('');
+    try {
+      const res = await authFetch('/listings/me/photos/order', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: newOrder }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить порядок фото');
+      setPhotos(data.photos ?? newOrder);
+    } catch (err: any) {
+      setPhotos(previous);
+      setPhotosError(err.message || 'Не удалось изменить порядок фото');
+    }
+  };
+
+  const handlePhotoDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = photos.indexOf(active.id as string);
+    const newIndex = photos.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    reorderPhotos(arrayMove(photos, oldIndex, newIndex));
+  };
+
+  const setMainPhoto = (url: string) => {
+    if (photos[0] === url) return;
+    reorderPhotos([url, ...photos.filter((p) => p !== url)]);
   };
 
   const handleVideoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,7 +349,6 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить видео');
       setVideoUrl(data.videoUrl ?? null);
-      setChangedSinceVerification(true);
     } catch (err: any) {
       setVideoError(err.message || 'Не удалось загрузить видео');
     } finally {
@@ -300,7 +363,6 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить видео');
       setVideoUrl(data.videoUrl ?? null);
-      setChangedSinceVerification(true);
     } catch (err: any) {
       setVideoError(err.message || 'Не удалось удалить видео');
     }
@@ -330,31 +392,27 @@ export default function ListingPage() {
     <>
       <div
         className={`flex flex-wrap items-center gap-3 ${
-          (verificationStatus === 'rejected' || verificationStatus === 'changes_requested') && verificationNote
-            ? 'mb-2'
-            : 'mb-6'
+          (status === 'changes_requested' || status === 'blocked') && verificationNote ? 'mb-2' : 'mb-6'
         }`}
       >
         <h1 className="font-display text-2xl font-bold">Моя анкета</h1>
-        {status === null ? null : verificationStatus === 'approved' ? (
-          <span className="badge badge-accent">Опубликовано</span>
-        ) : verificationStatus === 'pending' ? (
+        {status === null ? null : status === 'published' ? (
+          <span className="badge badge-accent">Опубликована</span>
+        ) : status === 'pending' ? (
           <span className="badge border border-accent/25 bg-accent/10 text-accent">На проверке</span>
-        ) : verificationStatus === 'rejected' ? (
-          <span className="badge border border-red-500/25 bg-red-500/10 text-red-400">Отклонено</span>
-        ) : verificationStatus === 'changes_requested' ? (
-          <span className="badge border border-orange-400/25 bg-orange-400/10 text-orange-300">Требуется замена</span>
+        ) : status === 'changes_requested' ? (
+          <span className="badge border border-orange-400/25 bg-orange-400/10 text-orange-300">Требуются исправления</span>
+        ) : status === 'hidden' ? (
+          <span className="badge border border-white/15 bg-white/[0.08] text-white/50">Скрыта</span>
+        ) : status === 'blocked' ? (
+          <span className="badge border border-red-500/25 bg-red-500/10 text-red-400">Заблокирована</span>
         ) : (
           <span className="badge border border-white/10 bg-white/[0.06] text-white/40">Черновик</span>
         )}
       </div>
-      {(verificationStatus === 'rejected' || verificationStatus === 'changes_requested') && verificationNote ? (
-        <p
-          className={`mb-6 font-body text-sm ${
-            verificationStatus === 'rejected' ? 'text-red-400' : 'text-orange-300'
-          }`}
-        >
-          {verificationStatus === 'rejected' ? 'Причина отклонения: ' : 'Комментарий админа: '}
+      {(status === 'changes_requested' || status === 'blocked') && verificationNote ? (
+        <p className={`mb-6 font-body text-sm ${status === 'blocked' ? 'text-red-400' : 'text-orange-300'}`}>
+          {status === 'blocked' ? 'Причина блокировки: ' : 'Комментарий админа: '}
           {verificationNote}
         </p>
       ) : null}
@@ -370,38 +428,42 @@ export default function ListingPage() {
               </p>
             ) : (
               <>
-                <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {photos.map((url) => (
-                    <div key={url} className="group relative aspect-square overflow-hidden rounded-lg border border-white/[0.08]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(url)}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                        aria-label="Удалить фото"
+                <DndContext sensors={photoSensors} collisionDetection={closestCenter} onDragEnd={handlePhotoDragEnd}>
+                  <SortableContext items={photos} strategy={rectSortingStrategy}>
+                    <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                      {photos.map((url, index) => (
+                        <SortablePhotoTile
+                          key={url}
+                          url={url}
+                          isMain={index === 0}
+                          onRemove={() => removePhoto(url)}
+                          onSetMain={() => setMainPhoto(url)}
+                        />
+                      ))}
+                      <label
+                        className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
+                          uploadingPhotos ? 'pointer-events-none opacity-50' : ''
+                        }`}
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                        <Plus className="h-5 w-5" />
+                        <span className="font-body text-[11px]">{uploadingPhotos ? 'Загрузка…' : 'Добавить'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handlePhotosSelected}
+                          disabled={uploadingPhotos}
+                        />
+                      </label>
                     </div>
-                  ))}
-                  <label
-                    className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
-                      uploadingPhotos ? 'pointer-events-none opacity-50' : ''
-                    }`}
-                  >
-                    <Plus className="h-5 w-5" />
-                    <span className="font-body text-[11px]">{uploadingPhotos ? 'Загрузка…' : 'Добавить'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handlePhotosSelected}
-                      disabled={uploadingPhotos}
-                    />
-                  </label>
-                </div>
+                  </SortableContext>
+                </DndContext>
+                {photos.length > 1 ? (
+                  <p className="mt-3 font-body text-xs text-white/30">
+                    Перетащите фото, чтобы изменить порядок, или нажмите на звезду, чтобы сделать его главным.
+                  </p>
+                ) : null}
                 {photosError ? (
                   <p className="mt-3 font-body text-xs text-red-400">{photosError}</p>
                 ) : photos.length < MIN_PHOTOS_FOR_REVIEW ? (
@@ -640,6 +702,7 @@ export default function ListingPage() {
         <div className="flex flex-wrap items-center justify-end gap-3">
           {saved ? <span className="font-body text-sm text-emerald-400">Сохранено</span> : null}
           {submitError ? <span className="font-body text-sm text-red-400">{submitError}</span> : null}
+          {visibilityError ? <span className="font-body text-sm text-red-400">{visibilityError}</span> : null}
 
           {status === null ? (
             <button
@@ -661,10 +724,36 @@ export default function ListingPage() {
                 {saving ? 'Сохраняем…' : 'Сохранить'}
               </button>
 
-              {verificationStatus === 'pending' ? (
+              {status === 'pending' ? (
                 <span className="font-body text-sm text-white/40">Анкета на проверке у администратора</span>
-              ) : verificationStatus === 'approved' && !changedSinceVerification ? (
-                <span className="font-body text-sm text-white/40">Анкета опубликована, новых изменений нет</span>
+              ) : status === 'blocked' ? (
+                <span className="font-body text-sm text-red-400">Анкета заблокирована администратором</span>
+              ) : status === 'published' ? (
+                <>
+                  <span className="font-body text-sm text-white/40">Анкета опубликована</span>
+                  <button
+                    type="button"
+                    onClick={hideListing}
+                    disabled={visibilityBusy}
+                    className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <EyeOff className="h-4 w-4" />
+                    {visibilityBusy ? 'Скрываем…' : 'Скрыть анкету'}
+                  </button>
+                </>
+              ) : status === 'hidden' ? (
+                <>
+                  <span className="font-body text-sm text-white/40">Анкета скрыта из каталога</span>
+                  <button
+                    type="button"
+                    onClick={unhideListing}
+                    disabled={visibilityBusy}
+                    className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {visibilityBusy ? 'Публикуем…' : 'Вернуть в каталог'}
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"

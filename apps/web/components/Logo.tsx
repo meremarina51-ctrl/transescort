@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const SITE_NAME = 'TransEscort';
+const SITE_NAME = 'Verself';
 
 export default function Logo({ className = '' }: { className?: string }) {
   const [hovered, setHovered] = useState<number | null>(null);

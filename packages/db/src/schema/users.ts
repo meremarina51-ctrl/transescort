@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const users = pgTable(
   'users',
@@ -25,6 +25,12 @@ export const users = pgTable(
       'telegram' | 'email' | 'phone' | 'whatsapp'
     >(),
     contactValue: varchar('contact_value', { length: 255 }),
+
+    /** Bumped to invalidate every previously issued refresh token — see AuthService.logoutAllDevices. */
+    tokenVersion: integer('token_version').notNull().default(0),
+
+    /** Hashed one-time backup code for password-less recovery — null until first (re)generated. */
+    recoveryCodeHash: varchar('recovery_code_hash', { length: 255 }),
 
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
@@ -18,9 +18,12 @@ import {
   toSelectOptions,
 } from '@/lib/listing-options';
 
+type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
+
 interface AdminListingDetail {
   id: string;
-  status: 'draft' | 'published';
+  status: ListingStatus;
+  verificationNote: string | null;
   photos: string[];
   videoUrl: string | null;
   name: string | null;
@@ -39,6 +42,18 @@ interface AdminListingDetail {
   ownerLogin: string | null;
   ownerFullName: string | null;
 }
+
+const STATUS_BADGES: Record<ListingStatus, { label: string; className: string }> = {
+  draft: { label: 'Черновик', className: 'border border-white/10 bg-white/[0.06] text-white/50' },
+  pending: { label: 'На проверке', className: 'border border-accent/25 bg-accent/10 text-accent' },
+  changes_requested: {
+    label: 'Требуются исправления',
+    className: 'border border-orange-400/25 bg-orange-400/10 text-orange-300',
+  },
+  published: { label: 'Опубликована', className: 'badge-accent' },
+  hidden: { label: 'Скрыта', className: 'border border-white/15 bg-white/[0.08] text-white/50' },
+  blocked: { label: 'Заблокирована', className: 'border border-red-500/25 bg-red-500/10 text-red-400' },
+};
 
 interface EditableFields {
   name: string | null;
@@ -105,6 +120,11 @@ export default function AdminPerformerDetailPage() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
 
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockNote, setBlockNote] = useState('');
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [blockError, setBlockError] = useState('');
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -164,23 +184,66 @@ export default function AdminPerformerDetailPage() {
   };
 
   const toggleStatus = async () => {
-    if (!listing) return;
-    const nextStatus = listing.status === 'published' ? 'draft' : 'published';
+    if (!listing || (listing.status !== 'published' && listing.status !== 'hidden')) return;
+    const action = listing.status === 'published' ? 'hide' : 'unhide';
     setStatusBusy(true);
     setStatusError('');
     try {
-      const res = await authFetch(`/admin/listings/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
-      });
+      const res = await authFetch(`/admin/listings/${id}/${action}`, { method: 'PATCH' });
       const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить статус');
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить видимость анкеты');
       setListing(data);
     } catch (err: any) {
-      setStatusError(err.message || 'Не удалось изменить статус');
+      setStatusError(err.message || 'Не удалось изменить видимость анкеты');
     } finally {
       setStatusBusy(false);
+    }
+  };
+
+  const closeBlock = () => {
+    if (blockBusy) return;
+    setBlockOpen(false);
+    setBlockNote('');
+    setBlockError('');
+  };
+
+  const confirmBlock = async () => {
+    if (!blockNote.trim()) {
+      setBlockError('Укажите причину блокировки');
+      return;
+    }
+    setBlockBusy(true);
+    setBlockError('');
+    try {
+      const res = await authFetch(`/admin/listings/${id}/block`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: blockNote.trim() }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось заблокировать анкету');
+      setListing(data);
+      setBlockOpen(false);
+      setBlockNote('');
+    } catch (err: any) {
+      setBlockError(err.message || 'Не удалось заблокировать анкету');
+    } finally {
+      setBlockBusy(false);
+    }
+  };
+
+  const unblock = async () => {
+    setBlockBusy(true);
+    setBlockError('');
+    try {
+      const res = await authFetch(`/admin/listings/${id}/unblock`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось снять блокировку');
+      setListing(data);
+    } catch (err: any) {
+      setBlockError(err.message || 'Не удалось снять блокировку');
+    } finally {
+      setBlockBusy(false);
     }
   };
 
@@ -231,13 +294,15 @@ export default function AdminPerformerDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-bold">{listing.name || 'Без имени'}</h1>
-        {listing.status === 'published' ? (
-          <span className="badge badge-accent">Опубликована</span>
-        ) : (
-          <span className="badge border border-white/10 bg-white/[0.06] text-white/50">Черновик</span>
-        )}
+        <span className={`badge ${STATUS_BADGES[listing.status].className}`}>{STATUS_BADGES[listing.status].label}</span>
         <span className="font-body text-xs text-white/35">@{listing.ownerLogin}</span>
       </div>
+      {(listing.status === 'changes_requested' || listing.status === 'blocked') && listing.verificationNote ? (
+        <p className={`mb-6 font-body text-sm ${listing.status === 'blocked' ? 'text-red-400' : 'text-orange-300'}`}>
+          {listing.status === 'blocked' ? 'Причина блокировки: ' : 'Комментарий админа: '}
+          {listing.verificationNote}
+        </p>
+      ) : null}
 
       <div className="space-y-6">
         <div className="card p-6">
@@ -370,23 +435,59 @@ export default function AdminPerformerDetailPage() {
           <div>
             <h2 className="font-body text-sm uppercase tracking-wide text-white/35">Публикация</h2>
             <p className="mt-1 font-body text-xs text-white/35">
-              {listing.status === 'published' ? 'Анкета видна в публичном каталоге.' : 'Анкета скрыта из каталога.'}
+              {listing.status === 'published'
+                ? 'Анкета видна в публичном каталоге.'
+                : listing.status === 'hidden'
+                  ? 'Анкета скрыта из каталога.'
+                  : 'Доступно только для опубликованных или скрытых анкет — остальные статусы меняются через модерацию.'}
             </p>
             {statusError ? <p className="mt-2 font-body text-xs text-red-400">{statusError}</p> : null}
           </div>
-          <button type="button" onClick={toggleStatus} disabled={statusBusy} className="btn-secondary disabled:opacity-50">
-            {statusBusy ? (
-              'Сохраняем…'
-            ) : listing.status === 'published' ? (
-              <>
-                <EyeOff className="h-4 w-4" /> Скрыть
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4" /> Опубликовать
-              </>
-            )}
-          </button>
+          {listing.status === 'published' || listing.status === 'hidden' ? (
+            <button type="button" onClick={toggleStatus} disabled={statusBusy} className="btn-secondary disabled:opacity-50">
+              {statusBusy ? (
+                'Сохраняем…'
+              ) : listing.status === 'published' ? (
+                <>
+                  <EyeOff className="h-4 w-4" /> Скрыть
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4" /> Вернуть в каталог
+                </>
+              )}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="card flex flex-wrap items-center justify-between gap-4 !border-red-500/20 p-6">
+          <div>
+            <h2 className="font-body text-sm uppercase tracking-wide text-red-400/70">Блокировка</h2>
+            <p className="mt-1 font-body text-xs text-white/35">
+              {listing.status === 'blocked'
+                ? 'Анкета заблокирована — исполнитель не может её редактировать или отправить на проверку.'
+                : 'Заблокировать анкету за нарушение правил — потребует указать причину.'}
+            </p>
+            {blockError ? <p className="mt-2 font-body text-xs text-red-400">{blockError}</p> : null}
+          </div>
+          {listing.status === 'blocked' ? (
+            <button
+              type="button"
+              onClick={unblock}
+              disabled={blockBusy}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 font-body text-sm font-medium text-white/80 transition-colors hover:border-accent hover:text-white disabled:opacity-50"
+            >
+              <Unlock className="h-4 w-4" /> {blockBusy ? 'Снимаем…' : 'Снять блокировку'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setBlockOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-red-500/30 px-5 py-2.5 font-body text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+            >
+              <Lock className="h-4 w-4" /> Заблокировать
+            </button>
+          )}
         </div>
 
         <div className="card flex flex-wrap items-center justify-between gap-4 !border-red-500/20 p-6">
@@ -403,6 +504,49 @@ export default function AdminPerformerDetailPage() {
           </button>
         </div>
       </div>
+
+      {blockOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeBlock} />
+          <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <Lock className="h-6 w-6 text-red-400" strokeWidth={1.6} />
+            </div>
+            <h2 className="mb-2 font-display text-lg font-bold">Заблокировать анкету?</h2>
+            <p className="font-body text-sm text-white/40">
+              Анкета пропадёт из каталога. Исполнитель увидит причину и не сможет редактировать анкету, пока
+              блокировка не снята.
+            </p>
+
+            <textarea
+              value={blockNote}
+              onChange={(e) => setBlockNote(e.target.value)}
+              placeholder="Причина блокировки — обязательна, покажем исполнителю"
+              rows={3}
+              maxLength={1000}
+              autoFocus
+              className="input mt-4 resize-none text-left"
+            />
+
+            {blockError ? <p className="mt-4 font-body text-sm text-red-400">{blockError}</p> : null}
+
+            <div className="mt-6 flex justify-center gap-3">
+              <button type="button" onClick={closeBlock} disabled={blockBusy} className="btn-secondary disabled:opacity-50">
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={confirmBlock}
+                disabled={blockBusy || !blockNote.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-2.5 font-body text-sm font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
+              >
+                {blockBusy ? 'Блокируем…' : 'Заблокировать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {deleteOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">

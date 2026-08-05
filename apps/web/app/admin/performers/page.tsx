@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { AlertTriangle, Eye, EyeOff, ImageOff, Loader2, Pencil, Search, Trash2, Users } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 
+type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
+
 interface AdminListing {
   id: string;
-  status: 'draft' | 'published';
+  status: ListingStatus;
   slug: string | null;
   name: string | null;
   age: number | null;
@@ -23,12 +25,18 @@ async function parseBody(res: Response) {
   return text ? JSON.parse(text) : null;
 }
 
-function StatusBadge({ status }: { status: AdminListing['status'] }) {
-  return status === 'published' ? (
-    <span className="badge badge-accent">Опубликована</span>
-  ) : (
-    <span className="badge border border-white/10 bg-white/[0.06] text-white/50">Черновик</span>
-  );
+const STATUS_BADGES: Record<ListingStatus, { label: string; className: string }> = {
+  draft: { label: 'Черновик', className: 'border border-white/10 bg-white/[0.06] text-white/50' },
+  pending: { label: 'На проверке', className: 'border border-accent/25 bg-accent/10 text-accent' },
+  changes_requested: { label: 'Требуются исправления', className: 'border border-orange-400/25 bg-orange-400/10 text-orange-300' },
+  published: { label: 'Опубликована', className: 'badge-accent' },
+  hidden: { label: 'Скрыта', className: 'border border-white/15 bg-white/[0.08] text-white/50' },
+  blocked: { label: 'Заблокирована', className: 'border border-red-500/25 bg-red-500/10 text-red-400' },
+};
+
+function StatusBadge({ status }: { status: ListingStatus }) {
+  const { label, className } = STATUS_BADGES[status];
+  return <span className={`badge ${className}`}>{label}</span>;
 }
 
 export default function AdminPerformersPage() {
@@ -71,20 +79,17 @@ export default function AdminPerformersPage() {
   }, [listings, search]);
 
   const toggleStatus = async (l: AdminListing) => {
-    const nextStatus = l.status === 'published' ? 'draft' : 'published';
+    if (l.status !== 'published' && l.status !== 'hidden') return;
+    const action = l.status === 'published' ? 'hide' : 'unhide';
     setActionError('');
     setActionId(l.id);
     try {
-      const res = await authFetch(`/admin/listings/${l.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
-      });
+      const res = await authFetch(`/admin/listings/${l.id}/${action}`, { method: 'PATCH' });
       const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить статус');
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить видимость анкеты');
       setListings((prev) => prev.map((row) => (row.id === data.id ? data : row)));
     } catch (err: any) {
-      setActionError(err.message || 'Не удалось изменить статус');
+      setActionError(err.message || 'Не удалось изменить видимость анкеты');
     } finally {
       setActionId(null);
     }
@@ -192,8 +197,14 @@ export default function AdminPerformersPage() {
                     <button
                       type="button"
                       onClick={() => toggleStatus(l)}
-                      disabled={busy}
-                      title={l.status === 'published' ? 'Скрыть' : 'Опубликовать'}
+                      disabled={busy || (l.status !== 'published' && l.status !== 'hidden')}
+                      title={
+                        l.status === 'published'
+                          ? 'Скрыть'
+                          : l.status === 'hidden'
+                            ? 'Вернуть в каталог'
+                            : 'Доступно только для опубликованных или скрытых анкет'
+                      }
                       className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       {busy ? (

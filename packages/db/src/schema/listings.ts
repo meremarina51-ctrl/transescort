@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, text, timestamp, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, text, timestamp, uniqueIndex, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 /** One listing per performer — created/updated from the cabinet "Моя анкета" section. */
@@ -10,21 +10,28 @@ export const listings = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
 
+    /**
+     * The anketa's single lifecycle status:
+     * - draft              — being edited, never submitted (or sent back and not yet resubmitted)
+     * - pending             — submitted, awaiting an admin decision
+     * - changes_requested   — admin sent it back with a required note (see `verificationNote`)
+     * - published           — approved and live in the public catalog
+     * - hidden              — was published; performer or admin pulled it out of the catalog (no re-review needed to restore)
+     * - blocked             — admin force-blocked it for a policy violation (see `verificationNote`); only an admin can lift this
+     * Performers can only reach `pending`/`hidden` themselves (via submit/hide/unhide); every other
+     * transition requires an admin decision — see ListingsService.verify/block/unblock/adminHide/adminUnhide.
+     */
     status: varchar('status', { length: 20 })
-      .$type<'draft' | 'published'>()
+      .$type<'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked'>()
       .notNull()
       .default('draft'),
 
-    /**
-     * Admin verification gate — performers can only move `status` to 'published' by going
-     * through this (see ListingsService.verify); their own PATCH /listings/me can never set it.
-     */
-    verificationStatus: varchar('verification_status', { length: 20 })
-      .$type<'unverified' | 'pending' | 'approved' | 'rejected' | 'changes_requested'>()
-      .notNull()
-      .default('unverified'),
+    /** Admin's note — required when requesting changes or blocking, shown to the performer. */
     verificationNote: text('verification_note'),
     submittedAt: timestamp('submitted_at'),
+
+    /** Set once, the first time this anketa is approved — never reset. Used only to distinguish a brand-new submission from a resubmission in the admin moderation queue. */
+    everPublished: boolean('ever_published').notNull().default(false),
 
     /** URL slug, transliterated from `name` at creation time — stable, doesn't change on rename. */
     slug: varchar('slug', { length: 160 }),

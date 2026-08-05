@@ -1,7 +1,8 @@
 import { Injectable, Inject, ConflictException } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { users, type User } from '@transescort/db';
 import * as bcrypt from 'bcrypt';
+import { generateRecoveryCode, normalizeRecoveryCode } from './recovery-code.util';
 
 export type PublicUser = Omit<User, 'passwordHash'>;
 
@@ -97,6 +98,31 @@ export class UsersService {
 
   async setStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
     await this.db.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, id));
+  }
+
+  async incrementTokenVersion(id: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ tokenVersion: sql`${users.tokenVersion} + 1`, updatedAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  async updatePassword(id: string, password: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+  }
+
+  /** Generates and stores a fresh backup code, returning the plaintext — only ever available this once. */
+  async setRecoveryCode(id: string): Promise<string> {
+    const code = generateRecoveryCode();
+    const recoveryCodeHash = await bcrypt.hash(code, 10);
+    await this.db.update(users).set({ recoveryCodeHash, updatedAt: new Date() }).where(eq(users.id, id));
+    return code;
+  }
+
+  async verifyRecoveryCode(user: User, code: string): Promise<boolean> {
+    if (!user.recoveryCodeHash) return false;
+    return bcrypt.compare(normalizeRecoveryCode(code), user.recoveryCodeHash);
   }
 
   async deleteUser(id: string): Promise<void> {

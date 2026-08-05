@@ -13,6 +13,6 @@ export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Root endpoint' })
   root() {
-    return { name: 'TransEscort API', version: '0.1.0', docs: '/api/docs', health: '/health' };
+    return { name: 'Verself API', version: '0.1.0', docs: '/api/docs', health: '/health' };
   }
 }

@@ -20,27 +20,21 @@ export class ListingsService {
     return found[0] || null;
   }
 
-  /** Public catalog feed — published AND admin-approved anketas only, newest first. */
+  /** Public catalog feed — published anketas only, newest first. */
   async listPublished(): Promise<Listing[]> {
     return this.db
       .select()
       .from(listings)
-      .where(and(eq(listings.status, 'published'), eq(listings.verificationStatus, 'approved')))
+      .where(eq(listings.status, 'published'))
       .orderBy(desc(listings.updatedAt));
   }
 
-  /** Public anketa page — only if it's actually published and approved. */
+  /** Public anketa page — only if it's actually published. */
   async findPublishedBySlug(slug: string): Promise<Listing | null> {
     const found = await this.db
       .select()
       .from(listings)
-      .where(
-        and(
-          eq(listings.slug, slug),
-          eq(listings.status, 'published'),
-          eq(listings.verificationStatus, 'approved'),
-        ),
-      )
+      .where(and(eq(listings.slug, slug), eq(listings.status, 'published')))
       .limit(1);
     return found[0] || null;
   }
@@ -111,6 +105,31 @@ export class ListingsService {
     return updated[0];
   }
 
+  /**
+   * Persists a performer-chosen photo order — index 0 is the implicit "main photo" used everywhere
+   * (catalog cards, gallery, favorites). `orderedUrls` must be an exact permutation of the existing
+   * `photos` array; this never touches verificationStatus since the photo content itself is unchanged.
+   */
+  async reorderPhotos(userId: string, orderedUrls: string[]): Promise<Listing> {
+    const existing = await this.requireByUserId(userId);
+    const current = existing.photos ?? [];
+    const isPermutation =
+      orderedUrls.length === current.length &&
+      new Set(orderedUrls).size === current.length &&
+      current.every((url) => orderedUrls.includes(url));
+
+    if (!isPermutation) {
+      throw new BadRequestException('Список фото должен содержать те же фото анкеты без изменений содержимого');
+    }
+
+    const updated = await this.db
+      .update(listings)
+      .set({ photos: orderedUrls, updatedAt: new Date() })
+      .where(eq(listings.userId, userId))
+      .returning();
+    return updated[0];
+  }
+
   async setVideo(userId: string, url: string | null): Promise<Listing> {
     await this.requireByUserId(userId);
     const updated = await this.db
@@ -172,16 +191,89 @@ export class ListingsService {
   /** Performer: submit the anketa for admin verification — does not publish it by itself. */
   async submitForReview(userId: string): Promise<Listing> {
     const existing = await this.requireByUserId(userId);
+    if (existing.status !== 'draft' && existing.status !== 'changes_requested') {
+      throw new BadRequestException(
+        'Отправить на проверку можно только черновик или анкету с запрошенными исправлениями',
+      );
+    }
     if ((existing.photos ?? []).length < MIN_PHOTOS_FOR_REVIEW) {
       throw new BadRequestException(`Добавьте не менее ${MIN_PHOTOS_FOR_REVIEW} фото перед отправкой на проверку`);
     }
 
     const updated = await this.db
       .update(listings)
-      .set({ verificationStatus: 'pending', submittedAt: new Date(), updatedAt: new Date() })
+      .set({ status: 'pending', submittedAt: new Date(), updatedAt: new Date() })
       .where(eq(listings.userId, userId))
       .returning();
     return updated[0];
+  }
+
+  /** Performer: pulls their own published anketa out of the catalog — keeps its approval, no re-review to restore. */
+  async hide(userId: string): Promise<Listing> {
+    const existing = await this.requireByUserId(userId);
+    if (existing.status !== 'published') {
+      throw new BadRequestException('Скрыть можно только опубликованную анкету');
+    }
+    const updated = await this.db
+      .update(listings)
+      .set({ status: 'hidden', updatedAt: new Date() })
+      .where(eq(listings.userId, userId))
+      .returning();
+    return updated[0];
+  }
+
+  /** Performer: restores their own hidden anketa back to the catalog. */
+  async unhide(userId: string): Promise<Listing> {
+    const existing = await this.requireByUserId(userId);
+    if (existing.status !== 'hidden') {
+      throw new BadRequestException('Анкета не скрыта');
+    }
+    const updated = await this.db
+      .update(listings)
+      .set({ status: 'published', updatedAt: new Date() })
+      .where(eq(listings.userId, userId))
+      .returning();
+    return updated[0];
+  }
+
+  /** Admin: same as `hide`, but by listing id. */
+  async adminHide(id: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (existing.status !== 'published') {
+      throw new BadRequestException('Скрыть можно только опубликованную анкету');
+    }
+    return this.updateById(id, { status: 'hidden' });
+  }
+
+  /** Admin: same as `unhide`, but by listing id. */
+  async adminUnhide(id: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (existing.status !== 'hidden') {
+      throw new BadRequestException('Анкета не скрыта');
+    }
+    return this.updateById(id, { status: 'published' });
+  }
+
+  /** Admin: blocks an anketa for a policy violation — a reason is always required and shown to the performer. */
+  async block(id: string, note: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (existing.status === 'blocked') {
+      throw new BadRequestException('Анкета уже заблокирована');
+    }
+    return this.updateById(id, { status: 'blocked', verificationNote: note });
+  }
+
+  /** Admin: lifts a block — sends the anketa back to draft, so the performer must resubmit for a fresh review. */
+  async unblock(id: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (existing.status !== 'blocked') {
+      throw new BadRequestException('Анкета не заблокирована');
+    }
+    return this.updateById(id, { status: 'draft', verificationNote: null });
   }
 
   /** Admin: anketas awaiting a verification decision, oldest submission first. */
@@ -190,7 +282,7 @@ export class ListingsService {
       .select({ listing: listings, ownerLogin: users.login, ownerFullName: users.fullName })
       .from(listings)
       .leftJoin(users, eq(listings.userId, users.id))
-      .where(eq(listings.verificationStatus, 'pending'))
+      .where(eq(listings.status, 'pending'))
       .orderBy(listings.submittedAt);
 
     return rows.map((r: { listing: Listing; ownerLogin: string | null; ownerFullName: string | null }) => ({
@@ -202,18 +294,14 @@ export class ListingsService {
 
   /**
    * Admin decision on a pending anketa:
-   * - approved — publishes it.
-   * - rejected / changes_requested — sends it back to the performer (unpublished) with a required note.
+   * - approved — publishes it (and marks it as having ever been published).
+   * - changes_requested — sends it back to the performer with a required note.
    */
-  async verify(
-    id: string,
-    decision: 'approved' | 'rejected' | 'changes_requested',
-    note?: string,
-  ): Promise<Listing> {
+  async verify(id: string, decision: 'approved' | 'changes_requested', note?: string): Promise<Listing> {
     const patch: Partial<NewListing> =
       decision === 'approved'
-        ? { verificationStatus: 'approved', status: 'published', verificationNote: null }
-        : { verificationStatus: decision, status: 'draft', verificationNote: note ?? null };
+        ? { status: 'published', everPublished: true, verificationNote: null }
+        : { status: 'changes_requested', verificationNote: note ?? null };
 
     const updated = await this.db
       .update(listings)

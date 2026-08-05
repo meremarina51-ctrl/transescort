@@ -6,7 +6,8 @@ import { authFetch } from '@/lib/auth-fetch';
 
 interface ModerationListing {
   id: string;
-  status: 'draft' | 'published';
+  status: 'pending';
+  everPublished: boolean;
   name: string | null;
   bio: string | null;
   age: number | null;
@@ -18,11 +19,10 @@ interface ModerationListing {
   ownerFullName: string | null;
 }
 
-type Decision = 'approved' | 'rejected' | 'changes_requested';
+type Decision = 'approved' | 'changes_requested';
 
 interface DecisionTarget {
   id: string;
-  decision: 'rejected' | 'changes_requested';
 }
 
 async function parseBody(res: Response) {
@@ -86,7 +86,7 @@ function ModerationCard({
   decisionNote: string;
   onNoteChange: (v: string) => void;
   onConfirm: () => void;
-  onOpenDecision: (decision: 'rejected' | 'changes_requested') => void;
+  onOpenDecision: () => void;
   onCancelDecision: () => void;
   onSubmitDecision: () => void;
   onPhotoClick: (url: string) => void;
@@ -152,17 +152,9 @@ function ModerationCard({
               onClick={onSubmitDecision}
               disabled={busy || !decisionNote.trim()}
               title={!decisionNote.trim() ? 'Комментарий обязателен' : undefined}
-              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
-                decisionTarget?.decision === 'rejected'
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-orange-500 hover:bg-orange-600'
-              }`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
             >
-              {busy
-                ? 'Сохраняем…'
-                : decisionTarget?.decision === 'rejected'
-                  ? 'Подтвердить отклонение'
-                  : 'Отправить запрос на замену'}
+              {busy ? 'Сохраняем…' : 'Отправить запрос на исправления'}
             </button>
           </div>
         </div>
@@ -170,19 +162,11 @@ function ModerationCard({
         <div className="mt-3 flex flex-wrap justify-end gap-2">
           <button
             type="button"
-            onClick={() => onOpenDecision('rejected')}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 px-3.5 py-1.5 font-body text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
-          >
-            <X className="h-3.5 w-3.5" /> Отклонить
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenDecision('changes_requested')}
+            onClick={onOpenDecision}
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/30 px-3.5 py-1.5 font-body text-xs font-medium text-orange-300 transition-colors hover:bg-orange-400/10 disabled:opacity-50"
           >
-            <RefreshCw className="h-3.5 w-3.5" /> Запросить замену
+            <RefreshCw className="h-3.5 w-3.5" /> Запросить исправления
           </button>
           <button
             type="button"
@@ -229,8 +213,8 @@ export default function AdminModerationPage() {
     load();
   }, []);
 
-  const newItems = useMemo(() => queue.filter((item) => item.status === 'draft'), [queue]);
-  const modifiedItems = useMemo(() => queue.filter((item) => item.status === 'published'), [queue]);
+  const newItems = useMemo(() => queue.filter((item) => !item.everPublished), [queue]);
+  const modifiedItems = useMemo(() => queue.filter((item) => item.everPublished), [queue]);
 
   const verify = async (id: string, decision: Decision, note?: string) => {
     setActionError('');
@@ -255,8 +239,8 @@ export default function AdminModerationPage() {
     }
   };
 
-  const openDecision = (id: string, decision: 'rejected' | 'changes_requested') => {
-    setDecisionTarget({ id, decision });
+  const openDecision = (id: string) => {
+    setDecisionTarget({ id });
     setDecisionNote('');
     setActionError('');
   };
@@ -272,9 +256,9 @@ export default function AdminModerationPage() {
           decisionNote={decisionNote}
           onNoteChange={setDecisionNote}
           onConfirm={() => verify(item.id, 'approved')}
-          onOpenDecision={(decision) => openDecision(item.id, decision)}
+          onOpenDecision={() => openDecision(item.id)}
           onCancelDecision={() => setDecisionTarget(null)}
-          onSubmitDecision={() => verify(item.id, decisionTarget!.decision, decisionNote.trim())}
+          onSubmitDecision={() => verify(item.id, 'changes_requested', decisionNote.trim())}
           onPhotoClick={setLightboxUrl}
         />
       ))}
