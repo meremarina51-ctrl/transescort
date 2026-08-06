@@ -37,8 +37,6 @@ import type { ListingAttributes } from '@/lib/listing.types';
 interface ListingParams extends Omit<ListingAttributes, 'name'> {
   bio: string;
   name: string;
-  priceHour: number | null;
-  priceNight: number | null;
   contactPhone: string;
   contactTelegram: string;
   contactWhatsapp: string;
@@ -715,16 +713,7 @@ export default function ListingPage() {
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => save()}
-                disabled={saving || !isDirty}
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Сохраняем…' : 'Сохранить'}
-              </button>
-
-              {status === 'pending' ? (
+                  {status === 'pending' ? (
                 <span className="font-body text-sm text-white/40">Анкета на проверке у администратора</span>
               ) : status === 'blocked' ? (
                 <span className="font-body text-sm text-red-400">Анкета заблокирована администратором</span>
@@ -771,6 +760,15 @@ export default function ListingPage() {
                   {submitting ? 'Отправляем…' : 'Отправить на проверку'}
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => save()}
+                disabled={saving || !isDirty}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Сохраняем…' : 'Сохранить'}
+              </button>
             </>
           )}
         </div>

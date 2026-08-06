@@ -12,6 +12,7 @@ export const RANGE_FILTERS: { label: string; field: NumericField; minPh: string;
   { label: 'Рост, см', field: 'height', minPh: '155', maxPh: '185' },
   { label: 'Вес, кг', field: 'weight', minPh: '45', maxPh: '70' },
   { label: 'Грудь', field: 'breastSize', minPh: '1', maxPh: '6' },
+  { label: 'Цена/час, ₽', field: 'priceHour', minPh: '1000', maxPh: '10000' },
 ];
 
 export const SELECT_FILTERS: { label: string; field: CategoricalField; options: string[] }[] = [
@@ -30,6 +31,7 @@ export const EMPTY_NUMERIC: Filters['numeric'] = {
   height: { min: 0, max: 0 },
   weight: { min: 0, max: 0 },
   breastSize: { min: 0, max: 0 },
+  priceHour: { min: 0, max: 0 },
 };
 
 export const EMPTY_CATEGORICAL: Filters['categorical'] = {
@@ -43,4 +45,4 @@ export const EMPTY_CATEGORICAL: Filters['categorical'] = {
 };
 
 export const numberInputClass =
-  'w-16 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-2 py-1.5 text-center font-body text-xs text-white outline-none placeholder:text-white/20 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+  'w-20 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-2 py-1.5 text-center font-body text-xs text-white outline-none placeholder:text-white/20 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';

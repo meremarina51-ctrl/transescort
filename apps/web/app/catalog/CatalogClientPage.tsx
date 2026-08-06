@@ -8,6 +8,7 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';
 import { toSelectOptions } from '@/lib/listing-options';
+import { formatPrice } from '@/lib/format';
 import type { CategoricalField, CatalogListing, NumericField, SortOption } from './catalog.types';
 import {
   ALL_CATEGORICAL_FIELDS,
@@ -17,6 +18,14 @@ import {
   SELECT_FILTERS,
   numberInputClass,
 } from './catalog.constants';
+
+function anketaWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'анкета';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'анкеты';
+  return 'анкет';
+}
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -56,9 +65,12 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
     Object.values(numeric).some((r) => r.min > 0 || r.max > 0) ||
     SELECT_FILTERS.some(({ field }) => categorical[field] !== '');
 
-  const resetAdvancedFilters = () => {
+  const hasActiveFilters = hasAdvancedFilters || search.trim() !== '' || categorical.country !== '' || categorical.city !== '';
+
+  const resetAllFilters = () => {
+    setSearch('');
     setNumeric(EMPTY_NUMERIC);
-    setCategorical((prev) => ({ ...prev, type: '', figure: '', temperament: '', hairColor: '', eyeColor: '' }));
+    setCategorical(EMPTY_CATEGORICAL);
   };
 
   const geoData = useMemo<GeoCountry[]>(() => {
@@ -149,13 +161,13 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
             </button>
 
             <div className="ml-auto flex items-center gap-3">
-              {hasAdvancedFilters && (
+              {hasActiveFilters && (
                 <button
                   type="button"
-                  onClick={resetAdvancedFilters}
+                  onClick={resetAllFilters}
                   className="font-body text-xs text-white/40 transition-colors hover:text-white/70"
                 >
-                  Сбросить
+                  Сбросить всё
                 </button>
               )}
               <div ref={filterRef} className="relative">
@@ -219,6 +231,10 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
           </div>
         </div>
 
+        <p className="mb-4 font-body text-sm text-white/40">
+          Найдено: {listings.length} {anketaWord(listings.length)}
+        </p>
+
         {listings.length === 0 ? (
           <div className="card flex flex-col items-center gap-3 p-16 text-center">
             <ImageOff className="h-8 w-8 text-white/25" strokeWidth={1.4} />
@@ -256,6 +272,11 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                   <p className="mt-1 font-body text-sm text-white/40">
                     {[listing.age ? `${listing.age} лет` : null, listing.city].filter(Boolean).join(' · ')}
                   </p>
+                  {listing.priceHour ? (
+                    <p className="mt-2 font-body text-sm font-semibold text-accent">
+                      {formatPrice(listing.priceHour)} / час
+                    </p>
+                  ) : null}
                 </div>
               </Link>
             ))}

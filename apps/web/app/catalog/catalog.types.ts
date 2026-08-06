@@ -6,7 +6,7 @@ export interface CatalogListing extends ListingAttributes {
   photos: string[];
 }
 
-export type NumericField = 'age' | 'height' | 'weight' | 'breastSize';
+export type NumericField = 'age' | 'height' | 'weight' | 'breastSize' | 'priceHour';
 export type CategoricalField = 'type' | 'figure' | 'temperament' | 'hairColor' | 'eyeColor' | 'country' | 'city';
 export type SortOption = 'newest' | 'name';
 

@@ -53,7 +53,10 @@ export const CLIENT_NAV = [
   { href: '/cabinet/support', label: 'Поддержка', icon: LifeBuoy },
 ] as const;
 
-export const DEFAULT_NAV = [{ href: '/cabinet/profile', label: 'Профиль', icon: User }] as const;
+export const DEFAULT_NAV = [
+  { href: '/cabinet/profile', label: 'Профиль', icon: User },
+  { href: '/cabinet/messages', label: 'Чаты', icon: MessageSquare },
+] as const;
 
 export const TAIL_NAV = [{ href: '/cabinet/settings', label: 'Настройки', icon: Settings }] as const;
 

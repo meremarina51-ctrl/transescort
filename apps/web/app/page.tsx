@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { HomeCtaButtons } from '@/components/HomeCtaButtons';
 import { MOCK_REVIEWS, MOCK_TARIFFS } from '@/lib/mock-data';
 import { apiUrl } from '@/lib/api-url';
+import { formatPrice } from '@/lib/format';
 import type { CatalogListing } from './catalog/catalog.types';
 import { FEATURES } from './home.constants';
 
@@ -118,6 +119,11 @@ export default async function HomePage() {
                     <p className="mt-1 font-body text-xs text-white/40">
                       {[listing.age ? `${listing.age} лет` : null, listing.city].filter(Boolean).join(' · ')}
                     </p>
+                    {listing.priceHour ? (
+                      <p className="mt-1 font-body text-xs font-semibold text-accent">
+                        {formatPrice(listing.priceHour)} / час
+                      </p>
+                    ) : null}
                   </div>
                 </Link>
               ))}

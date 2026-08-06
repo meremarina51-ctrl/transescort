@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ImageOff, Play, X } from 'lucide-react';
+import { ImageOff, MessageCircle, Phone, Play, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { formatPrice } from '@/lib/format';
 
 type Media = { type: 'photo' | 'video'; url: string };
 
@@ -19,11 +20,13 @@ interface Props {
   videoUrl: string | null;
   vitals: Vital[];
   bio: string | null;
+  priceHour: number | null;
+  priceNight: number | null;
 }
 
 const PLACEHOLDER_COUNT = 6;
 
-export function ListingGallery({ id, name, photos, videoUrl, vitals, bio }: Props) {
+export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceHour, priceNight }: Props) {
   const router = useRouter();
   const media: Media[] = [
     ...photos.map((url): Media => ({ type: 'photo', url })),
@@ -91,6 +94,16 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio }: Prop
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-6 pt-16">
           <h1 className="mb-1 font-display text-3xl font-extrabold text-white drop-shadow-sm">{name}</h1>
+          {priceHour || priceNight ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {priceHour ? (
+                <span className="badge badge-accent">{formatPrice(priceHour)} / час</span>
+              ) : null}
+              {priceNight ? (
+                <span className="badge badge-accent">{formatPrice(priceNight)} / ночь</span>
+              ) : null}
+            </div>
+          ) : null}
           {vitals.length > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 font-body text-sm text-white/70">
               {vitals.map((v) => (
@@ -104,7 +117,7 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio }: Prop
         </div>
       </div>
 
-      <div className="border-t border-white/[0.06] bg-black p-3 lg:h-[calc(100vh-4rem)] lg:w-[26%] lg:border-l lg:border-t-0">
+      <div className="border-t border-white/[0.06] bg-black p-3 lg:h-[calc(100vh-4rem)] lg:w-[36%] lg:border-l lg:border-t-0">
         <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border-[3px] border-accent/40 bg-[#161616]">
           <div className="flex-shrink-0 px-4 pb-3 pt-4">
             <div className="flex items-center gap-3">
@@ -163,6 +176,30 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio }: Prop
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="grid flex-shrink-0 grid-cols-3 gap-2 border-t border-white/[0.06] p-3">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-2 py-2 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Связаться
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              Контакты
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
+            >
+              <Star className="h-3.5 w-3.5" />
+              Отзывы
+            </button>
           </div>
         </div>
       </div>

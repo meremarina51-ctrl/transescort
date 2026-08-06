@@ -12,4 +12,7 @@ export interface ListingAttributes {
   eyeColor: string | null;
   country: string | null;
   city: string | null;
+  /** Rubles. */
+  priceHour: number | null;
+  priceNight: number | null;
 }

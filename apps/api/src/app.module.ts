@@ -16,6 +16,7 @@ import { RateLimitModule } from './security/rate-limit.config';
 import { ListingsModule } from './listings/listings.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { FavoritesModule } from './favorites/favorites.module';
+import { ChatModule } from './chat/chat.module';
 
 function resolveEnvFilePath(): string {
   const cwd = process.cwd();
@@ -42,6 +43,7 @@ function resolveEnvFilePath(): string {
     ListingsModule,
     ModerationModule,
     FavoritesModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

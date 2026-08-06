@@ -61,6 +61,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           videoUrl={listing.videoUrl}
           vitals={vitals}
           bio={listing.bio}
+          priceHour={listing.priceHour}
+          priceNight={listing.priceNight}
         />
       </main>
       <Footer />

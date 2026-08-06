@@ -7,6 +7,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/auth-fetch';
+import { disconnectChatSocket } from '@/lib/chat-socket';
 
 interface User {
   id: string;
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    disconnectChatSocket();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');

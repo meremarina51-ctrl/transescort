@@ -17,3 +17,16 @@ export function apiUrl(path: string): string {
   const upstream = (process.env.API_PROXY_UPSTREAM || 'http://127.0.0.1:3010').replace(/\/$/, '');
   return `${upstream}${p}`;
 }
+
+/**
+ * The API's real origin (no path), for connections that can't go through the `/api` HTTP rewrite —
+ * namely WebSockets, since Next.js's `rewrites()` only proxies plain HTTP requests, not the
+ * upgrade handshake. Browser-only; falls back to same-origin if nothing is configured (assumes a
+ * reverse proxy forwards WS upgrades there in that deployment).
+ */
+export function apiOrigin(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '');
+  if (explicit) return explicit;
+  if (typeof window !== 'undefined') return window.location.origin;
+  return (process.env.API_PROXY_UPSTREAM || 'http://127.0.0.1:3010').replace(/\/$/, '');
+}
