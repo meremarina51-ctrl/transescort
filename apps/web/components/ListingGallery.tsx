@@ -2,9 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ImageOff, MessageCircle, Phone, Play, Star, X } from 'lucide-react';
+import { ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { formatPrice } from '@/lib/format';
+import { useAuth } from '@/components/AuthProvider';
+import { authFetch } from '@/lib/auth-fetch';
+
+async function parseBody(res: Response) {
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
 
 type Media = { type: 'photo' | 'video'; url: string };
 
@@ -22,12 +29,14 @@ interface Props {
   bio: string | null;
   priceHour: number | null;
   priceNight: number | null;
+  ownerLogin: string | null;
 }
 
 const PLACEHOLDER_COUNT = 6;
 
-export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceHour, priceNight }: Props) {
+export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceHour, priceNight, ownerLogin }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
   const media: Media[] = [
     ...photos.map((url): Media => ({ type: 'photo', url })),
     ...(videoUrl ? [{ type: 'video', url: videoUrl } as Media] : []),
@@ -35,6 +44,39 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceH
   const [active, setActive] = useState(0);
   const total = media.length;
   const current = media[active];
+
+  const [contactOpen, setContactOpen] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+  const [startChatError, setStartChatError] = useState('');
+
+  const handleContactClick = () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    setStartChatError('');
+    setContactOpen(true);
+  };
+
+  const startPlatformChat = async () => {
+    if (!ownerLogin) return;
+    setStartingChat(true);
+    setStartChatError('');
+    try {
+      const res = await authFetch('/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: ownerLogin }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось начать чат');
+      const chatsHref = user?.role === 'performer' ? '/cabinet/chats' : '/cabinet/messages';
+      router.push(`${chatsHref}?c=${data.id}`);
+    } catch (err: any) {
+      setStartChatError(err.message || 'Не удалось начать чат');
+      setStartingChat(false);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row">
@@ -181,6 +223,7 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceH
           <div className="grid flex-shrink-0 grid-cols-3 gap-2 border-t border-white/[0.06] p-3">
             <button
               type="button"
+              onClick={handleContactClick}
               className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-2 py-2 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
             >
               <MessageCircle className="h-3.5 w-3.5" />
@@ -203,6 +246,55 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceH
           </div>
         </div>
       </div>
+
+      {contactOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setContactOpen(false)} />
+          <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Связаться с {name}</h2>
+              <button type="button" onClick={() => setContactOpen(false)} className="text-white/40 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled
+                title="Скоро будет доступно"
+                className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left opacity-40"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40">
+                  <Send className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-body text-sm font-medium text-white">Написать в Telegram</p>
+                  <p className="font-body text-xs text-white/35">Пока недоступно</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={startPlatformChat}
+                disabled={startingChat || !ownerLogin}
+                className="flex w-full items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3 text-left transition-colors hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                  {startingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-body text-sm font-medium text-white">Написать на платформе</p>
+                  <p className="font-body text-xs text-white/40">Откроется чат в личном кабинете</p>
+                </div>
+              </button>
+            </div>
+
+            {startChatError ? <p className="mt-3 font-body text-sm text-red-400">{startChatError}</p> : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

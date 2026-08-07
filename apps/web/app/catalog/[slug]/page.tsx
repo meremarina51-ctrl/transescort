@@ -10,6 +10,7 @@ interface ListingDetail extends ListingAttributes {
   bio: string | null;
   photos: string[];
   videoUrl: string | null;
+  ownerLogin: string | null;
 }
 
 async function getListing(slug: string): Promise<ListingDetail | null> {
@@ -63,6 +64,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           bio={listing.bio}
           priceHour={listing.priceHour}
           priceNight={listing.priceNight}
+          ownerLogin={listing.ownerLogin}
         />
       </main>
       <Footer />

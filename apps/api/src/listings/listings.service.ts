@@ -29,14 +29,16 @@ export class ListingsService {
       .orderBy(desc(listings.updatedAt));
   }
 
-  /** Public anketa page — only if it's actually published. */
-  async findPublishedBySlug(slug: string): Promise<Listing | null> {
-    const found = await this.db
-      .select()
+  /** Public anketa page — only if it's actually published. Includes the owner's login so the client can start a chat. */
+  async findPublishedBySlug(slug: string): Promise<(Listing & { ownerLogin: string | null }) | null> {
+    const rows = await this.db
+      .select({ listing: listings, ownerLogin: users.login })
       .from(listings)
+      .leftJoin(users, eq(listings.userId, users.id))
       .where(and(eq(listings.slug, slug), eq(listings.status, 'published')))
       .limit(1);
-    return found[0] || null;
+    if (!rows[0]) return null;
+    return { ...rows[0].listing, ownerLogin: rows[0].ownerLogin };
   }
 
   async upsert(userId: string, data: Partial<NewListing>): Promise<Listing> {

@@ -1,12 +1,14 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, ne, or } from 'drizzle-orm';
-import { conversations, messages, users, type Conversation, type Message } from '@transescort/db';
+import { conversations, listings, messages, users, type Conversation, type Message } from '@transescort/db';
 
 export interface ConversationParticipant {
   id: string;
   login: string;
   fullName: string | null;
   role: string;
+  /** The participant's public anketa, if they have one published — null otherwise. */
+  listing: { slug: string; photo: string | null } | null;
 }
 
 export interface ConversationSummary {
@@ -87,14 +89,23 @@ export class ChatService {
     return summaries;
   }
 
-  async listMessages(conversationId: string, userId: string): Promise<Message[]> {
-    await this.assertParticipant(conversationId, userId);
-    return this.db
+  /** `otherUserReadAt` is how far the OTHER participant has read — lets the caller show read/unread on their own sent messages. */
+  async listMessages(
+    conversationId: string,
+    userId: string,
+  ): Promise<{ messages: Message[]; otherUserReadAt: Date | null }> {
+    const conversation = await this.assertParticipant(conversationId, userId);
+    const isA = conversation.userAId === userId;
+    const otherUserReadAt = isA ? conversation.lastReadAtB : conversation.lastReadAtA;
+
+    const thread = await this.db
       .select()
       .from(messages)
       .where(eq(messages.conversationId, conversationId))
       .orderBy(asc(messages.createdAt))
       .limit(200);
+
+    return { messages: thread, otherUserReadAt: otherUserReadAt ?? null };
   }
 
   async sendMessage(
@@ -116,13 +127,17 @@ export class ChatService {
     return { message, otherUserId };
   }
 
-  async markRead(conversationId: string, userId: string): Promise<void> {
+  /** Returns who to notify (the other participant) so the caller can push a live read-receipt over the socket. */
+  async markRead(conversationId: string, userId: string): Promise<{ otherUserId: string; readAt: Date }> {
     const conversation = await this.assertParticipant(conversationId, userId);
     const isA = conversation.userAId === userId;
+    const readAt = new Date();
     await this.db
       .update(conversations)
-      .set(isA ? { lastReadAtA: new Date() } : { lastReadAtB: new Date() })
+      .set(isA ? { lastReadAtA: readAt } : { lastReadAtB: readAt })
       .where(eq(conversations.id, conversationId));
+
+    return { otherUserId: isA ? conversation.userBId : conversation.userAId, readAt };
   }
 
   private async assertParticipant(conversationId: string, userId: string): Promise<Conversation> {
@@ -146,6 +161,15 @@ export class ChatService {
     const otherUser = otherUserRows[0];
     if (!otherUser) return null;
 
+    const listingRows = await this.db
+      .select({ slug: listings.slug, photos: listings.photos })
+      .from(listings)
+      .where(and(eq(listings.userId, otherUserId), eq(listings.status, 'published')))
+      .limit(1);
+    const listing = listingRows[0]?.slug
+      ? { slug: listingRows[0].slug as string, photo: (listingRows[0].photos as string[])[0] ?? null }
+      : null;
+
     const thread: Message[] = await this.db
       .select()
       .from(messages)
@@ -160,7 +184,7 @@ export class ChatService {
 
     return {
       id: row.id,
-      otherUser,
+      otherUser: { ...otherUser, listing },
       lastMessage: lastMessage ? { body: lastMessage.body, senderId: lastMessage.senderId, createdAt: lastMessage.createdAt } : null,
       unreadCount,
       updatedAt: row.lastMessageAt ?? row.createdAt,

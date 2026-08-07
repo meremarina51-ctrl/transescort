@@ -11,6 +11,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  badge?: number;
 }
 
 /** Nav links + bottom actions, shared between the desktop rail and the mobile overlay. */
@@ -39,7 +40,12 @@ function SidebarNav({
           return (
             <Link key={item.href} href={item.href} className={linkClass(active)} onClick={onNavigate}>
               <item.icon className="h-5 w-5 flex-shrink-0" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge ? (
+                <span className="flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-accent px-1.5 font-body text-[10px] font-bold text-white">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              ) : null}
             </Link>
           );
         })}

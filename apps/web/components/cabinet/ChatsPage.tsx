@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, MessageSquare, Plus, Search, Send, X } from 'lucide-react';
+import Link from 'next/link';
+import { Check, CheckCheck, ChevronLeft, ChevronRight, Loader2, MessageSquare, Plus, Search, Send, X } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { getChatSocket } from '@/lib/chat-socket';
@@ -11,6 +12,7 @@ interface ConversationParticipant {
   login: string;
   fullName: string | null;
   role: 'client' | 'performer' | 'admin';
+  listing: { slug: string; photo: string | null } | null;
 }
 
 interface ConversationSummary {
@@ -35,8 +37,31 @@ function initial(name: string): string {
   return name.slice(0, 1).toUpperCase();
 }
 
+function ParticipantAvatar({ user, className }: { user: ConversationParticipant; className: string }) {
+  const label = user.fullName || user.login;
+  return (
+    <div
+      className={`flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/10 font-body font-semibold text-accent ${className}`}
+    >
+      {user.listing?.photo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={user.listing.photo} alt={label} className="h-full w-full object-cover" />
+      ) : (
+        initial(label)
+      )}
+    </div>
+  );
+}
+
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Date + time shown on every message bubble — not just the once-per-day separator, so it's unambiguous even at a glance. */
+function formatMessageStamp(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+  return `${date}, ${formatTime(iso)}`;
 }
 
 function formatListTime(iso: string): string {
@@ -45,6 +70,53 @@ function formatListTime(iso: string): string {
   return d.toDateString() === now.toDateString()
     ? formatTime(iso)
     : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+}
+
+function isSameDay(isoA: string, isoB: string): boolean {
+  return new Date(isoA).toDateString() === new Date(isoB).toDateString();
+}
+
+function formatDateSeparator(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return 'Сегодня';
+  if (d.toDateString() === yesterday.toDateString()) return 'Вчера';
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+  });
+}
+
+function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
+  const content = (
+    <>
+      <ParticipantAvatar user={user} className="h-9 w-9 text-sm" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-body text-sm font-semibold text-white group-hover:text-accent">
+          {user.fullName || user.login}
+        </p>
+        <p className="font-body text-xs text-white/35">
+          @{user.login} · {ROLE_LABELS[user.role] ?? user.role}
+        </p>
+      </div>
+    </>
+  );
+
+  if (user.listing) {
+    return (
+      <Link
+        href={`/catalog/${user.listing.slug}`}
+        title="Открыть анкету"
+        className="group flex min-w-0 flex-1 items-center gap-3"
+      >
+        {content}
+      </Link>
+    );
+  }
+  return <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>;
 }
 
 async function parseBody(res: Response) {
@@ -80,6 +152,7 @@ export function ChatsPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [otherUserReadAt, setOtherUserReadAt] = useState<string | null>(null);
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -114,15 +187,25 @@ export function ChatsPage() {
       if (msg.conversationId === activeIdRef.current) {
         setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
         if (msg.senderId !== user?.id) {
-          authFetch(`/chat/conversations/${msg.conversationId}/read`, { method: 'POST' }).catch(() => {});
+          authFetch(`/chat/conversations/${msg.conversationId}/read`, { method: 'POST' })
+            .then(() => window.dispatchEvent(new Event('chat:activity')))
+            .catch(() => {});
         }
       }
       loadConversations();
     };
 
+    const handleRead = (payload: { conversationId: string; readAt: string }) => {
+      if (payload.conversationId === activeIdRef.current) {
+        setOtherUserReadAt(payload.readAt);
+      }
+    };
+
     socket.on('message:new', handleNewMessage);
+    socket.on('conversation:read', handleRead);
     return () => {
       socket.off('message:new', handleNewMessage);
+      socket.off('conversation:read', handleRead);
     };
   }, [loadConversations, user?.id]);
 
@@ -133,18 +216,37 @@ export function ChatsPage() {
   const openConversation = async (id: string) => {
     setActiveId(id);
     setMessages([]);
+    setOtherUserReadAt(null);
     setLoadingMessages(true);
     setSendError('');
     try {
       const res = await authFetch(`/chat/conversations/${id}/messages`);
       const data = await parseBody(res);
-      if (res.ok) setMessages(data ?? []);
+      if (res.ok) {
+        setMessages(data?.messages ?? []);
+        setOtherUserReadAt(data?.otherUserReadAt ?? null);
+      }
       await authFetch(`/chat/conversations/${id}/read`, { method: 'POST' });
       setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
+      window.dispatchEvent(new Event('chat:activity'));
     } finally {
       setLoadingMessages(false);
     }
   };
+
+  const pendingConversationId = useRef<string | null>(null);
+  useEffect(() => {
+    pendingConversationId.current = new URLSearchParams(window.location.search).get('c');
+  }, []);
+
+  useEffect(() => {
+    const id = pendingConversationId.current;
+    if (id && conversations.some((c) => c.id === id)) {
+      pendingConversationId.current = null;
+      window.history.replaceState(null, '', window.location.pathname);
+      openConversation(id);
+    }
+  }, [conversations]);
 
   const sendMessage = () => {
     const body = draft.trim();
@@ -249,9 +351,7 @@ export function ChatsPage() {
                     activeId === c.id ? 'bg-white/[0.05]' : ''
                   }`}
                 >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 font-body text-sm font-semibold text-accent">
-                    {initial(c.otherUser.fullName || c.otherUser.login)}
-                  </div>
+                  <ParticipantAvatar user={c.otherUser} className="h-10 w-10 text-sm" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate font-body text-sm font-semibold text-white">
@@ -309,18 +409,7 @@ export function ChatsPage() {
                 >
                   ‹
                 </button>
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 font-body text-sm font-semibold text-accent">
-                  {initial(activeConversation.otherUser.fullName || activeConversation.otherUser.login)}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-body text-sm font-semibold text-white">
-                    {activeConversation.otherUser.fullName || activeConversation.otherUser.login}
-                  </p>
-                  <p className="font-body text-xs text-white/35">
-                    @{activeConversation.otherUser.login} ·{' '}
-                    {ROLE_LABELS[activeConversation.otherUser.role] ?? activeConversation.otherUser.role}
-                  </p>
-                </div>
+                <ParticipantHeaderInfo user={activeConversation.otherUser} />
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -329,19 +418,39 @@ export function ChatsPage() {
                 ) : messages.length === 0 ? (
                   <p className="font-body text-sm text-white/30">Сообщений пока нет — напишите первым</p>
                 ) : (
-                  messages.map((m) => {
+                  messages.map((m, i) => {
                     const own = m.senderId === user?.id;
+                    const prev = messages[i - 1];
+                    const showDateSeparator = !prev || !isSameDay(prev.createdAt, m.createdAt);
                     return (
-                      <div key={m.id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[75%] rounded-2xl px-4 py-2 font-body text-sm ${
-                            own ? 'bg-accent text-white' : 'bg-white/[0.06] text-white/90'
-                          }`}
-                        >
-                          <p className="whitespace-pre-line break-words">{m.body}</p>
-                          <p className={`mt-1 text-right text-[10px] ${own ? 'text-white/70' : 'text-white/30'}`}>
-                            {formatTime(m.createdAt)}
-                          </p>
+                      <div key={m.id}>
+                        {showDateSeparator ? (
+                          <div className="mb-3 flex justify-center">
+                            <span className="rounded-full bg-white/[0.06] px-3 py-1 font-body text-[11px] text-white/40">
+                              {formatDateSeparator(m.createdAt)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
+                          <div
+                            className={`max-w-[75%] rounded-2xl px-4 py-2 font-body text-sm ${
+                              own ? 'bg-accent text-white' : 'bg-white/[0.06] text-white/90'
+                            }`}
+                          >
+                            <p className="whitespace-pre-line break-words">{m.body}</p>
+                            <p
+                              className={`mt-1 flex items-center justify-end gap-1 text-right text-[10px] ${own ? 'text-white/70' : 'text-white/30'}`}
+                            >
+                              {formatMessageStamp(m.createdAt)}
+                              {own ? (
+                                otherUserReadAt && new Date(m.createdAt) <= new Date(otherUserReadAt) ? (
+                                  <CheckCheck className="h-3 w-3 flex-shrink-0" aria-label="Прочитано" />
+                                ) : (
+                                  <Check className="h-3 w-3 flex-shrink-0" aria-label="Не прочитано" />
+                                )
+                              ) : null}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     );
