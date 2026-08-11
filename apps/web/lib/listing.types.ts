@@ -16,3 +16,17 @@ export interface ListingAttributes {
   priceHour: number | null;
   priceNight: number | null;
 }
+
+export interface PublicReview {
+  id: string;
+  rating: number;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface ListingReviewsSummary {
+  items: PublicReview[];
+  count: number;
+  averageRating: number;
+}

@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import type { ListingReviewsSummary } from '@/lib/listing.types';
 
 async function parseBody(res: Response) {
   const text = await res.text();
@@ -32,9 +34,24 @@ interface Props {
   ownerLogin: string | null;
   ownerTelegramLinked: boolean;
   telegramBotUsername: string | null;
+  initialReviews: ListingReviewsSummary;
 }
 
 const PLACEHOLDER_COUNT = 6;
+
+function formatReviewDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function StarRow({ rating, className = 'h-3.5 w-3.5' }: { rating: number; className?: string }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star key={n} className={`${className} ${n <= rating ? 'fill-accent text-accent' : 'text-white/15'}`} strokeWidth={1.5} />
+      ))}
+    </div>
+  );
+}
 
 export function ListingGallery({
   id,
@@ -48,6 +65,7 @@ export function ListingGallery({
   ownerLogin,
   ownerTelegramLinked,
   telegramBotUsername,
+  initialReviews,
 }: Props) {
   const router = useRouter();
   const { user } = useAuth();
@@ -95,6 +113,49 @@ export function ListingGallery({
     } catch (err: any) {
       setStartChatError(err.message || 'Не удалось начать чат');
       setStartingChat(false);
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<'gallery' | 'reviews'>('gallery');
+  const [reviews] = useState(initialReviews);
+
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHoverRating, setReviewHoverRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+  const openReviewsTab = () => setActiveTab('reviews');
+
+  const submitReview = async () => {
+    if (reviewRating < 1) {
+      setReviewError('Поставьте оценку');
+      return;
+    }
+    if (!reviewText.trim()) {
+      setReviewError('Напишите текст отзыва');
+      return;
+    }
+    setReviewSubmitting(true);
+    setReviewError('');
+    try {
+      const res = await authFetch('/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId: id, rating: reviewRating, text: reviewText.trim() }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось отправить отзыв');
+      setReviewSubmitted(true);
+      setReviewFormOpen(false);
+      setReviewRating(0);
+      setReviewText('');
+    } catch (err: any) {
+      setReviewError(err.message || 'Не удалось отправить отзыв');
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -199,43 +260,185 @@ export function ListingGallery({
             </div>
           </div>
 
+          <div className="flex flex-shrink-0 items-center gap-1 border-t border-white/[0.06] px-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('gallery')}
+              className={`rounded-t-lg px-3 py-2 font-body text-xs font-semibold transition-colors ${
+                activeTab === 'gallery' ? 'bg-white/[0.06] text-white' : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              Галерея
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviews')}
+              className={`rounded-t-lg px-3 py-2 font-body text-xs font-semibold transition-colors ${
+                activeTab === 'reviews' ? 'bg-white/[0.06] text-white' : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              Отзывы{reviews.count > 0 ? ` (${reviews.count})` : ''}
+            </button>
+          </div>
+
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {total > 0 ? (
-              <div className="grid grid-cols-3 gap-px bg-white/[0.04]">
-                {media.map((item, i) => (
-                  <button
-                    key={item.url}
-                    type="button"
-                    onClick={() => setActive(i)}
-                    className={`relative aspect-square overflow-hidden transition-opacity ${
-                      active === i ? 'opacity-100' : 'opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    {item.type === 'photo' ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.url} alt={`${name} ${i + 1}`} className="h-full w-full object-cover" />
+            {activeTab === 'gallery' ? (
+              total > 0 ? (
+                <div className="grid grid-cols-3 gap-px bg-white/[0.04]">
+                  {media.map((item, i) => (
+                    <button
+                      key={item.url}
+                      type="button"
+                      onClick={() => setActive(i)}
+                      className={`relative aspect-square overflow-hidden transition-opacity ${
+                        active === i ? 'opacity-100' : 'opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      {item.type === 'photo' ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.url} alt={`${name} ${i + 1}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <>
+                          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                          <video src={item.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-accent">
+                              <Play className="h-3 w-3 fill-current" strokeWidth={0} />
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {active === i && <div className="pointer-events-none absolute inset-0 border-2 border-accent" />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-px bg-white/[0.04]">
+                  {Array.from({ length: PLACEHOLDER_COUNT }).map((_, i) => (
+                    <div key={i} className="flex aspect-square items-center justify-center bg-[#161616]">
+                      <ImageOff className="h-5 w-5 text-white/15" strokeWidth={1.2} />
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    {reviews.count > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <StarRow rating={Math.round(reviews.averageRating)} className="h-4 w-4" />
+                        <span className="font-body text-sm text-white/70">
+                          {reviews.averageRating.toFixed(1)} · {reviews.count}
+                        </span>
+                      </div>
                     ) : (
-                      <>
-                        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                        <video src={item.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-accent">
-                            <Play className="h-3 w-3 fill-current" strokeWidth={0} />
+                      <p className="font-body text-sm text-white/30">Отзывов пока нет</p>
+                    )}
+                  </div>
+                  {user && user.role === 'client' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReviewFormOpen((v) => !v);
+                        setReviewSubmitted(false);
+                        setReviewError('');
+                      }}
+                      className="flex-shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 font-body text-xs font-semibold text-accent transition-colors hover:bg-accent/15"
+                    >
+                      Оставить отзыв
+                    </button>
+                  ) : null}
+                </div>
+
+                {!user ? (
+                  <p className="mb-4 font-body text-xs text-white/35">
+                    <Link href="/login" className="text-accent hover:underline">
+                      Войдите
+                    </Link>{' '}
+                    как клиент, чтобы оставить отзыв
+                  </p>
+                ) : null}
+
+                {reviewSubmitted ? (
+                  <p className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 font-body text-xs text-emerald-400">
+                    Спасибо! Отзыв отправлен на модерацию и появится здесь после проверки.
+                  </p>
+                ) : null}
+
+                {reviewFormOpen ? (
+                  <div className="mb-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+                    <div
+                      className="mb-2 flex gap-1"
+                      onMouseLeave={() => setReviewHoverRating(0)}
+                    >
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onMouseEnter={() => setReviewHoverRating(n)}
+                          onClick={() => setReviewRating(n)}
+                          aria-label={`${n} из 5`}
+                          className="p-0.5"
+                        >
+                          <Star
+                            className={`h-5 w-5 ${
+                              n <= (reviewHoverRating || reviewRating) ? 'fill-accent text-accent' : 'text-white/15'
+                            }`}
+                            strokeWidth={1.5}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewText}
+                      onChange={(e) => setReviewText(e.target.value)}
+                      placeholder="Расскажите о своём опыте..."
+                      maxLength={2000}
+                      rows={3}
+                      className="input resize-none text-sm"
+                    />
+                    {reviewError ? <p className="mt-2 font-body text-xs text-red-400">{reviewError}</p> : null}
+                    <div className="mt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewFormOpen(false)}
+                        disabled={reviewSubmitting}
+                        className="rounded-full px-3 py-1.5 font-body text-xs font-medium text-white/50 hover:text-white disabled:opacity-50"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitReview}
+                        disabled={reviewSubmitting}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+                      >
+                        {reviewSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        {reviewSubmitting ? 'Отправляем…' : 'Отправить'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {reviews.items.length > 0 ? (
+                  <div className="space-y-4">
+                    {reviews.items.map((review) => (
+                      <div key={review.id} className="border-b border-white/[0.04] pb-4 last:border-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-body text-sm font-semibold text-white">{review.authorName}</p>
+                          <span className="flex-shrink-0 font-body text-[11px] text-white/30">
+                            {formatReviewDate(review.createdAt)}
                           </span>
                         </div>
-                      </>
-                    )}
-                    {active === i && <div className="pointer-events-none absolute inset-0 border-2 border-accent" />}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-px bg-white/[0.04]">
-                {Array.from({ length: PLACEHOLDER_COUNT }).map((_, i) => (
-                  <div key={i} className="flex aspect-square items-center justify-center bg-[#161616]">
-                    <ImageOff className="h-5 w-5 text-white/15" strokeWidth={1.2} />
+                        <div className="mt-1">
+                          <StarRow rating={review.rating} />
+                        </div>
+                        <p className="mt-2 whitespace-pre-line font-body text-sm text-white/70">{review.text}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : null}
               </div>
             )}
           </div>
@@ -258,7 +461,12 @@ export function ListingGallery({
             </button>
             <button
               type="button"
-              className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
+              onClick={openReviewsTab}
+              className={`flex items-center justify-center gap-1.5 rounded-full border px-2 py-2 font-body text-xs font-semibold transition-all ${
+                activeTab === 'reviews'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-white/15 text-white/80 hover:border-accent hover:text-white'
+              }`}
             >
               <Star className="h-3.5 w-3.5" />
               Отзывы

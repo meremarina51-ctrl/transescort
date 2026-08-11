@@ -3,7 +3,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ListingGallery } from '@/components/ListingGallery';
 import { apiUrl } from '@/lib/api-url';
-import type { ListingAttributes } from '@/lib/listing.types';
+import type { ListingAttributes, ListingReviewsSummary } from '@/lib/listing.types';
 
 interface ListingDetail extends ListingAttributes {
   id: string;
@@ -13,6 +13,8 @@ interface ListingDetail extends ListingAttributes {
   ownerLogin: string | null;
   ownerTelegramLinked: boolean;
 }
+
+const EMPTY_REVIEWS: ListingReviewsSummary = { items: [], count: 0, averageRating: 0 };
 
 async function getListing(slug: string): Promise<ListingDetail | null> {
   try {
@@ -35,6 +37,16 @@ async function getTelegramBotUsername(): Promise<string | null> {
   }
 }
 
+async function getReviews(listingId: string): Promise<ListingReviewsSummary> {
+  try {
+    const res = await fetch(apiUrl(`/reviews/listing/${listingId}`), { cache: 'no-store' });
+    if (!res.ok) return EMPTY_REVIEWS;
+    return res.json();
+  } catch {
+    return EMPTY_REVIEWS;
+  }
+}
+
 const VITALS: { key: keyof ListingDetail; label: string; suffix?: string }[] = [
   { key: 'age', label: 'Возраст' },
   { key: 'height', label: 'Рост', suffix: 'см' },
@@ -54,8 +66,10 @@ const OTHER_PARAMS: { key: keyof ListingDetail; label: string }[] = [
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [listing, telegramBotUsername] = await Promise.all([getListing(slug), getTelegramBotUsername()]);
+  const listing = await getListing(slug);
   if (!listing) notFound();
+
+  const [telegramBotUsername, reviews] = await Promise.all([getTelegramBotUsername(), getReviews(listing.id)]);
 
   const vitals = VITALS.filter((row) => listing[row.key]).map((row) => ({
     label: row.label,
@@ -79,6 +93,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           ownerLogin={listing.ownerLogin}
           ownerTelegramLinked={listing.ownerTelegramLinked}
           telegramBotUsername={telegramBotUsername}
+          initialReviews={reviews}
         />
       </main>
       <Footer />

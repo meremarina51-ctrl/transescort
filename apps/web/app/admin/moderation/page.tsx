@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Check, ImageOff, MessageSquare, RefreshCw, ShieldAlert, ShieldCheck, Video, X } from 'lucide-react';
+import { Check, ImageOff, MessageSquare, RefreshCw, ShieldAlert, ShieldCheck, Star, Video, X } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 
 interface ModerationListing {
@@ -23,6 +23,19 @@ type Decision = 'approved' | 'changes_requested';
 
 interface DecisionTarget {
   id: string;
+}
+
+interface AdminReview {
+  id: string;
+  rating: number;
+  text: string;
+  status: 'pending' | 'published' | 'rejected' | 'hidden';
+  moderatorNote: string | null;
+  createdAt: string;
+  authorLogin: string | null;
+  authorFullName: string | null;
+  listingName: string | null;
+  listingSlug: string | null;
 }
 
 async function parseBody(res: Response) {
@@ -182,6 +195,112 @@ function ModerationCard({
   );
 }
 
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star key={n} className={`h-3.5 w-3.5 ${n <= rating ? 'fill-accent text-accent' : 'text-white/15'}`} strokeWidth={1.5} />
+      ))}
+    </div>
+  );
+}
+
+function ReviewCard({
+  item,
+  busy,
+  decisionTarget,
+  decisionNote,
+  onNoteChange,
+  onApprove,
+  onOpenDecision,
+  onCancelDecision,
+  onSubmitDecision,
+}: {
+  item: AdminReview;
+  busy: boolean;
+  decisionTarget: DecisionTarget | null;
+  decisionNote: string;
+  onNoteChange: (v: string) => void;
+  onApprove: () => void;
+  onOpenDecision: () => void;
+  onCancelDecision: () => void;
+  onSubmitDecision: () => void;
+}) {
+  const isDeciding = decisionTarget?.id === item.id;
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-body text-sm font-semibold text-white">
+            {item.authorFullName || item.authorLogin || 'Клиент'}
+          </p>
+          <p className="truncate font-body text-xs text-white/35">на анкету «{item.listingName || 'Без имени'}»</p>
+        </div>
+        <span className="flex-shrink-0 font-body text-[11px] text-white/25">
+          {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+        </span>
+      </div>
+
+      <div className="mt-2">
+        <StarRow rating={item.rating} />
+      </div>
+      <p className="mt-2 whitespace-pre-line font-body text-xs text-white/50">{item.text}</p>
+
+      {isDeciding ? (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={decisionNote}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="Причина отклонения — обязательна, покажем клиенту"
+            rows={2}
+            maxLength={1000}
+            className="input resize-none text-xs"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancelDecision}
+              disabled={busy}
+              className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={onSubmitDecision}
+              disabled={busy || !decisionNote.trim()}
+              title={!decisionNote.trim() ? 'Причина обязательна' : undefined}
+              className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+            >
+              {busy ? 'Сохраняем…' : 'Отклонить'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onOpenDecision}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-full border border-red-400/30 px-3.5 py-1.5 font-body text-xs font-medium text-red-300 transition-colors hover:bg-red-400/10 disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" /> Отклонить
+          </button>
+          <button
+            type="button"
+            onClick={onApprove}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+          >
+            <Check className="h-3.5 w-3.5" /> {busy ? 'Публикуем…' : 'Опубликовать'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminModerationPage() {
   const [queue, setQueue] = useState<ModerationListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,6 +312,14 @@ export default function AdminModerationPage() {
   const [decisionNote, setDecisionNote] = useState('');
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const [reviewQueue, setReviewQueue] = useState<AdminReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsLoadError, setReviewsLoadError] = useState('');
+  const [reviewActionError, setReviewActionError] = useState('');
+  const [reviewActionId, setReviewActionId] = useState<string | null>(null);
+  const [reviewDecisionTarget, setReviewDecisionTarget] = useState<DecisionTarget | null>(null);
+  const [reviewDecisionNote, setReviewDecisionNote] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -209,8 +336,24 @@ export default function AdminModerationPage() {
     }
   };
 
+  const loadReviews = async () => {
+    setReviewsLoading(true);
+    setReviewsLoadError('');
+    try {
+      const res = await authFetch('/admin/reviews');
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить отзывы');
+      setReviewQueue((data ?? []).filter((r: AdminReview) => r.status === 'pending'));
+    } catch (err: any) {
+      setReviewsLoadError(err.message || 'Не удалось загрузить отзывы');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadReviews();
   }, []);
 
   const newItems = useMemo(() => queue.filter((item) => !item.everPublished), [queue]);
@@ -243,6 +386,35 @@ export default function AdminModerationPage() {
     setDecisionTarget({ id });
     setDecisionNote('');
     setActionError('');
+  };
+
+  const verifyReview = async (id: string, decision: 'approved' | 'rejected', note?: string) => {
+    setReviewActionError('');
+    setReviewActionId(id);
+    try {
+      const res = await authFetch(`/admin/reviews/${id}/verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, note }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) {
+        const msgRaw = data?.message;
+        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
+      }
+      setReviewQueue((prev) => prev.filter((item) => item.id !== id));
+      setReviewDecisionTarget(null);
+    } catch (err: any) {
+      setReviewActionError(err.message || 'Не удалось сохранить решение');
+    } finally {
+      setReviewActionId(null);
+    }
+  };
+
+  const openReviewDecision = (id: string) => {
+    setReviewDecisionTarget({ id });
+    setReviewDecisionNote('');
+    setReviewActionError('');
   };
 
   const renderGroup = (items: ModerationListing[]) => (
@@ -354,11 +526,40 @@ export default function AdminModerationPage() {
           )}
         </div>
 
-        <StubColumn
-          title="Отзывы"
-          icon={MessageSquare}
-          description="Система отзывов ещё не реализована — модерировать пока нечего"
-        />
+        <div className="min-w-0">
+          <ColumnHeader title="Отзывы" count={reviewQueue.length} />
+
+          {reviewActionError ? (
+            <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
+              {reviewActionError}
+            </p>
+          ) : null}
+
+          {reviewsLoading ? (
+            <p className="font-body text-sm text-white/40">Загрузка…</p>
+          ) : reviewsLoadError ? (
+            <p className="font-body text-sm text-red-400">{reviewsLoadError}</p>
+          ) : reviewQueue.length === 0 ? (
+            <EmptyColumn text="Очередь пуста — нет отзывов, ожидающих проверки" />
+          ) : (
+            <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
+              {reviewQueue.map((item) => (
+                <ReviewCard
+                  key={item.id}
+                  item={item}
+                  busy={reviewActionId === item.id}
+                  decisionTarget={reviewDecisionTarget}
+                  decisionNote={reviewDecisionNote}
+                  onNoteChange={setReviewDecisionNote}
+                  onApprove={() => verifyReview(item.id, 'approved')}
+                  onOpenDecision={() => openReviewDecision(item.id)}
+                  onCancelDecision={() => setReviewDecisionTarget(null)}
+                  onSubmitDecision={() => verifyReview(item.id, 'rejected', reviewDecisionNote.trim())}
+                />
+              ))}
+            </div>
+          )}
+        </div>
         <StubColumn
           title="Жалобы"
           icon={ShieldAlert}
