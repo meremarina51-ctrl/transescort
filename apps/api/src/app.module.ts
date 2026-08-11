@@ -17,6 +17,7 @@ import { ListingsModule } from './listings/listings.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { ChatModule } from './chat/chat.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 function resolveEnvFilePath(): string {
   const cwd = process.cwd();
@@ -44,6 +45,7 @@ function resolveEnvFilePath(): string {
     ModerationModule,
     FavoritesModule,
     ChatModule,
+    TelegramModule,
   ],
 })
 export class AppModule {}

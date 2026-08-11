@@ -127,6 +127,20 @@
       "when": 1786051095543,
       "tag": "0017_nostalgic_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786377046148,
+      "tag": "0018_lethal_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786381778251,
+      "tag": "0019_aberrant_psylocke",
+      "breakpoints": true
     }
   ]
 }

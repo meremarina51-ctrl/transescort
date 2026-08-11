@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, KeyRound, Loader2, MonitorX, Send, UserX } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
+
+interface TelegramStatus {
+  linked: boolean;
+  username: string | null;
+}
 
 async function parseBody(res: Response) {
   const text = await res.text();
@@ -28,6 +33,76 @@ export default function SettingsPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [recoveryError, setRecoveryError] = useState('');
   const [newRecoveryCode, setNewRecoveryCode] = useState<string | null>(null);
+
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(true);
+  const [telegramLinking, setTelegramLinking] = useState(false);
+  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+  const [telegramError, setTelegramError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authFetch('/telegram/status');
+        if (res.ok) setTelegramStatus(await res.json());
+      } finally {
+        setTelegramLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!telegramLinking) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await authFetch('/telegram/status');
+        if (!res.ok) return;
+        const data: TelegramStatus = await res.json();
+        if (data.linked) {
+          setTelegramStatus(data);
+          setTelegramLinking(false);
+        }
+      } catch {
+        // keep polling — a single failed check shouldn't abort the wait
+      }
+    }, 3000);
+    const timeout = setTimeout(() => setTelegramLinking(false), 10 * 60 * 1000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [telegramLinking]);
+
+  const startTelegramLink = async () => {
+    setTelegramError('');
+    try {
+      const res = await authFetch('/telegram/link-token', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось создать ссылку');
+      if (!data.deepLink) {
+        setTelegramError('Telegram-бот временно недоступен. Попробуйте позже.');
+        return;
+      }
+      window.open(data.deepLink, '_blank', 'noopener,noreferrer');
+      setTelegramLinking(true);
+    } catch (err: any) {
+      setTelegramError(err.message || 'Не удалось создать ссылку');
+    }
+  };
+
+  const unlinkTelegram = async () => {
+    setTelegramUnlinking(true);
+    setTelegramError('');
+    try {
+      const res = await authFetch('/telegram', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Не удалось отвязать Telegram');
+      setTelegramStatus({ linked: false, username: null });
+    } catch (err: any) {
+      setTelegramError(err.message || 'Не удалось отвязать Telegram');
+    } finally {
+      setTelegramUnlinking(false);
+    }
+  };
 
   const confirmLogoutAll = async () => {
     setLoggingOutAll(true);
@@ -120,14 +195,38 @@ export default function SettingsPage() {
                 <p className="mt-0.5 font-body text-xs text-white/30">Уведомления и быстрые действия в мессенджере</p>
               </div>
             </div>
-            <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-body text-[11px] font-semibold uppercase tracking-wide text-white/40">
-              Не привязан
-            </span>
+            {telegramStatus?.linked ? (
+              <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 font-body text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+                @{telegramStatus.username ?? 'привязан'}
+              </span>
+            ) : (
+              <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-body text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                Не привязан
+              </span>
+            )}
           </div>
 
-          <button type="button" className="btn-secondary mt-5">
-            Привязать Telegram
-          </button>
+          {telegramError ? <p className="mt-3 font-body text-xs text-red-400">{telegramError}</p> : null}
+
+          {telegramLoading ? null : telegramStatus?.linked ? (
+            <button
+              type="button"
+              onClick={unlinkTelegram}
+              disabled={telegramUnlinking}
+              className="mt-5 rounded-full border border-red-500/30 px-5 py-2 font-body text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            >
+              {telegramUnlinking ? 'Отвязываем…' : 'Отвязать Telegram'}
+            </button>
+          ) : telegramLinking ? (
+            <button type="button" disabled className="btn-secondary mt-5 inline-flex items-center gap-2 opacity-70">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Ждём подтверждения в Telegram…
+            </button>
+          ) : (
+            <button type="button" onClick={startTelegramLink} className="btn-secondary mt-5">
+              Привязать Telegram
+            </button>
+          )}
         </div>
 
         <div className="card p-6">

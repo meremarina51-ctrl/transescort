@@ -30,11 +30,25 @@ interface Props {
   priceHour: number | null;
   priceNight: number | null;
   ownerLogin: string | null;
+  ownerTelegramLinked: boolean;
+  telegramBotUsername: string | null;
 }
 
 const PLACEHOLDER_COUNT = 6;
 
-export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceHour, priceNight, ownerLogin }: Props) {
+export function ListingGallery({
+  id,
+  name,
+  photos,
+  videoUrl,
+  vitals,
+  bio,
+  priceHour,
+  priceNight,
+  ownerLogin,
+  ownerTelegramLinked,
+  telegramBotUsername,
+}: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const media: Media[] = [
@@ -50,15 +64,21 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceH
   const [startChatError, setStartChatError] = useState('');
 
   const handleContactClick = () => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
     setStartChatError('');
     setContactOpen(true);
   };
 
+  const startTelegramChat = () => {
+    if (!telegramBotUsername) return;
+    window.open(`https://t.me/${telegramBotUsername}?start=c_${id}`, '_blank', 'noopener,noreferrer');
+    setContactOpen(false);
+  };
+
   const startPlatformChat = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
     if (!ownerLogin) return;
     setStartingChat(true);
     setStartChatError('');
@@ -260,20 +280,21 @@ export function ListingGallery({ id, name, photos, videoUrl, vitals, bio, priceH
             </div>
 
             <div className="space-y-2">
-              <button
-                type="button"
-                disabled
-                title="Скоро будет доступно"
-                className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left opacity-40"
-              >
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40">
-                  <Send className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-body text-sm font-medium text-white">Написать в Telegram</p>
-                  <p className="font-body text-xs text-white/35">Пока недоступно</p>
-                </div>
-              </button>
+              {ownerTelegramLinked && telegramBotUsername ? (
+                <button
+                  type="button"
+                  onClick={startTelegramChat}
+                  className="flex w-full items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3 text-left transition-colors hover:bg-accent/15"
+                >
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                    <Send className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-body text-sm font-medium text-white">Написать в Telegram</p>
+                    <p className="font-body text-xs text-white/40">Без регистрации на сайте</p>
+                  </div>
+                </button>
+              ) : null}
 
               <button
                 type="button"

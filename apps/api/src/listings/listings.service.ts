@@ -6,6 +6,8 @@ import { slugify } from './slug.util';
 export interface ListingWithOwner extends Listing {
   ownerLogin: string | null;
   ownerFullName: string | null;
+  ownerTelegramUsername: string | null;
+  ownerTelegramLinked: boolean;
 }
 
 /** Minimum photos required before a performer can send the anketa for admin review. */
@@ -29,16 +31,21 @@ export class ListingsService {
       .orderBy(desc(listings.updatedAt));
   }
 
-  /** Public anketa page — only if it's actually published. Includes the owner's login so the client can start a chat. */
-  async findPublishedBySlug(slug: string): Promise<(Listing & { ownerLogin: string | null }) | null> {
+  /**
+   * Public anketa page — only if it's actually published. Includes the owner's login (to start a
+   * platform chat) and whether they've linked Telegram (gates the "Написать в Telegram" option).
+   */
+  async findPublishedBySlug(
+    slug: string,
+  ): Promise<(Listing & { ownerLogin: string | null; ownerTelegramLinked: boolean }) | null> {
     const rows = await this.db
-      .select({ listing: listings, ownerLogin: users.login })
+      .select({ listing: listings, ownerLogin: users.login, ownerTelegramId: users.telegramId })
       .from(listings)
       .leftJoin(users, eq(listings.userId, users.id))
       .where(and(eq(listings.slug, slug), eq(listings.status, 'published')))
       .limit(1);
     if (!rows[0]) return null;
-    return { ...rows[0].listing, ownerLogin: rows[0].ownerLogin };
+    return { ...rows[0].listing, ownerLogin: rows[0].ownerLogin, ownerTelegramLinked: Boolean(rows[0].ownerTelegramId) };
   }
 
   async upsert(userId: string, data: Partial<NewListing>): Promise<Listing> {
@@ -150,31 +157,51 @@ export class ListingsService {
     return existing;
   }
 
-  /** Admin: every anketa regardless of status, with the owner's login for display. */
+  private static readonly ADMIN_OWNER_SELECT = {
+    listing: listings,
+    ownerLogin: users.login,
+    ownerFullName: users.fullName,
+    ownerTelegramUsername: users.telegramUsername,
+    ownerTelegramLinkedAt: users.telegramLinkedAt,
+  };
+
+  private static toListingWithOwner(row: {
+    listing: Listing;
+    ownerLogin: string | null;
+    ownerFullName: string | null;
+    ownerTelegramUsername: string | null;
+    ownerTelegramLinkedAt: Date | null;
+  }): ListingWithOwner {
+    return {
+      ...row.listing,
+      ownerLogin: row.ownerLogin,
+      ownerFullName: row.ownerFullName,
+      ownerTelegramUsername: row.ownerTelegramUsername,
+      ownerTelegramLinked: Boolean(row.ownerTelegramLinkedAt),
+    };
+  }
+
+  /** Admin: every anketa regardless of status, with the owner's login and Telegram connection for display. */
   async listAllForAdmin(): Promise<ListingWithOwner[]> {
     const rows = await this.db
-      .select({ listing: listings, ownerLogin: users.login, ownerFullName: users.fullName })
+      .select(ListingsService.ADMIN_OWNER_SELECT)
       .from(listings)
       .leftJoin(users, eq(listings.userId, users.id))
       .orderBy(desc(listings.updatedAt));
 
-    return rows.map((r: { listing: Listing; ownerLogin: string | null; ownerFullName: string | null }) => ({
-      ...r.listing,
-      ownerLogin: r.ownerLogin,
-      ownerFullName: r.ownerFullName,
-    }));
+    return rows.map(ListingsService.toListingWithOwner);
   }
 
   async findByIdForAdmin(id: string): Promise<ListingWithOwner | null> {
     const rows = await this.db
-      .select({ listing: listings, ownerLogin: users.login, ownerFullName: users.fullName })
+      .select(ListingsService.ADMIN_OWNER_SELECT)
       .from(listings)
       .leftJoin(users, eq(listings.userId, users.id))
       .where(eq(listings.id, id))
       .limit(1);
 
     if (!rows[0]) return null;
-    return { ...rows[0].listing, ownerLogin: rows[0].ownerLogin, ownerFullName: rows[0].ownerFullName };
+    return ListingsService.toListingWithOwner(rows[0]);
   }
 
   async updateById(id: string, data: Partial<NewListing>): Promise<Listing> {

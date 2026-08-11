@@ -11,6 +11,7 @@ interface ListingDetail extends ListingAttributes {
   photos: string[];
   videoUrl: string | null;
   ownerLogin: string | null;
+  ownerTelegramLinked: boolean;
 }
 
 async function getListing(slug: string): Promise<ListingDetail | null> {
@@ -18,6 +19,17 @@ async function getListing(slug: string): Promise<ListingDetail | null> {
     const res = await fetch(apiUrl(`/catalog/${slug}`), { cache: 'no-store' });
     if (!res.ok) return null;
     return res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function getTelegramBotUsername(): Promise<string | null> {
+  try {
+    const res = await fetch(apiUrl('/telegram/bot-info'), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.username ?? null;
   } catch {
     return null;
   }
@@ -42,7 +54,7 @@ const OTHER_PARAMS: { key: keyof ListingDetail; label: string }[] = [
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const listing = await getListing(slug);
+  const [listing, telegramBotUsername] = await Promise.all([getListing(slug), getTelegramBotUsername()]);
   if (!listing) notFound();
 
   const vitals = VITALS.filter((row) => listing[row.key]).map((row) => ({
@@ -65,6 +77,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           priceHour={listing.priceHour}
           priceNight={listing.priceNight}
           ownerLogin={listing.ownerLogin}
+          ownerTelegramLinked={listing.ownerTelegramLinked}
+          telegramBotUsername={telegramBotUsername}
         />
       </main>
       <Footer />

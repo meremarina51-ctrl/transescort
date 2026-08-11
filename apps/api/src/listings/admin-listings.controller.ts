@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, UseGuar
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
+import { TelegramService } from '../telegram/telegram.service';
 import { ListingsService } from './listings.service';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { BlockListingDto } from './dto/block-listing.dto';
@@ -12,7 +13,10 @@ import { BlockListingDto } from './dto/block-listing.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminListingsController {
-  constructor(private readonly listingsService: ListingsService) {}
+  constructor(
+    private readonly listingsService: ListingsService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Список всех анкет (любой статус)' })
@@ -60,6 +64,16 @@ export class AdminListingsController {
   @ApiOperation({ summary: 'Снять блокировку — анкета возвращается в черновик' })
   async unblock(@Param('id') id: string) {
     return this.listingsService.unblock(id);
+  }
+
+  @Patch(':id/telegram/unlink')
+  @ApiOperation({ summary: 'Принудительно отвязать Telegram исполнителя (модерация)' })
+  async unlinkTelegram(@Param('id') id: string) {
+    const existing = await this.listingsService.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+
+    await this.telegramService.unlink(existing.userId);
+    return this.listingsService.findByIdForAdmin(id);
   }
 
   @Delete(':id')

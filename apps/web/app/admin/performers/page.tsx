@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Eye, EyeOff, ImageOff, Loader2, Pencil, Search, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, ImageOff, Loader2, Pencil, Search, Send, Trash2, Users } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 
 type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
@@ -18,6 +18,8 @@ interface AdminListing {
   updatedAt: string;
   ownerLogin: string | null;
   ownerFullName: string | null;
+  ownerTelegramUsername: string | null;
+  ownerTelegramLinked: boolean;
 }
 
 async function parseBody(res: Response) {
@@ -74,7 +76,9 @@ export default function AdminPerformersPage() {
     const q = search.trim().toLowerCase();
     if (!q) return listings;
     return listings.filter((l) =>
-      [l.name, l.ownerLogin, l.ownerFullName, l.city].some((field) => field?.toLowerCase().includes(q)),
+      [l.name, l.ownerLogin, l.ownerFullName, l.city, l.ownerTelegramUsername].some((field) =>
+        field?.toLowerCase().includes(q),
+      ),
     );
   }, [listings, search]);
 
@@ -179,6 +183,19 @@ export default function AdminPerformersPage() {
                       {[l.age ? `${l.age} лет` : null, l.city].filter(Boolean).join(' · ') || '—'}
                     </p>
                     <p className="mt-1 font-body text-xs text-white/30">@{l.ownerLogin ?? '—'}</p>
+                    <div className="mt-2">
+                      {l.ownerTelegramLinked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5 font-body text-[10px] font-medium text-accent">
+                          <Send className="h-2.5 w-2.5" />
+                          {l.ownerTelegramUsername ? `@${l.ownerTelegramUsername}` : 'Telegram подключён'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-body text-[10px] font-medium text-white/30">
+                          <Send className="h-2.5 w-2.5" />
+                          Telegram не подключён
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </Link>
 

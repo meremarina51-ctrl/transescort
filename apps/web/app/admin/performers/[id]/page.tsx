@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Eye, EyeOff, Lock, Send, Trash2, Unlock } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
@@ -41,6 +41,8 @@ interface AdminListingDetail {
   city: string | null;
   ownerLogin: string | null;
   ownerFullName: string | null;
+  ownerTelegramUsername: string | null;
+  ownerTelegramLinked: boolean;
 }
 
 const STATUS_BADGES: Record<ListingStatus, { label: string; className: string }> = {
@@ -124,6 +126,9 @@ export default function AdminPerformerDetailPage() {
   const [blockNote, setBlockNote] = useState('');
   const [blockBusy, setBlockBusy] = useState(false);
   const [blockError, setBlockError] = useState('');
+
+  const [telegramUnlinkBusy, setTelegramUnlinkBusy] = useState(false);
+  const [telegramUnlinkError, setTelegramUnlinkError] = useState('');
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -244,6 +249,21 @@ export default function AdminPerformerDetailPage() {
       setBlockError(err.message || 'Не удалось снять блокировку');
     } finally {
       setBlockBusy(false);
+    }
+  };
+
+  const unlinkTelegram = async () => {
+    setTelegramUnlinkBusy(true);
+    setTelegramUnlinkError('');
+    try {
+      const res = await authFetch(`/admin/listings/${id}/telegram/unlink`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось отвязать Telegram');
+      setListing(data);
+    } catch (err: any) {
+      setTelegramUnlinkError(err.message || 'Не удалось отвязать Telegram');
+    } finally {
+      setTelegramUnlinkBusy(false);
     }
   };
 
@@ -458,6 +478,32 @@ export default function AdminPerformerDetailPage() {
               )}
             </button>
           ) : null}
+        </div>
+
+        <div className="card flex flex-wrap items-center justify-between gap-4 p-6">
+          <div>
+            <h2 className="font-body text-sm uppercase tracking-wide text-white/35">Telegram</h2>
+            <p className="mt-1 font-body text-xs text-white/35">
+              {listing.ownerTelegramLinked
+                ? `Подключён: @${listing.ownerTelegramUsername ?? '—'}. Используется для связи с клиентами через бота.`
+                : 'Исполнитель ещё не подключил Telegram — кнопка «Написать в Telegram» скрыта в анкете.'}
+            </p>
+            {telegramUnlinkError ? <p className="mt-2 font-body text-xs text-red-400">{telegramUnlinkError}</p> : null}
+          </div>
+          {listing.ownerTelegramLinked ? (
+            <button
+              type="button"
+              onClick={unlinkTelegram}
+              disabled={telegramUnlinkBusy}
+              className="inline-flex items-center gap-2 rounded-full border border-red-500/30 px-5 py-2.5 font-body text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" /> {telegramUnlinkBusy ? 'Отвязываем…' : 'Отвязать Telegram'}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 font-body text-sm font-medium text-white/30">
+              <Send className="h-4 w-4" /> Не подключён
+            </span>
+          )}
         </div>
 
         <div className="card flex flex-wrap items-center justify-between gap-4 !border-red-500/20 p-6">

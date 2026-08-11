@@ -32,12 +32,18 @@ export const users = pgTable(
     /** Hashed one-time backup code for password-less recovery — null until first (re)generated. */
     recoveryCodeHash: varchar('recovery_code_hash', { length: 255 }),
 
+    /** Set once the /cabinet/settings deep-link flow completes — see TelegramService. */
+    telegramId: varchar('telegram_id', { length: 32 }),
+    telegramUsername: varchar('telegram_username', { length: 255 }),
+    telegramLinkedAt: timestamp('telegram_linked_at'),
+
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
     loginIdx: uniqueIndex('users_login_idx').on(table.login),
+    telegramIdIdx: uniqueIndex('users_telegram_id_idx').on(table.telegramId),
   }),
 );
 
