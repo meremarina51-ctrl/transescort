@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { Select } from '@/components/Select';
@@ -9,6 +9,7 @@ import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';
 import { toSelectOptions } from '@/lib/listing-options';
 import { formatPrice } from '@/lib/format';
+import { getRotatedListings } from './catalog-rotation';
 import type { CategoricalField, CatalogListing, NumericField, SortOption } from './catalog.types';
 import {
   ALL_CATEGORICAL_FIELDS,
@@ -73,6 +74,17 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
     setCategorical(EMPTY_CATEGORICAL);
   };
 
+  /**
+   * Randomized once per browser session (see catalog-rotation.ts) — every filter/sort below
+   * operates on this fixed base order. Starts as the server-rendered order and only shuffles
+   * client-side after mount: Math.random() would differ between the SSR pass and the client's
+   * first render otherwise, causing a hydration mismatch.
+   */
+  const [rotatedListings, setRotatedListings] = useState(initialListings);
+  useEffect(() => {
+    setRotatedListings(getRotatedListings(initialListings));
+  }, [initialListings]);
+
   const geoData = useMemo<GeoCountry[]>(() => {
     const byCountry = new Map<string, Set<string>>();
     for (const l of initialListings) {
@@ -88,7 +100,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
   }, [initialListings]);
 
   const listings = useMemo(() => {
-    let result = initialListings;
+    let result = rotatedListings;
 
     const query = search.trim().toLowerCase();
     if (query) {
@@ -111,7 +123,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
     }
 
     return result;
-  }, [initialListings, search, sortBy, numeric, categorical]);
+  }, [rotatedListings, search, sortBy, numeric, categorical]);
 
   const locationLabel = categorical.city || categorical.country;
 
