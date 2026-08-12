@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
+import { BadgeCheck, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
@@ -35,6 +35,7 @@ interface Props {
   ownerTelegramLinked: boolean;
   telegramBotUsername: string | null;
   initialReviews: ListingReviewsSummary;
+  photosVerified: boolean;
 }
 
 const PLACEHOLDER_COUNT = 6;
@@ -66,6 +67,7 @@ export function ListingGallery({
   ownerTelegramLinked,
   telegramBotUsername,
   initialReviews,
+  photosVerified,
 }: Props) {
   const router = useRouter();
   const { user } = useAuth();
@@ -216,7 +218,18 @@ export function ListingGallery({
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-6 pt-16">
-          <h1 className="mb-1 font-display text-3xl font-extrabold text-white drop-shadow-sm">{name}</h1>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-3xl font-extrabold text-white drop-shadow-sm">{name}</h1>
+            {photosVerified ? (
+              <span
+                title="Фото подтверждены модератором"
+                className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 font-body text-xs font-medium text-white backdrop-blur-sm"
+              >
+                <BadgeCheck className="h-3.5 w-3.5 text-accent" />
+                Фото подтверждены
+              </span>
+            ) : null}
+          </div>
           {priceHour || priceNight ? (
             <div className="mb-2 flex flex-wrap gap-2">
               {priceHour ? (

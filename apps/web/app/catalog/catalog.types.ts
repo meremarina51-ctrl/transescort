@@ -4,6 +4,8 @@ export interface CatalogListing extends ListingAttributes {
   id: string;
   slug: string | null;
   photos: string[];
+  /** Admin manually confirmed the photos are genuine — shown as a trust badge. */
+  photosVerified: boolean;
 }
 
 export type NumericField = 'age' | 'height' | 'weight' | 'breastSize' | 'priceHour';

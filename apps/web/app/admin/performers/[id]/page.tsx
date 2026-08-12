@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Eye, EyeOff, Lock, Send, Trash2, Unlock } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BadgeCheck, Eye, EyeOff, Lock, Send, Trash2, Unlock } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
@@ -43,6 +43,7 @@ interface AdminListingDetail {
   ownerFullName: string | null;
   ownerTelegramUsername: string | null;
   ownerTelegramLinked: boolean;
+  photosVerified: boolean;
 }
 
 const STATUS_BADGES: Record<ListingStatus, { label: string; className: string }> = {
@@ -121,6 +122,9 @@ export default function AdminPerformerDetailPage() {
 
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
+
+  const [photosVerifyBusy, setPhotosVerifyBusy] = useState(false);
+  const [photosVerifyError, setPhotosVerifyError] = useState('');
 
   const [blockOpen, setBlockOpen] = useState(false);
   const [blockNote, setBlockNote] = useState('');
@@ -202,6 +206,23 @@ export default function AdminPerformerDetailPage() {
       setStatusError(err.message || 'Не удалось изменить видимость анкеты');
     } finally {
       setStatusBusy(false);
+    }
+  };
+
+  const togglePhotosVerified = async () => {
+    if (!listing) return;
+    const action = listing.photosVerified ? 'unverify-photos' : 'verify-photos';
+    setPhotosVerifyBusy(true);
+    setPhotosVerifyError('');
+    try {
+      const res = await authFetch(`/admin/listings/${id}/${action}`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить отметку о проверке фото');
+      setListing(data);
+    } catch (err: any) {
+      setPhotosVerifyError(err.message || 'Не удалось изменить отметку о проверке фото');
+    } finally {
+      setPhotosVerifyBusy(false);
     }
   };
 
@@ -326,7 +347,25 @@ export default function AdminPerformerDetailPage() {
 
       <div className="space-y-6">
         <div className="card p-6">
-          <h2 className="mb-4 font-body text-sm uppercase tracking-wide text-white/35">Медиа</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-body text-sm uppercase tracking-wide text-white/35">Медиа</h2>
+            <div className="flex items-center gap-2">
+              {listing.photosVerified ? (
+                <span className="badge inline-flex items-center gap-1 border border-accent/25 bg-accent/10 text-accent">
+                  <BadgeCheck className="h-3.5 w-3.5" /> Фото подтверждены
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={togglePhotosVerified}
+                disabled={photosVerifyBusy}
+                className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
+              >
+                {photosVerifyBusy ? 'Сохраняем…' : listing.photosVerified ? 'Снять отметку' : 'Подтвердить фото'}
+              </button>
+            </div>
+          </div>
+          {photosVerifyError ? <p className="mb-3 font-body text-xs text-red-400">{photosVerifyError}</p> : null}
           {listing.photos.length === 0 ? (
             <p className="font-body text-sm text-white/30">Фото не загружены</p>
           ) : (

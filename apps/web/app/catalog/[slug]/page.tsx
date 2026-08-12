@@ -12,6 +12,7 @@ interface ListingDetail extends ListingAttributes {
   videoUrl: string | null;
   ownerLogin: string | null;
   ownerTelegramLinked: boolean;
+  photosVerified: boolean;
 }
 
 const EMPTY_REVIEWS: ListingReviewsSummary = { items: [], count: 0, averageRating: 0 };
@@ -94,6 +95,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           ownerTelegramLinked={listing.ownerTelegramLinked}
           telegramBotUsername={telegramBotUsername}
           initialReviews={reviews}
+          photosVerified={listing.photosVerified}
         />
       </main>
       <Footer />

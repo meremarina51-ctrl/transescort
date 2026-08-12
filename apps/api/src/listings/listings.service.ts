@@ -92,23 +92,25 @@ export class ListingsService {
     return found.length > 0;
   }
 
+  /** Adding photos changes what's shown, so any existing "photos verified" mark no longer applies — needs a fresh manual check. */
   async addPhotos(userId: string, urls: string[]): Promise<Listing> {
     const existing = await this.requireByUserId(userId);
     const photos = [...(existing.photos ?? []), ...urls];
     const updated = await this.db
       .update(listings)
-      .set({ photos, updatedAt: new Date() })
+      .set({ photos, photosVerified: false, updatedAt: new Date() })
       .where(eq(listings.userId, userId))
       .returning();
     return updated[0];
   }
 
+  /** Same reasoning as `addPhotos` — removing (or effectively replacing) a photo invalidates the verified mark. */
   async removePhoto(userId: string, url: string): Promise<Listing> {
     const existing = await this.requireByUserId(userId);
     const photos = (existing.photos ?? []).filter((p) => p !== url);
     const updated = await this.db
       .update(listings)
-      .set({ photos, updatedAt: new Date() })
+      .set({ photos, photosVerified: false, updatedAt: new Date() })
       .where(eq(listings.userId, userId))
       .returning();
     return updated[0];
@@ -303,6 +305,42 @@ export class ListingsService {
       throw new BadRequestException('Анкета не заблокирована');
     }
     return this.updateById(id, { status: 'draft', verificationNote: null });
+  }
+
+  /** Admin: marks the anketa's photos as manually verified — independent of `status`, shown as a trust badge. */
+  async verifyPhotos(id: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (existing.photosVerified) {
+      throw new BadRequestException('Фото уже подтверждены');
+    }
+    return this.updateById(id, { photosVerified: true });
+  }
+
+  /** Admin: removes the "photos verified" trust badge. */
+  async unverifyPhotos(id: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (!existing.photosVerified) {
+      throw new BadRequestException('Фото не подтверждены');
+    }
+    return this.updateById(id, { photosVerified: false });
+  }
+
+  /**
+   * Admin: every anketa with at least one photo and no "photos verified" mark, regardless of `status` —
+   * covers both a fresh submission and photos added/changed on an already-published anketa (which stays
+   * live in the catalog; this is purely a worklist for the photo check, not a publish gate).
+   */
+  async listUnverifiedPhotos(): Promise<ListingWithOwner[]> {
+    const rows = await this.db
+      .select(ListingsService.ADMIN_OWNER_SELECT)
+      .from(listings)
+      .leftJoin(users, eq(listings.userId, users.id))
+      .where(eq(listings.photosVerified, false))
+      .orderBy(desc(listings.updatedAt));
+
+    return rows.map(ListingsService.toListingWithOwner).filter((l: ListingWithOwner) => l.photos.length > 0);
   }
 
   /** Admin: anketas awaiting a verification decision, oldest submission first. */

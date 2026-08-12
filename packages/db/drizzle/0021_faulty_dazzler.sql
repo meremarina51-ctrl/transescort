@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "photos_verified" boolean DEFAULT false NOT NULL;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { BadgeCheck, ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
@@ -265,6 +265,15 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                 className="card group relative overflow-hidden"
               >
                 <FavoriteButton listingId={listing.id} />
+                {listing.photosVerified ? (
+                  <span
+                    title="Фото подтверждены модератором"
+                    className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 font-body text-[11px] font-medium text-white backdrop-blur-sm"
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5 text-accent" />
+                    Фото подтверждены
+                  </span>
+                ) : null}
                 {listing.photos[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

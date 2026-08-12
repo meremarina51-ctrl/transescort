@@ -37,6 +37,12 @@ export class ModerationController {
     return this.listingsService.listModerationQueue();
   }
 
+  @Get('media')
+  @ApiOperation({ summary: 'Анкеты с неподтверждёнными фото — независимо от статуса анкеты' })
+  async mediaQueue() {
+    return this.listingsService.listUnverifiedPhotos();
+  }
+
   @Patch('listings/:id/verify')
   @ApiOperation({ summary: 'Подтвердить (публикует) или запросить исправления (с обязательным комментарием)' })
   async verifyListing(@Param('id') id: string, @Body() body: VerifyListingDto) {

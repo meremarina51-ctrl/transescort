@@ -30,6 +30,13 @@ export const listings = pgTable(
     verificationNote: text('verification_note'),
     submittedAt: timestamp('submitted_at'),
 
+    /**
+     * Independent of `status` — an admin manually confirms the photos are genuine (not stolen/AI-generated)
+     * and only then flips this on. Shown as a trust badge in the catalog and on the anketa page; never
+     * set automatically and never reset by publish/hide/block transitions.
+     */
+    photosVerified: boolean('photos_verified').notNull().default(false),
+
     /** Set once, the first time this anketa is approved — never reset. Used only to distinguish a brand-new submission from a resubmission in the admin moderation queue. */
     everPublished: boolean('ever_published').notNull().default(false),
 

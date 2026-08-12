@@ -66,6 +66,18 @@ export class AdminListingsController {
     return this.listingsService.unblock(id);
   }
 
+  @Patch(':id/verify-photos')
+  @ApiOperation({ summary: 'Отметить фото анкеты как проверенные вручную' })
+  async verifyPhotos(@Param('id') id: string) {
+    return this.listingsService.verifyPhotos(id);
+  }
+
+  @Patch(':id/unverify-photos')
+  @ApiOperation({ summary: 'Снять отметку о проверке фото' })
+  async unverifyPhotos(@Param('id') id: string) {
+    return this.listingsService.unverifyPhotos(id);
+  }
+
   @Patch(':id/telegram/unlink')
   @ApiOperation({ summary: 'Принудительно отвязать Telegram исполнителя (модерация)' })
   async unlinkTelegram(@Param('id') id: string) {

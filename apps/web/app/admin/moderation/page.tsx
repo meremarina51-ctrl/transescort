@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Check, ImageOff, MessageSquare, RefreshCw, ShieldAlert, ShieldCheck, Star, Video, X } from 'lucide-react';
+import { BadgeCheck, Check, ImageOff, MessageSquare, RefreshCw, ShieldAlert, ShieldCheck, Star, Video, X } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 
 interface ModerationListing {
@@ -24,6 +24,27 @@ type Decision = 'approved' | 'changes_requested';
 interface DecisionTarget {
   id: string;
 }
+
+type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
+
+interface MediaListing {
+  id: string;
+  status: ListingStatus;
+  name: string | null;
+  photos: string[];
+  videoUrl: string | null;
+  updatedAt: string;
+  ownerLogin: string | null;
+}
+
+const MEDIA_STATUS_LABEL: Record<ListingStatus, string> = {
+  draft: 'Черновик',
+  pending: 'На проверке',
+  changes_requested: 'Исправления',
+  published: 'Опубликована',
+  hidden: 'Скрыта',
+  blocked: 'Заблокирована',
+};
 
 interface AdminReview {
   id: string;
@@ -313,6 +334,12 @@ export default function AdminModerationPage() {
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  const [mediaQueue, setMediaQueue] = useState<MediaListing[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(true);
+  const [mediaLoadError, setMediaLoadError] = useState('');
+  const [mediaActionError, setMediaActionError] = useState('');
+  const [mediaActionId, setMediaActionId] = useState<string | null>(null);
+
   const [reviewQueue, setReviewQueue] = useState<AdminReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsLoadError, setReviewsLoadError] = useState('');
@@ -336,6 +363,36 @@ export default function AdminModerationPage() {
     }
   };
 
+  const loadMedia = async () => {
+    setMediaLoading(true);
+    setMediaLoadError('');
+    try {
+      const res = await authFetch('/admin/moderation/media');
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить фото на проверку');
+      setMediaQueue(data ?? []);
+    } catch (err: any) {
+      setMediaLoadError(err.message || 'Не удалось загрузить фото на проверку');
+    } finally {
+      setMediaLoading(false);
+    }
+  };
+
+  const verifyPhotos = async (id: string) => {
+    setMediaActionError('');
+    setMediaActionId(id);
+    try {
+      const res = await authFetch(`/admin/listings/${id}/verify-photos`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось подтвердить фото');
+      setMediaQueue((prev) => prev.filter((item) => item.id !== id));
+    } catch (err: any) {
+      setMediaActionError(err.message || 'Не удалось подтвердить фото');
+    } finally {
+      setMediaActionId(null);
+    }
+  };
+
   const loadReviews = async () => {
     setReviewsLoading(true);
     setReviewsLoadError('');
@@ -353,6 +410,7 @@ export default function AdminModerationPage() {
 
   useEffect(() => {
     load();
+    loadMedia();
     loadReviews();
   }, []);
 
@@ -480,46 +538,69 @@ export default function AdminModerationPage() {
         </div>
 
         <div className="min-w-0">
-          <ColumnHeader title="Медиа" count={queue.length} />
+          <ColumnHeader title="Медиа" count={mediaQueue.length} />
 
-          {loading ? null : loadError ? null : queue.length === 0 ? (
-            <EmptyColumn text="Нет фото и видео на проверке" />
+          {mediaActionError ? (
+            <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
+              {mediaActionError}
+            </p>
+          ) : null}
+
+          {mediaLoading ? (
+            <p className="font-body text-sm text-white/40">Загрузка…</p>
+          ) : mediaLoadError ? (
+            <p className="font-body text-sm text-red-400">{mediaLoadError}</p>
+          ) : mediaQueue.length === 0 ? (
+            <EmptyColumn text="Нет фото, ожидающих проверки" />
           ) : (
             <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
-              {queue.map((item) => (
+              {mediaQueue.map((item) => (
                 <div key={item.id} className="card p-4">
-                  <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
-                  <p className="mb-3 font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
+                      <p className="font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
+                    </div>
+                    <span className="flex-shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
+                      {MEDIA_STATUS_LABEL[item.status]}
+                    </span>
+                  </div>
 
-                  {item.photos.length === 0 && !item.videoUrl ? (
-                    <p className="font-body text-xs text-white/30">Фото и видео не загружены</p>
-                  ) : (
-                    <>
-                      {item.photos.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {item.photos.map((url) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={url}
-                              src={url}
-                              alt=""
-                              onClick={() => setLightboxUrl(url)}
-                              className="aspect-square w-full cursor-zoom-in rounded-md object-cover transition-opacity hover:opacity-80"
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {item.videoUrl ? (
-                        // eslint-disable-next-line jsx-a11y/media-has-caption
-                        <video
-                          src={item.videoUrl}
-                          controls
-                          className={`w-full rounded-lg border border-white/[0.08] ${item.photos.length > 0 ? 'mt-2' : ''}`}
+                  {item.photos.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {item.photos.map((url) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={url}
+                          src={url}
+                          alt=""
+                          onClick={() => setLightboxUrl(url)}
+                          className="aspect-square w-full cursor-zoom-in rounded-md object-cover transition-opacity hover:opacity-80"
                         />
-                      ) : null}
-                    </>
-                  )}
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {item.videoUrl ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      src={item.videoUrl}
+                      controls
+                      className={`w-full rounded-lg border border-white/[0.08] ${item.photos.length > 0 ? 'mt-2' : ''}`}
+                    />
+                  ) : null}
+
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => verifyPhotos(item.id)}
+                      disabled={mediaActionId === item.id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+                    >
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      {mediaActionId === item.id ? 'Подтверждаем…' : 'Подтвердить фото'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
