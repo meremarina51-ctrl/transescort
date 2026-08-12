@@ -195,7 +195,7 @@ export function SidebarShell({
       >
         <div
           onClick={() => setMobileOpen(false)}
-          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300 ${
             mobileOpen ? 'opacity-100' : 'opacity-0'
           }`}
         />

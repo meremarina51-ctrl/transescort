@@ -250,7 +250,7 @@ export default function AdminPerformersPage() {
 
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={deleting ? undefined : closeDelete} />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={deleting ? undefined : closeDelete} />
           <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
