@@ -19,6 +19,19 @@ const CONTACT_PAYLOAD_PREFIX = 'c_';
 /** Prefixes the "end dialog" inline button's callback_data — the rest is the thread id. */
 const END_THREAD_PREFIX = 'end_thread:';
 
+/** Anti-spam: caps how many messages one Telegram user can relay (either direction) in a short window. */
+const RELAY_SPAM_RATE_WINDOW_MS = 10_000;
+const RELAY_SPAM_RATE_MAX_MESSAGES = 8;
+/** Anti-spam: blocks re-sending the exact same text again too soon. */
+const RELAY_SPAM_DUPLICATE_COOLDOWN_MS = 30_000;
+
+interface RelayActivity {
+  /** Send timestamps within the rate window — pruned on every check. */
+  timestamps: number[];
+  lastBody: string;
+  lastBodyAt: number;
+}
+
 export interface TelegramStatus {
   linked: boolean;
   username: string | null;
@@ -58,6 +71,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private abortController: AbortController | null = null;
   private updateOffset = 0;
   private botUsername: string | null = null;
+  /** Keyed by Telegram user id (client or performer) — no DB table stores relayed message bodies, so this stays in-process. */
+  private readonly relayActivity = new Map<string, RelayActivity>();
 
   constructor(
     @Inject('DRIZZLE') private readonly db: any,
@@ -158,7 +173,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!payload) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Привет! Эта ссылка должна содержать код — откройте её из личного кабинета или со страницы анкеты исполнителя на LuxEscortia.',
+        text: '👋 Привет! Эта ссылка должна содержать код — откройте её из личного кабинета или со страницы анкеты исполнителя на LuxEscortia.',
       });
       return;
     }
@@ -182,10 +197,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     const reply =
       result === 'ok'
-        ? 'Готово! Telegram привязан к вашему аккаунту LuxEscortia.'
+        ? '✅ Готово! Telegram привязан к вашему аккаунту LuxEscortia.'
         : result === 'taken'
-          ? 'Этот Telegram-аккаунт уже привязан к другому профилю.'
-          : 'Ссылка недействительна или устарела. Сгенерируйте новую в личном кабинете.';
+          ? '⚠️ Этот Telegram-аккаунт уже привязан к другому профилю.'
+          : '⏰ Ссылка недействительна или устарела. Сгенерируйте новую в личном кабинете.';
 
     await this.callApi(token, 'sendMessage', { chat_id: chatId, text: reply });
   }
@@ -273,7 +288,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!row) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Эта анкета сейчас недоступна для связи через Telegram.',
+        text: '🚫 Эта анкета сейчас недоступна для связи через Telegram.',
       });
       return;
     }
@@ -318,7 +333,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!client.pendingListingId) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Спасибо! Теперь откройте «Написать в Telegram» на странице анкеты исполнителя на сайте.',
+        text: '🙏 Спасибо! Теперь откройте «Написать в Telegram» на странице анкеты исполнителя на сайте.',
       });
       return;
     }
@@ -327,7 +342,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!row) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Спасибо! Анкета, с которой вы начинали, сейчас недоступна — попробуйте другую.',
+        text: '🚫 Спасибо! Анкета, с которой вы начинали, сейчас недоступна — попробуйте другую.',
       });
       return;
     }
@@ -348,7 +363,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!thread || thread.endedAt) {
       await this.callApi(token, 'answerCallbackQuery', {
         callback_query_id: callbackQuery.id,
-        text: thread ? 'Диалог уже завершён' : 'Диалог не найден',
+        text: thread ? '⚠️ Диалог уже завершён' : '❌ Диалог не найден',
       }).catch(() => undefined);
       return;
     }
@@ -357,7 +372,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     await this.callApi(token, 'answerCallbackQuery', {
       callback_query_id: callbackQuery.id,
-      text: 'Диалог завершён',
+      text: '✅ Диалог завершён',
     }).catch(() => undefined);
 
     const chatId = callbackQuery.message?.chat?.id;
@@ -379,7 +394,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (clientTelegramId) {
       await this.callApi(token, 'sendMessage', {
         chat_id: clientTelegramId,
-        text: 'Исполнитель завершил этот диалог. Чтобы написать снова, откройте «Написать в Telegram» на странице анкеты.',
+        text: '👋 Исполнитель завершил этот диалог. Чтобы написать снова, откройте «Написать в Telegram» на странице анкеты.',
       }).catch(() => undefined);
     }
   }
@@ -389,7 +404,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     await this.callApi(token, 'sendMessage', {
       chat_id: chatId,
       text:
-        'Прежде чем продолжить, подтвердите:\n\n' +
+        '🔞 Прежде чем продолжить, подтвердите:\n\n' +
         '• Вам есть 18 лет\n' +
         '• Вы принимаете правила сервиса LuxEscortia\n\n' +
         'Регистрация на сайте не требуется — мы используем только ваш Telegram ID.',
@@ -404,12 +419,18 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const chatId = message.chat.id;
     const text: string = message.text;
 
+    const spamHit = this.checkRelaySpam(telegramId, text.trim());
+    if (spamHit) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: this.relaySpamMessage(spamHit) });
+      return;
+    }
+
     const clientRows = await this.db.select().from(telegramBotClients).where(eq(telegramBotClients.telegramId, telegramId)).limit(1);
     const client = clientRows[0];
     if (!client || !client.ageConfirmedAt || !client.rulesAcceptedAt) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Чтобы написать исполнителю, откройте «Написать в Telegram» на странице анкеты на сайте LuxEscortia.',
+        text: 'ℹ️ Чтобы написать исполнителю, откройте «Написать в Telegram» на странице анкеты на сайте LuxEscortia.',
       });
       return;
     }
@@ -418,7 +439,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!thread) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Сначала откройте «Написать в Telegram» на странице анкеты исполнителя на сайте.',
+        text: 'ℹ️ Сначала откройте «Написать в Telegram» на странице анкеты исполнителя на сайте.',
       });
       return;
     }
@@ -426,7 +447,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const performerRows = await this.db.select({ telegramId: users.telegramId }).from(users).where(eq(users.id, thread.performerId)).limit(1);
     const performerTelegramId: string | null = performerRows[0]?.telegramId ?? null;
     if (!performerTelegramId) {
-      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: 'Исполнитель временно недоступен в Telegram.' });
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: '😔 Исполнитель временно недоступен в Telegram.' });
       return;
     }
 
@@ -447,6 +468,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const chatId = message.chat.id;
     const text: string = message.text;
     const repliedToId: number | undefined = message.reply_to_message?.message_id;
+
+    const spamHit = this.checkRelaySpam(performerTelegramId, text.trim());
+    if (spamHit) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: this.relaySpamMessage(spamHit) });
+      return;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let thread: any = null;
@@ -471,7 +498,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (!thread) {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
-        text: 'Нет активных диалогов с клиентами — сообщения появятся здесь, когда клиент напишет через сайт.',
+        text: '📭 Нет активных диалогов с клиентами — сообщения появятся здесь, когда клиент напишет через сайт.',
       });
       return;
     }
@@ -552,11 +579,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async openThreadAndGreet(token: string, clientId: string, clientChatId: any, listingRow: { listing: any; performerName: string | null }) {
-    await this.findOrCreateThread(clientId, listingRow.listing.userId);
+    const thread = await this.findOrCreateThread(clientId, listingRow.listing.userId);
+    // Makes this the client's "active" thread right away — otherwise a client with an older, more
+    // recently-touched thread elsewhere would still have their next plain message routed there
+    // instead of to the anketa they just switched to.
+    await this.touchThread(thread.id);
     const displayName = listingRow.listing.name || listingRow.performerName || 'исполнителем';
     await this.callApi(token, 'sendMessage', {
       chat_id: clientChatId,
-      text: `Вы на связи с «${displayName}» через LuxEscortia. Напишите сообщение — оно будет передано анонимно, без раскрытия ваших данных.`,
+      text: `💬 Вы на связи с «${displayName}» через LuxEscortia. Напишите сообщение — оно будет передано анонимно, без раскрытия ваших данных.`,
     });
   }
 
@@ -579,6 +610,37 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
   private truncate(text: string): string {
     return text.length > MAX_RELAY_TEXT_LENGTH ? `${text.slice(0, MAX_RELAY_TEXT_LENGTH)}…` : text;
+  }
+
+  /**
+   * Anti-spam for the relay, checked against the sender's own activity regardless of which client
+   * or performer they're currently talking to — mass spam through the bot is one person blasting
+   * the same text at many threads, not one thread getting flooded.
+   */
+  private checkRelaySpam(telegramId: string, body: string): 'rate' | 'duplicate' | null {
+    const now = Date.now();
+    const entry = this.relayActivity.get(telegramId) ?? { timestamps: [], lastBody: '', lastBodyAt: 0 };
+    entry.timestamps = entry.timestamps.filter((t) => now - t < RELAY_SPAM_RATE_WINDOW_MS);
+
+    let result: 'rate' | 'duplicate' | null = null;
+    if (entry.timestamps.length >= RELAY_SPAM_RATE_MAX_MESSAGES) {
+      result = 'rate';
+    } else if (entry.lastBody === body && now - entry.lastBodyAt < RELAY_SPAM_DUPLICATE_COOLDOWN_MS) {
+      result = 'duplicate';
+    } else {
+      entry.timestamps.push(now);
+      entry.lastBody = body;
+      entry.lastBodyAt = now;
+    }
+
+    this.relayActivity.set(telegramId, entry);
+    return result;
+  }
+
+  private relaySpamMessage(kind: 'rate' | 'duplicate'): string {
+    return kind === 'rate'
+      ? '⏳ Слишком много сообщений подряд — подождите немного.'
+      : '🔁 Не отправляйте одинаковые сообщения подряд.';
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
