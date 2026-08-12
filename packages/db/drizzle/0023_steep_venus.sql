@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_bot_threads" ADD COLUMN "ended_at" timestamp;

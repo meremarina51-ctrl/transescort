@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, createHash } from 'crypto';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 import {
   listings,
   telegramBotClients,
@@ -16,6 +16,8 @@ const LINK_TOKEN_TTL_MS = 10 * 60 * 1000;
 const MAX_RELAY_TEXT_LENGTH = 4000;
 /** Prefixes the /start payload for "contact this performer" deep links — distinguishes it from a plain account-link token. */
 const CONTACT_PAYLOAD_PREFIX = 'c_';
+/** Prefixes the "end dialog" inline button's callback_data — the rest is the thread id. */
+const END_THREAD_PREFIX = 'end_thread:';
 
 export interface TelegramStatus {
   linked: boolean;
@@ -292,9 +294,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async handleCallbackQuery(token: string, callbackQuery: any) {
+    const data: string | undefined = callbackQuery.data;
+    if (data?.startsWith(END_THREAD_PREFIX)) {
+      return this.handleEndThread(token, callbackQuery, data.slice(END_THREAD_PREFIX.length));
+    }
+
     await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
 
-    if (callbackQuery.data !== 'gate_accept') return;
+    if (data !== 'gate_accept') return;
     const chatId = callbackQuery.message?.chat?.id;
     const telegramId = String(callbackQuery.from.id);
     if (!chatId) return;
@@ -326,6 +333,55 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.openThreadAndGreet(token, client.id, chatId, row);
+  }
+
+  /**
+   * Performer tapped "🚫 Завершить диалог" on a relayed message. Marks the thread ended so it drops
+   * out of the "active thread" fallback (see `mostRecentThread`), removes the now-stale button, and
+   * lets the client know — without revealing anything about the performer beyond the bot already does.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleEndThread(token: string, callbackQuery: any, threadId: string) {
+    const rows = await this.db.select().from(telegramBotThreads).where(eq(telegramBotThreads.id, threadId)).limit(1);
+    const thread = rows[0];
+
+    if (!thread || thread.endedAt) {
+      await this.callApi(token, 'answerCallbackQuery', {
+        callback_query_id: callbackQuery.id,
+        text: thread ? 'Диалог уже завершён' : 'Диалог не найден',
+      }).catch(() => undefined);
+      return;
+    }
+
+    await this.db.update(telegramBotThreads).set({ endedAt: new Date() }).where(eq(telegramBotThreads.id, threadId));
+
+    await this.callApi(token, 'answerCallbackQuery', {
+      callback_query_id: callbackQuery.id,
+      text: 'Диалог завершён',
+    }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    const messageId = callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await this.callApi(token, 'editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: [] },
+      }).catch(() => undefined);
+    }
+
+    const clientRows = await this.db
+      .select({ telegramId: telegramBotClients.telegramId })
+      .from(telegramBotClients)
+      .where(eq(telegramBotClients.id, thread.clientId))
+      .limit(1);
+    const clientTelegramId: string | null = clientRows[0]?.telegramId ?? null;
+    if (clientTelegramId) {
+      await this.callApi(token, 'sendMessage', {
+        chat_id: clientTelegramId,
+        text: 'Исполнитель завершил этот диалог. Чтобы написать снова, откройте «Написать в Telegram» на странице анкеты.',
+      }).catch(() => undefined);
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -377,6 +433,9 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const sent = await this.callApi(token, 'sendMessage', {
       chat_id: performerTelegramId,
       text: `📩 Сообщение от клиента через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
+      reply_markup: {
+        inline_keyboard: [[{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }]],
+      },
     });
 
     await this.recordRelay(thread.id, 'client_to_performer', performerTelegramId, sent.result.message_id);
@@ -460,20 +519,32 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return inserted[0];
   }
 
+  /** The client explicitly re-opening contact from the site is exactly the signal that should reopen a thread the performer had ended. */
   private async findOrCreateThread(clientId: string, performerId: string) {
     const pairWhere = and(eq(telegramBotThreads.clientId, clientId), eq(telegramBotThreads.performerId, performerId));
     const existing = await this.db.select().from(telegramBotThreads).where(pairWhere).limit(1);
-    if (existing[0]) return existing[0];
+    if (existing[0]) {
+      if (existing[0].endedAt) {
+        const reopened = await this.db
+          .update(telegramBotThreads)
+          .set({ endedAt: null })
+          .where(eq(telegramBotThreads.id, existing[0].id))
+          .returning();
+        return reopened[0];
+      }
+      return existing[0];
+    }
     const inserted = await this.db.insert(telegramBotThreads).values({ clientId, performerId }).onConflictDoNothing().returning();
     return inserted[0] ?? (await this.db.select().from(telegramBotThreads).where(pairWhere).limit(1))[0];
   }
 
+  /** Only ever picks a thread the performer hasn't ended — that's the whole point of ending one. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async mostRecentThread(condition: any) {
     const rows = await this.db
       .select()
       .from(telegramBotThreads)
-      .where(condition)
+      .where(and(condition, isNull(telegramBotThreads.endedAt)))
       .orderBy(desc(telegramBotThreads.lastMessageAt), desc(telegramBotThreads.createdAt))
       .limit(1);
     return rows[0] ?? null;
