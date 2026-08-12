@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BadgeCheck, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { ReportButton } from '@/components/ReportButton';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
@@ -485,12 +486,16 @@ export function ListingGallery({
               Отзывы
             </button>
           </div>
+
+          <div className="flex flex-shrink-0 justify-center border-t border-white/[0.06] py-2">
+            <ReportButton targetType="listing" targetId={id} label="Пожаловаться на анкету" />
+          </div>
         </div>
       </div>
 
       {contactOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setContactOpen(false)} />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setContactOpen(false)} />
           <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">

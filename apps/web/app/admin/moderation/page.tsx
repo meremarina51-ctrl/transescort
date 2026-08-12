@@ -1,7 +1,20 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { BadgeCheck, Check, ImageOff, MessageSquare, RefreshCw, ShieldAlert, ShieldCheck, Star, Video, X } from 'lucide-react';
+import Link from 'next/link';
+import {
+  BadgeCheck,
+  Check,
+  ImageOff,
+  MessageSquare,
+  MessageSquareOff,
+  MessageSquareText,
+  RefreshCw,
+  ShieldCheck,
+  Star,
+  Video,
+  X,
+} from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 
 interface ModerationListing {
@@ -59,6 +72,56 @@ interface AdminReview {
   listingSlug: string | null;
 }
 
+type ReportTargetType = 'listing' | 'review' | 'message' | 'user';
+
+interface AdminReportItem {
+  id: string;
+  targetType: ReportTargetType;
+  category: string;
+  text: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  adminNote: string | null;
+  createdAt: string;
+  reporterLogin: string | null;
+  reporterFullName: string | null;
+  target: { label: string; href: string | null; restrictableUserId: string | null; messagingRestricted: boolean };
+}
+
+const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
+  listing: 'Анкета',
+  review: 'Отзыв',
+  message: 'Сообщение',
+  user: 'Пользователь',
+};
+
+const REPORT_CATEGORY_LABEL: Record<string, string> = {
+  spam: 'Спам',
+  fake: 'Мошенничество / фейк',
+  harassment: 'Оскорбления',
+  inappropriate: 'Неприемлемый контент',
+  other: 'Другое',
+};
+
+interface AdminConversationParticipant {
+  id: string;
+  login: string;
+  fullName: string | null;
+}
+
+interface AdminConversationMessage {
+  id: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+interface AdminConversationView {
+  conversationId: string;
+  participants: AdminConversationParticipant[];
+  messages: AdminConversationMessage[];
+  reportedMessageId: string;
+}
+
 async function parseBody(res: Response) {
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -86,18 +149,6 @@ function EmptyColumn({ text }: { text: string }) {
     <div className="card flex flex-col items-center gap-2 p-8 text-center">
       <ShieldCheck className="h-6 w-6 text-white/20" strokeWidth={1.4} />
       <p className="font-body text-xs text-white/35">{text}</p>
-    </div>
-  );
-}
-
-function StubColumn({ title, icon: Icon, description }: { title: string; icon: typeof MessageSquare; description: string }) {
-  return (
-    <div className="min-w-0">
-      <ColumnHeader title={title} count={0} />
-      <div className="card flex flex-col items-center gap-2 p-8 text-center">
-        <Icon className="h-6 w-6 text-white/20" strokeWidth={1.4} />
-        <p className="font-body text-xs text-white/35">{description}</p>
-      </div>
     </div>
   );
 }
@@ -322,6 +373,116 @@ function ReviewCard({
   );
 }
 
+function ReportCard({
+  item,
+  busy,
+  note,
+  onNoteChange,
+  onResolve,
+  onDismiss,
+  onViewConversation,
+  restrictBusy,
+  onToggleMessagingRestriction,
+}: {
+  item: AdminReportItem;
+  busy: boolean;
+  note: string;
+  onNoteChange: (v: string) => void;
+  onResolve: () => void;
+  onDismiss: () => void;
+  onViewConversation: () => void;
+  restrictBusy: boolean;
+  onToggleMessagingRestriction: () => void;
+}) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
+              {REPORT_TARGET_LABEL[item.targetType]}
+            </span>
+            <span className="rounded-full border border-red-400/25 bg-red-400/10 px-2 py-0.5 font-body text-[11px] text-red-300">
+              {REPORT_CATEGORY_LABEL[item.category] ?? item.category}
+            </span>
+          </div>
+          <p className="mt-1.5 truncate font-body text-xs text-white/35">
+            От {item.reporterFullName || item.reporterLogin || 'пользователя'}
+          </p>
+        </div>
+        <span className="flex-shrink-0 font-body text-[11px] text-white/25">
+          {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+        </span>
+      </div>
+
+      {item.target.href ? (
+        <Link href={item.target.href} className="mt-2 block truncate font-body text-xs text-accent hover:underline">
+          {item.target.label}
+        </Link>
+      ) : (
+        <p className="mt-2 truncate font-body text-xs text-white/50">{item.target.label}</p>
+      )}
+
+      {item.targetType === 'message' ? (
+        <button
+          type="button"
+          onClick={onViewConversation}
+          className="mt-2 inline-flex items-center gap-1.5 font-body text-xs text-accent hover:underline"
+        >
+          <MessageSquare className="h-3.5 w-3.5" /> Посмотреть переписку
+        </button>
+      ) : null}
+
+      {item.target.restrictableUserId ? (
+        <button
+          type="button"
+          onClick={onToggleMessagingRestriction}
+          disabled={restrictBusy}
+          className={`mt-2 flex items-center gap-1.5 font-body text-xs transition-colors disabled:opacity-50 ${
+            item.target.messagingRestricted ? 'text-orange-400 hover:text-orange-300' : 'text-white/50 hover:text-white/80'
+          }`}
+        >
+          {item.target.messagingRestricted ? (
+            <MessageSquareOff className="h-3.5 w-3.5" />
+          ) : (
+            <MessageSquareText className="h-3.5 w-3.5" />
+          )}
+          {item.target.messagingRestricted ? 'Ограничение отправки сообщений — снять' : 'Ограничить отправку сообщений'}
+        </button>
+      ) : null}
+
+      <p className="mt-2 whitespace-pre-line font-body text-xs text-white/60">{item.text}</p>
+
+      <textarea
+        value={note}
+        onChange={(e) => onNoteChange(e.target.value)}
+        placeholder="Заметка для админов — необязательно"
+        rows={2}
+        maxLength={1000}
+        className="input mt-3 resize-none text-xs"
+      />
+      <div className="mt-2 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-medium text-white/70 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+        >
+          <X className="h-3.5 w-3.5" /> Отклонить
+        </button>
+        <button
+          type="button"
+          onClick={onResolve}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+        >
+          <Check className="h-3.5 w-3.5" /> {busy ? 'Сохраняем…' : 'Обработано'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminModerationPage() {
   const [queue, setQueue] = useState<ModerationListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -347,6 +508,20 @@ export default function AdminModerationPage() {
   const [reviewActionId, setReviewActionId] = useState<string | null>(null);
   const [reviewDecisionTarget, setReviewDecisionTarget] = useState<DecisionTarget | null>(null);
   const [reviewDecisionNote, setReviewDecisionNote] = useState('');
+
+  const [reportQueue, setReportQueue] = useState<AdminReportItem[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [reportsLoadError, setReportsLoadError] = useState('');
+  const [reportActionError, setReportActionError] = useState('');
+  const [reportActionId, setReportActionId] = useState<string | null>(null);
+  const [reportNotes, setReportNotes] = useState<Record<string, string>>({});
+
+  const [conversationView, setConversationView] = useState<AdminConversationView | null>(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationError, setConversationError] = useState('');
+  const [conversationOpen, setConversationOpen] = useState(false);
+
+  const [restrictActionId, setRestrictActionId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -408,10 +583,98 @@ export default function AdminModerationPage() {
     }
   };
 
+  const loadReports = async () => {
+    setReportsLoading(true);
+    setReportsLoadError('');
+    try {
+      const res = await authFetch('/admin/reports');
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить жалобы');
+      setReportQueue((data ?? []).filter((r: AdminReportItem) => r.status === 'pending'));
+    } catch (err: any) {
+      setReportsLoadError(err.message || 'Не удалось загрузить жалобы');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const verifyReport = async (id: string, decision: 'resolved' | 'dismissed') => {
+    setReportActionError('');
+    setReportActionId(id);
+    try {
+      const res = await authFetch(`/admin/reports/${id}/verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, note: reportNotes[id]?.trim() || undefined }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) {
+        const msgRaw = data?.message;
+        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
+      }
+      setReportQueue((prev) => prev.filter((item) => item.id !== id));
+      setReportNotes((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err: any) {
+      setReportActionError(err.message || 'Не удалось сохранить решение');
+    } finally {
+      setReportActionId(null);
+    }
+  };
+
+  const openConversation = async (reportId: string) => {
+    setConversationOpen(true);
+    setConversationView(null);
+    setConversationLoading(true);
+    setConversationError('');
+    try {
+      const res = await authFetch(`/admin/reports/${reportId}/conversation`);
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить переписку');
+      setConversationView(data);
+    } catch (err: any) {
+      setConversationError(err.message || 'Не удалось загрузить переписку');
+    } finally {
+      setConversationLoading(false);
+    }
+  };
+
+  const toggleMessagingRestriction = async (report: AdminReportItem) => {
+    const userId = report.target.restrictableUserId;
+    if (!userId) return;
+    const restricted = !report.target.messagingRestricted;
+    setReportActionError('');
+    setRestrictActionId(report.id);
+    try {
+      const res = await authFetch(`/admin/users/${userId}/messaging-restriction`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restricted }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить ограничение');
+      setReportQueue((prev) =>
+        prev.map((item) =>
+          item.target.restrictableUserId === userId
+            ? { ...item, target: { ...item.target, messagingRestricted: restricted } }
+            : item,
+        ),
+      );
+    } catch (err: any) {
+      setReportActionError(err.message || 'Не удалось изменить ограничение');
+    } finally {
+      setRestrictActionId(null);
+    }
+  };
+
   useEffect(() => {
     load();
     loadMedia();
     loadReviews();
+    loadReports();
   }, []);
 
   const newItems = useMemo(() => queue.filter((item) => !item.everPublished), [queue]);
@@ -505,7 +768,7 @@ export default function AdminModerationPage() {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <div className="min-w-0">
           <ColumnHeader title="Анкеты" count={queue.length} />
 
@@ -641,11 +904,40 @@ export default function AdminModerationPage() {
             </div>
           )}
         </div>
-        <StubColumn
-          title="Жалобы"
-          icon={ShieldAlert}
-          description="Система жалоб ещё не реализована — модерировать пока нечего"
-        />
+        <div className="min-w-0">
+          <ColumnHeader title="Жалобы" count={reportQueue.length} />
+
+          {reportActionError ? (
+            <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
+              {reportActionError}
+            </p>
+          ) : null}
+
+          {reportsLoading ? (
+            <p className="font-body text-sm text-white/40">Загрузка…</p>
+          ) : reportsLoadError ? (
+            <p className="font-body text-sm text-red-400">{reportsLoadError}</p>
+          ) : reportQueue.length === 0 ? (
+            <EmptyColumn text="Очередь пуста — нет жалоб на рассмотрении" />
+          ) : (
+            <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
+              {reportQueue.map((item) => (
+                <ReportCard
+                  key={item.id}
+                  item={item}
+                  busy={reportActionId === item.id}
+                  note={reportNotes[item.id] ?? ''}
+                  onNoteChange={(v) => setReportNotes((prev) => ({ ...prev, [item.id]: v }))}
+                  onResolve={() => verifyReport(item.id, 'resolved')}
+                  onDismiss={() => verifyReport(item.id, 'dismissed')}
+                  onViewConversation={() => openConversation(item.id)}
+                  restrictBusy={restrictActionId === item.id}
+                  onToggleMessagingRestriction={() => toggleMessagingRestriction(item)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {lightboxUrl ? (
@@ -668,6 +960,58 @@ export default function AdminModerationPage() {
             onClick={(e) => e.stopPropagation()}
             className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
           />
+        </div>
+      ) : null}
+
+      {conversationOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setConversationOpen(false)} />
+          <div className="card relative flex max-h-[85vh] w-full flex-col p-6 !rounded-b-none sm:max-w-lg sm:!rounded-2xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mb-4 flex flex-shrink-0 items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Переписка</h2>
+              <button type="button" onClick={() => setConversationOpen(false)} className="text-white/40 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {conversationLoading ? (
+              <p className="font-body text-sm text-white/40">Загрузка…</p>
+            ) : conversationError ? (
+              <p className="font-body text-sm text-red-400">{conversationError}</p>
+            ) : conversationView ? (
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
+                {conversationView.messages.map((m) => {
+                  const sender = conversationView.participants.find((p) => p.id === m.senderId);
+                  const isReported = m.id === conversationView.reportedMessageId;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`rounded-xl p-3 ${isReported ? 'border border-red-500/40 bg-red-500/10' : 'bg-white/[0.04]'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-body text-xs font-semibold text-white">
+                          {sender?.fullName || sender?.login || 'Пользователь'}
+                        </p>
+                        <span className="flex-shrink-0 font-body text-[11px] text-white/30">
+                          {new Date(m.createdAt).toLocaleString('ru-RU', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-line font-body text-sm text-white/80">{m.body}</p>
+                      {isReported ? (
+                        <p className="mt-1 font-body text-[11px] font-semibold text-red-400">Сообщение из жалобы</p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </>

@@ -6,6 +6,7 @@ import { Check, CheckCheck, ChevronLeft, ChevronRight, Loader2, MessageSquare, P
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { getChatSocket } from '@/lib/chat-socket';
+import { ReportButton } from '@/components/ReportButton';
 
 interface ConversationParticipant {
   id: string;
@@ -410,6 +411,12 @@ export function ChatsPage() {
                   ‹
                 </button>
                 <ParticipantHeaderInfo user={activeConversation.otherUser} />
+                <ReportButton
+                  targetType="user"
+                  targetId={activeConversation.otherUser.id}
+                  label=""
+                  className="flex-shrink-0 rounded-full p-2 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-red-400"
+                />
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -431,7 +438,7 @@ export function ChatsPage() {
                             </span>
                           </div>
                         ) : null}
-                        <div className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`group flex items-end gap-1 ${own ? 'justify-end' : 'justify-start'}`}>
                           <div
                             className={`max-w-[75%] rounded-2xl px-4 py-2 font-body text-sm ${
                               own ? 'bg-accent text-white' : 'bg-white/[0.06] text-white/90'
@@ -451,6 +458,14 @@ export function ChatsPage() {
                               ) : null}
                             </p>
                           </div>
+                          {!own ? (
+                            <ReportButton
+                              targetType="message"
+                              targetId={m.id}
+                              label=""
+                              className="flex-shrink-0 rounded-full p-1.5 text-white/0 opacity-0 transition-opacity hover:bg-white/[0.06] hover:text-red-400 group-hover:text-white/25 group-hover:opacity-100"
+                            />
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -459,30 +474,36 @@ export function ChatsPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage();
-                }}
-                className="flex flex-shrink-0 items-center gap-2 border-t border-white/[0.06] p-4"
-              >
-                <input
-                  type="text"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Написать сообщение..."
-                  maxLength={4000}
-                  className="input flex-1"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !draft.trim()}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white transition-all hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-                  aria-label="Отправить"
+              {user?.messagingRestricted ? (
+                <p className="flex-shrink-0 border-t border-white/[0.06] p-4 font-body text-sm text-orange-400">
+                  Отправка сообщений ограничена администрацией.
+                </p>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendMessage();
+                  }}
+                  className="flex flex-shrink-0 items-center gap-2 border-t border-white/[0.06] p-4"
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </button>
-              </form>
+                  <input
+                    type="text"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="Написать сообщение..."
+                    maxLength={4000}
+                    className="input flex-1"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !draft.trim()}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white transition-all hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+                    aria-label="Отправить"
+                  >
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </button>
+                </form>
+              )}
               {sendError ? <p className="flex-shrink-0 px-4 pb-3 font-body text-xs text-red-400">{sendError}</p> : null}
             </>
           )}
@@ -491,7 +512,7 @@ export function ChatsPage() {
 
       {startOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStartOpen(false)} />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setStartOpen(false)} />
           <div className="card relative flex max-h-[80vh] w-full flex-col p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">

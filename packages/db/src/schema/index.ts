@@ -8,3 +8,4 @@ export * from './telegram-bot-clients';
 export * from './telegram-bot-threads';
 export * from './telegram-bot-relay-messages';
 export * from './reviews';
+export * from './reports';

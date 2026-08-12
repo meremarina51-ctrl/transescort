@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Star, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { ReportButton } from '@/components/ReportButton';
 import type { PublicReview } from '@/lib/listing.types';
 
 type ReviewStatus = 'pending' | 'published' | 'rejected' | 'hidden';
@@ -209,6 +210,9 @@ function PerformerReviews() {
             <StarRow rating={review.rating} />
           </div>
           <p className="mt-3 whitespace-pre-line font-body text-sm text-white/70">{review.text}</p>
+          <div className="mt-3 flex justify-end">
+            <ReportButton targetType="review" targetId={review.id} label="Пожаловаться на отзыв" />
+          </div>
         </div>
       ))}
     </div>
