@@ -18,6 +18,8 @@ export const messages = pgTable(
   },
   (table) => ({
     conversationIdx: index('messages_conversation_created_idx').on(table.conversationId, table.createdAt),
+    /** Backs the anti-spam rate/duplicate checks in ChatService.sendMessage — both scan a sender's recent messages across all conversations. */
+    senderCreatedIdx: index('messages_sender_created_idx').on(table.senderId, table.createdAt),
   }),
 );
 

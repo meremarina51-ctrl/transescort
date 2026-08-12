@@ -1,6 +1,12 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, ne, or } from 'drizzle-orm';
 import { conversations, listings, messages, users, type Conversation, type Message } from '@transescort/db';
+
+/** Anti-spam: caps how many messages one sender can send across all conversations in a short window. */
+const SPAM_RATE_WINDOW_MS = 10_000;
+const SPAM_RATE_MAX_MESSAGES = 8;
+/** Anti-spam: blocks re-sending the exact same text again too soon — the classic copy-paste spam pattern. */
+const SPAM_DUPLICATE_COOLDOWN_MS = 30_000;
 
 export interface ConversationParticipant {
   id: string;
@@ -127,6 +133,8 @@ export class ChatService {
     const trimmed = body.trim();
     if (!trimmed) throw new BadRequestException('Сообщение не может быть пустым');
 
+    await this.assertNotSpamming(senderId, trimmed);
+
     const inserted = await this.db.insert(messages).values({ conversationId, senderId, body: trimmed }).returning();
     const message: Message = inserted[0];
 
@@ -147,6 +155,32 @@ export class ChatService {
       .where(eq(conversations.id, conversationId));
 
     return { otherUserId: isA ? conversation.userBId : conversation.userAId, readAt };
+  }
+
+  /**
+   * Two independent checks against the sender's own recent messages across every conversation
+   * (not just this one) — mass spam is typically the same text blasted at many different people:
+   * - rate: too many messages in a short window.
+   * - duplicate: the exact same text sent again right after the last one.
+   */
+  private async assertNotSpamming(senderId: string, body: string): Promise<void> {
+    const since = new Date(Date.now() - SPAM_DUPLICATE_COOLDOWN_MS);
+    const recent: { body: string; createdAt: Date }[] = await this.db
+      .select({ body: messages.body, createdAt: messages.createdAt })
+      .from(messages)
+      .where(and(eq(messages.senderId, senderId), gt(messages.createdAt, since)))
+      .orderBy(desc(messages.createdAt))
+      .limit(50);
+
+    const rateWindowStart = Date.now() - SPAM_RATE_WINDOW_MS;
+    const withinRateWindow = recent.filter((m) => m.createdAt.getTime() > rateWindowStart).length;
+    if (withinRateWindow >= SPAM_RATE_MAX_MESSAGES) {
+      throw new ForbiddenException('Слишком много сообщений подряд — подождите немного');
+    }
+
+    if (recent[0]?.body === body) {
+      throw new ForbiddenException('Не отправляйте одинаковые сообщения подряд');
+    }
   }
 
   private async assertParticipant(conversationId: string, userId: string): Promise<Conversation> {
