@@ -100,6 +100,14 @@ export class UsersService {
     await this.db.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, id));
   }
 
+  /** Narrower than `setStatus('suspended')` — the account stays fully usable, only chat sending is blocked. */
+  async setMessagingRestriction(id: string, restricted: boolean): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ messagingRestrictedAt: restricted ? new Date() : null, updatedAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
   async incrementTokenVersion(id: string): Promise<void> {
     await this.db
       .update(users)

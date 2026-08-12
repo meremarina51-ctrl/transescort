@@ -37,6 +37,13 @@ export const users = pgTable(
     telegramUsername: varchar('telegram_username', { length: 255 }),
     telegramLinkedAt: timestamp('telegram_linked_at'),
 
+    /**
+     * Admin-set, independent of `status` — a narrower measure than suspension: the account still
+     * works fully (login, browsing, anketa, etc.), only sending chat messages is blocked. Typically
+     * applied from a spam/harassment report without taking the account down entirely.
+     */
+    messagingRestrictedAt: timestamp('messaging_restricted_at'),
+
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

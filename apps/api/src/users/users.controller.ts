@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { UsersService } from './users.service';
@@ -41,6 +41,12 @@ class SetStatusDto {
   @ApiProperty({ enum: ['active', 'suspended'] })
   @IsIn(['active', 'suspended'])
   status!: 'active' | 'suspended';
+}
+
+class SetMessagingRestrictionDto {
+  @ApiProperty({ description: 'true — запретить отправку сообщений в чате, false — снять ограничение' })
+  @IsBoolean()
+  restricted!: boolean;
 }
 
 @ApiTags('Admin Users')
@@ -90,6 +96,19 @@ export class AdminUsersController {
     if (!existing) throw new NotFoundException('Пользователь не найден');
 
     await this.usersService.setStatus(id, body.status);
+    return this.usersService.findPublicById(id);
+  }
+
+  @Patch(':id/messaging-restriction')
+  @ApiOperation({ summary: 'Ограничить / снять ограничение на отправку сообщений в чате — применяется при спаме или жалобах' })
+  async setMessagingRestriction(@Param('id') id: string, @Body() body: SetMessagingRestrictionDto, @Request() req: any) {
+    if (id === req.user.userId) {
+      throw new BadRequestException('Нельзя изменить ограничение своего аккаунта');
+    }
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Пользователь не найден');
+
+    await this.usersService.setMessagingRestriction(id, body.restricted);
     return this.usersService.findPublicById(id);
   }
 

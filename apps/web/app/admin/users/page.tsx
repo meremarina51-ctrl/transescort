@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Ban, CheckCircle2, Loader2, Search, Trash2, UserCog } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Loader2, MessageSquareOff, MessageSquareText, Search, Trash2, UserCog } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 
@@ -14,6 +14,7 @@ interface AdminUser {
   email: string | null;
   phone: string | null;
   createdAt: string;
+  messagingRestrictedAt: string | null;
 }
 
 const ROLE_LABELS: Record<AdminUser['role'], string> = {
@@ -41,6 +42,7 @@ function RowActions({
   busy,
   // onEdit,
   onToggleStatus,
+  onToggleMessagingRestriction,
   onRemove,
 }: {
   user: AdminUser;
@@ -48,8 +50,10 @@ function RowActions({
   busy: boolean;
   // onEdit: () => void;
   onToggleStatus: () => void;
+  onToggleMessagingRestriction: () => void;
   onRemove: () => void;
 }) {
+  const restricted = Boolean(user.messagingRestrictedAt);
   return (
     <div className="flex items-center gap-1">
       {/* <button
@@ -60,6 +64,23 @@ function RowActions({
       >
         <Pencil className="h-4 w-4" />
       </button> */}
+      <button
+        type="button"
+        onClick={onToggleMessagingRestriction}
+        disabled={isSelf || busy}
+        title={
+          isSelf
+            ? 'Нельзя изменить своё ограничение'
+            : restricted
+              ? 'Снять ограничение на отправку сообщений'
+              : 'Ограничить отправку сообщений'
+        }
+        className={`rounded-lg p-2 transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30 ${
+          restricted ? 'text-orange-400 hover:text-orange-300' : 'text-white/40 hover:text-white'
+        }`}
+      >
+        {restricted ? <MessageSquareOff className="h-4 w-4" /> : <MessageSquareText className="h-4 w-4" />}
+      </button>
       <button
         type="button"
         onClick={onToggleStatus}
@@ -188,6 +209,26 @@ export default function AdminUsersPage() {
     }
   };
 
+  const toggleMessagingRestriction = async (u: AdminUser) => {
+    const restricted = !u.messagingRestrictedAt;
+    setActionError('');
+    setActionId(u.id);
+    try {
+      const res = await authFetch(`/admin/users/${u.id}/messaging-restriction`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restricted }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить ограничение');
+      setUsers((prev) => prev.map((row) => (row.id === data.id ? data : row)));
+    } catch (err: any) {
+      setActionError(err.message || 'Не удалось изменить ограничение');
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const openDelete = (u: AdminUser) => {
     setDeleteTarget(u);
     setDeleteError('');
@@ -287,6 +328,7 @@ export default function AdminUsersPage() {
                           busy={busy}
                           // onEdit={() => openEdit(u)}
                           onToggleStatus={() => toggleStatus(u)}
+                          onToggleMessagingRestriction={() => toggleMessagingRestriction(u)}
                           onRemove={() => openDelete(u)}
                         />
                       </div>
@@ -301,7 +343,7 @@ export default function AdminUsersPage() {
 
       {/* {editingUser ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeEdit} />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={closeEdit} />
           <div className="card relative max-h-[90vh] w-full max-w-md overflow-y-auto p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold">@{editingUser.login}</h2>
@@ -353,7 +395,7 @@ export default function AdminUsersPage() {
 
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={deleting ? undefined : closeDelete} />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={deleting ? undefined : closeDelete} />
           <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">

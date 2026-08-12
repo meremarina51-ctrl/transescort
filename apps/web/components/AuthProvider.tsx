@@ -14,6 +14,7 @@ interface User {
   login: string;
   fullName: string | null;
   role: 'client' | 'performer' | 'admin';
+  messagingRestricted: boolean;
 }
 
 interface AuthContextType {
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login: fresh.login,
         fullName: fresh.fullName,
         role: fresh.role,
+        messagingRestricted: Boolean(fresh.messagingRestricted),
       };
       localStorage.setItem('user', JSON.stringify(updated));
       setUser(updated);

@@ -112,7 +112,13 @@ export class AuthService {
   }
 
   private toPublicUser(user: User) {
-    return { id: user.id, login: user.login, fullName: user.fullName, role: user.role };
+    return {
+      id: user.id,
+      login: user.login,
+      fullName: user.fullName,
+      role: user.role,
+      messagingRestricted: Boolean(user.messagingRestrictedAt),
+    };
   }
 
   private async generateTokens(user: User) {

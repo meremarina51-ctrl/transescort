@@ -169,6 +169,13 @@
       "when": 1786542621616,
       "tag": "0023_steep_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786543570636,
+      "tag": "0024_familiar_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

@@ -249,6 +249,7 @@ export class AuthController {
       email: user?.email ?? null,
       phone: user?.phone ?? null,
       createdAt: user?.createdAt ?? null,
+      messagingRestricted: Boolean(user?.messagingRestrictedAt),
     };
   }
 
@@ -274,6 +275,7 @@ export class AuthController {
       email: user?.email ?? null,
       phone: user?.phone ?? null,
       createdAt: user?.createdAt ?? null,
+      messagingRestricted: Boolean(user?.messagingRestrictedAt),
     };
   }
 }

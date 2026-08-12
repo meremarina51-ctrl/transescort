@@ -115,6 +115,15 @@ export class ChatService {
   ): Promise<{ message: OutgoingMessage; otherUserId: string }> {
     const conversation = await this.assertParticipant(conversationId, senderId);
 
+    const senderRows = await this.db
+      .select({ messagingRestrictedAt: users.messagingRestrictedAt })
+      .from(users)
+      .where(eq(users.id, senderId))
+      .limit(1);
+    if (senderRows[0]?.messagingRestrictedAt) {
+      throw new ForbiddenException('Отправка сообщений ограничена администрацией');
+    }
+
     const trimmed = body.trim();
     if (!trimmed) throw new BadRequestException('Сообщение не может быть пустым');
 

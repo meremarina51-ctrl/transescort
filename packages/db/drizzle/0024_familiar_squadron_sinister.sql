@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "messaging_restricted_at" timestamp;
