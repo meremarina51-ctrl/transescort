@@ -451,9 +451,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const clientLabel = await this.resolveClientLabel(client, thread);
+
     const sent = await this.callApi(token, 'sendMessage', {
       chat_id: performerTelegramId,
-      text: `📩 Сообщение от клиента через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
+      text: `📩 Сообщение от ${clientLabel} через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
       reply_markup: {
         inline_keyboard: [[{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }]],
       },
@@ -544,6 +546,28 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
     const inserted = await this.db.insert(telegramBotClients).values({ telegramId, telegramUsername }).returning();
     return inserted[0];
+  }
+
+  /**
+   * How the performer sees this client in the relayed message: their platform login, if this exact
+   * Telegram account has ever been linked to a site account (Flow 1) — otherwise a stable anonymous
+   * "Клиента N", numbered by how many of this performer's other threads were created strictly before
+   * this one, plus one. Deliberately strict-less-than rather than counting this thread's own row
+   * against itself: `createdAt` round-trips through a JS Date (millisecond precision) while Postgres
+   * stores microseconds, so a self-comparison can silently miss by a fraction of a millisecond.
+   */
+  private async resolveClientLabel(
+    client: { telegramId: string },
+    thread: { performerId: string; createdAt: Date },
+  ): Promise<string> {
+    const linkedRows = await this.db.select({ login: users.login }).from(users).where(eq(users.telegramId, client.telegramId)).limit(1);
+    if (linkedRows[0]?.login) return linkedRows[0].login;
+
+    const strictlyEarlierThreads = await this.db
+      .select({ id: telegramBotThreads.id })
+      .from(telegramBotThreads)
+      .where(and(eq(telegramBotThreads.performerId, thread.performerId), lt(telegramBotThreads.createdAt, thread.createdAt)));
+    return `Клиента ${strictlyEarlierThreads.length + 1}`;
   }
 
   /** The client explicitly re-opening contact from the site is exactly the signal that should reopen a thread the performer had ended. */
