@@ -29,13 +29,13 @@ export default async function HomePage() {
       <Header />
 
       {/* HERO / ABOUT */}
-      <section id="about" className="relative overflow-hidden py-14 sm:py-20 md:py-28 lg:py-32">
+      <section id="about" className="relative overflow-hidden py-20 sm:py-28 md:py-36 lg:py-44">
         <Image
           src="/hero-bg-v2.png"
           alt=""
           fill
           priority
-          className="object-cover object-[75%_20%] sm:object-[70%_22%] md:object-[65%_25%] lg:object-[60%_28%] xl:object-[55%_30%]"
+          className="object-cover object-[73%_15%]"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/95 via-[#0a0a0a]/70 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-transparent to-[#0a0a0a]" />
