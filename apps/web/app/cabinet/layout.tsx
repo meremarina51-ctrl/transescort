@@ -10,7 +10,7 @@ import {
   BASE_NAV,
   PERFORMER_NAV,
   CLIENT_NAV,
-  CLIENT_HEADER_LINKS,
+  CABINET_HEADER_LINKS,
   DEFAULT_NAV,
   TAIL_NAV,
 } from './cabinet.constants';
@@ -34,7 +34,7 @@ function CabinetShell({ children }: { children: ReactNode }) {
       nav={nav}
       rootHref="/cabinet"
       storageKey={SIDEBAR_COLLAPSED_KEY}
-      headerLinks={[...CLIENT_HEADER_LINKS]}
+      headerLinks={[...CABINET_HEADER_LINKS]}
     >
       {children}
     </SidebarShell>

@@ -7,6 +7,7 @@ import {
   CreditCard,
   LayoutGrid,
   Heart,
+  HelpCircle,
   MessageCircle,
   MessageSquare,
   Image as ImageIcon,
@@ -41,7 +42,6 @@ export const PERFORMER_NAV = [
   { href: '/cabinet/reviews', label: 'Отзывы', icon: Star },
   { href: '/cabinet/stats', label: 'Статистика', icon: BarChart3 },
   { href: '/cabinet/chats', label: 'Чаты', icon: MessageSquare },
-  { href: '/cabinet/support', label: 'Поддержка', icon: LifeBuoy },
   // { href: '/cabinet/tariff', label: 'Тариф', icon: CreditCard },
 ] as const;
 
@@ -50,7 +50,6 @@ export const CLIENT_NAV = [
   { href: '/cabinet/favorites', label: 'Избранное', icon: Heart },
   { href: '/cabinet/reviews', label: 'Мои отзывы', icon: Star },
   { href: '/cabinet/messages', label: 'Чаты', icon: MessageSquare },
-  { href: '/cabinet/support', label: 'Поддержка', icon: LifeBuoy },
 ] as const;
 
 export const DEFAULT_NAV = [
@@ -62,3 +61,9 @@ export const TAIL_NAV = [{ href: '/cabinet/settings', label: 'Настройки
 
 /** Quick links shown in the header instead of the sidebar, for the client role. */
 export const CLIENT_HEADER_LINKS = [{ href: '/catalog', label: 'Каталог', icon: LayoutGrid }, SITE_LINK] as const;
+
+/** Same header links plus a shortcut to the public Помощь page — cabinet-only, not shown in the admin header. */
+export const CABINET_HEADER_LINKS = [
+  ...CLIENT_HEADER_LINKS,
+  { href: '/support', label: 'Помощь', icon: HelpCircle },
+] as const;
