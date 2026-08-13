@@ -1,5 +1,10 @@
-import Link from 'next/link';
 import Logo from './Logo';
+
+const LEGAL_DOCS = [
+  { file: 'Оферта LuxEscortia.pdf', label: 'Публичная оферта' },
+  { file: 'Политика конфиденциальности LuxEscortia.pdf', label: 'Политика обработки персональных данных' },
+  { file: 'Персональные данные LuxEscortia.pdf', label: 'Согласие на обработку персональных данных' },
+] as const;
 
 export function Footer() {
   return (
@@ -21,13 +26,16 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/[0.06] pt-6 font-body text-[11px] text-white/25">
-          <Link href="/legal/oferta" className="transition-colors hover:text-accent">Публичная оферта</Link>
-          <Link href="/legal/privacy-policy" className="transition-colors hover:text-accent">
-            Политика обработки персональных данных
-          </Link>
-          <Link href="/legal/pd-consent" className="transition-colors hover:text-accent">
-            Согласие на обработку персональных данных
-          </Link>
+          {LEGAL_DOCS.map((doc) => (
+            <a
+              key={doc.file}
+              href={`/legal/${encodeURIComponent(doc.file)}`}
+              download={doc.file}
+              className="transition-colors hover:text-accent"
+            >
+              {doc.label}
+            </a>
+          ))}
         </div>
       </div>
     </footer>
