@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "photos_submitted_at" timestamp;

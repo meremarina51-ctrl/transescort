@@ -1,11 +1,45 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { IsIn, IsNotEmpty, IsString, MaxLength, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { TelegramService } from '../telegram/telegram.service';
 import { ListingsService } from './listings.service';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { BlockListingDto } from './dto/block-listing.dto';
+
+const PHOTO_REVIEW_DECISIONS = ['confirmed', 'rejected'] as const;
+
+class ReviewPhotoDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  url!: string;
+
+  @ApiProperty({ enum: PHOTO_REVIEW_DECISIONS })
+  @IsIn(PHOTO_REVIEW_DECISIONS)
+  decision!: (typeof PHOTO_REVIEW_DECISIONS)[number];
+
+  @ApiProperty({ required: false, description: 'Причина — обязательна при отклонении, показывается исполнителю' })
+  @ValidateIf((o) => o.decision === 'rejected')
+  @IsString()
+  @IsNotEmpty({ message: 'Комментарий обязателен при отклонении' })
+  @MaxLength(1000)
+  note?: string;
+}
+
+class ReviewAllPhotosDto {
+  @ApiProperty({ enum: PHOTO_REVIEW_DECISIONS })
+  @IsIn(PHOTO_REVIEW_DECISIONS)
+  decision!: (typeof PHOTO_REVIEW_DECISIONS)[number];
+
+  @ApiProperty({ required: false, description: 'Причина — обязательна при отклонении, показывается исполнителю' })
+  @ValidateIf((o) => o.decision === 'rejected')
+  @IsString()
+  @IsNotEmpty({ message: 'Комментарий обязателен при отклонении' })
+  @MaxLength(1000)
+  note?: string;
+}
 
 @ApiTags('Admin Listings')
 @ApiBearerAuth()
@@ -66,16 +100,22 @@ export class AdminListingsController {
     return this.listingsService.unblock(id);
   }
 
-  @Patch(':id/verify-photos')
-  @ApiOperation({ summary: 'Отметить фото анкеты как проверенные вручную' })
-  async verifyPhotos(@Param('id') id: string) {
-    return this.listingsService.verifyPhotos(id);
+  @Get(':id/photo-reviews')
+  @ApiOperation({ summary: 'Статус проверки по каждому фото анкеты' })
+  async photoReviews(@Param('id') id: string) {
+    return this.listingsService.getPhotoReviews(id);
   }
 
-  @Patch(':id/unverify-photos')
-  @ApiOperation({ summary: 'Снять отметку о проверке фото' })
-  async unverifyPhotos(@Param('id') id: string) {
-    return this.listingsService.unverifyPhotos(id);
+  @Patch(':id/photos/review')
+  @ApiOperation({ summary: 'Подтвердить или отклонить одно фото — причина обязательна при отклонении' })
+  async reviewPhoto(@Param('id') id: string, @Body() body: ReviewPhotoDto) {
+    return this.listingsService.reviewPhoto(id, body.url, body.decision, body.note);
+  }
+
+  @Patch(':id/photos/review-all')
+  @ApiOperation({ summary: 'Подтвердить или отклонить все фото анкеты разом — причина обязательна при отклонении' })
+  async reviewAllPhotos(@Param('id') id: string, @Body() body: ReviewAllPhotosDto) {
+    return this.listingsService.reviewAllPhotos(id, body.decision, body.note);
   }
 
   @Patch(':id/telegram/unlink')

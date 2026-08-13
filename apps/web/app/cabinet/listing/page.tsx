@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
+  AlertCircle,
   BookOpen,
+  Check,
   Contact,
   Eye,
   EyeOff,
@@ -21,6 +24,11 @@ import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
 import { SortablePhotoTile } from '@/components/SortablePhotoTile';
+import {
+  PHOTO_REVIEW_STATUS_CLASS,
+  PHOTO_REVIEW_STATUS_LABEL,
+  type PhotoReview,
+} from '@/components/PhotoReviewPanel';
 import {
   TYPE_OPTIONS,
   FIGURE_OPTIONS,
@@ -113,6 +121,11 @@ export default function ListingPage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [photosError, setPhotosError] = useState('');
+  const [photosSubmittedAt, setPhotosSubmittedAt] = useState<string | null>(null);
+  const [submittingPhotos, setSubmittingPhotos] = useState(false);
+  const [photosSubmitError, setPhotosSubmitError] = useState('');
+  const [photoReviews, setPhotoReviews] = useState<PhotoReview[]>([]);
+  const [rejectionsModalOpen, setRejectionsModalOpen] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -160,7 +173,16 @@ export default function ListingPage() {
             setStatus(data.status ?? 'draft');
             setVerificationNote(data.verificationNote ?? null);
             setPhotos(data.photos ?? []);
+            setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
             setVideoUrl(data.videoUrl ?? null);
+
+            if ((data.photos ?? []).length > 0) {
+              const reviewsRes = await authFetch('/listings/me/photo-reviews');
+              if (reviewsRes.ok) {
+                const reviewsText = await reviewsRes.text();
+                setPhotoReviews(reviewsText ? JSON.parse(reviewsText) : []);
+              }
+            }
           }
         }
       } finally {
@@ -274,6 +296,7 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить фото');
       setPhotos(data.photos ?? []);
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось загрузить фото');
     } finally {
@@ -292,8 +315,24 @@ export default function ListingPage() {
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить фото');
       setPhotos(data.photos ?? []);
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
     } catch (err: any) {
       setPhotosError(err.message || 'Не удалось удалить фото');
+    }
+  };
+
+  const submitPhotos = async () => {
+    setSubmittingPhotos(true);
+    setPhotosSubmitError('');
+    try {
+      const res = await authFetch('/listings/me/photos/submit', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось отправить фото на проверку');
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
+    } catch (err: any) {
+      setPhotosSubmitError(err.message || 'Не удалось отправить фото на проверку');
+    } finally {
+      setSubmittingPhotos(false);
     }
   };
 
@@ -429,15 +468,28 @@ export default function ListingPage() {
                 <DndContext sensors={photoSensors} collisionDetection={closestCenter} onDragEnd={handlePhotoDragEnd}>
                   <SortableContext items={photos} strategy={rectSortingStrategy}>
                     <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                      {photos.map((url, index) => (
-                        <SortablePhotoTile
-                          key={url}
-                          url={url}
-                          isMain={index === 0}
-                          onRemove={() => removePhoto(url)}
-                          onSetMain={() => setMainPhoto(url)}
-                        />
-                      ))}
+                      {photos.map((url, index) => {
+                        const review = photoReviews.find((r) => r.url === url);
+                        return (
+                          <div key={url} className="space-y-1">
+                            <div className="relative">
+                              <SortablePhotoTile
+                                url={url}
+                                isMain={index === 0}
+                                onRemove={() => removePhoto(url)}
+                                onSetMain={() => setMainPhoto(url)}
+                              />
+                              {review && review.status !== 'pending' ? (
+                                <span
+                                  className={`pointer-events-none absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 font-body text-[9px] font-semibold ${PHOTO_REVIEW_STATUS_CLASS[review.status]}`}
+                                >
+                                  {PHOTO_REVIEW_STATUS_LABEL[review.status]}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
                       <label
                         className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
                           uploadingPhotos ? 'pointer-events-none opacity-50' : ''
@@ -469,6 +521,43 @@ export default function ListingPage() {
                     Ещё {MIN_PHOTOS_FOR_REVIEW - photos.length} фото до минимума для отправки на проверку
                   </p>
                 ) : null}
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={submitPhotos}
+                    disabled={
+                      submittingPhotos || uploadingPhotos || photos.length < MIN_PHOTOS_FOR_REVIEW || Boolean(photosSubmittedAt)
+                    }
+                    title={
+                      photos.length < MIN_PHOTOS_FOR_REVIEW
+                        ? `Добавьте не менее ${MIN_PHOTOS_FOR_REVIEW} фото`
+                        : photosSubmittedAt
+                          ? 'Фото уже отправлены на проверку'
+                          : undefined
+                    }
+                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submittingPhotos ? 'Отправляем…' : 'Отправить фото на проверку'}
+                  </button>
+                  {photosSubmitError ? (
+                    <span className="font-body text-xs text-red-400">{photosSubmitError}</span>
+                  ) : photosSubmittedAt ? (
+                    <span className="inline-flex items-center gap-1.5 font-body text-xs text-emerald-400">
+                      <Check className="h-3.5 w-3.5" /> Фото отправлены на проверку
+                    </span>
+                  ) : null}
+
+                  {photoReviews.some((r) => r.status === 'rejected' && r.note && photos.includes(r.url)) ? (
+                    <button
+                      type="button"
+                      onClick={() => setRejectionsModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 font-body text-xs text-red-400 hover:text-red-300"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" /> Причины отклонения фото
+                    </button>
+                  ) : null}
+                </div>
               </>
             )}
           </div>
@@ -773,6 +862,42 @@ export default function ListingPage() {
           )}
         </div>
       </div>
+
+      {rejectionsModalOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+              <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setRejectionsModalOpen(false)} />
+              <div className="card relative flex max-h-[85vh] w-full flex-col p-6 !rounded-b-none sm:max-w-lg sm:!rounded-2xl">
+                <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+                <div className="mb-4 flex flex-shrink-0 items-center justify-between">
+                  <h2 className="font-display text-lg font-bold">Причины отклонения фото</h2>
+                  <button
+                    type="button"
+                    onClick={() => setRejectionsModalOpen(false)}
+                    className="text-white/40 hover:text-white"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
+                  {photoReviews
+                    .filter((r) => r.status === 'rejected' && r.note && photos.includes(r.url))
+                    .map((r) => (
+                      <div key={r.url} className="flex gap-3 rounded-xl bg-white/[0.04] p-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.url} alt="" className="h-16 w-16 flex-shrink-0 rounded-lg object-cover" />
+                        <p className="min-w-0 flex-1 whitespace-pre-line break-words font-body text-sm text-white/70">
+                          {r.note}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

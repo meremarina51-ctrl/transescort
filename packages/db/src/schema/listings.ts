@@ -37,6 +37,13 @@ export const listings = pgTable(
      */
     photosVerified: boolean('photos_verified').notNull().default(false),
 
+    /**
+     * Set when the performer explicitly submits the current photo set for admin review; cleared
+     * whenever the photo set changes (photo added/removed). The admin "Медиа" moderation queue only
+     * lists listings with this set — an unsubmitted draft's photos never appear there on their own.
+     */
+    photosSubmittedAt: timestamp('photos_submitted_at'),
+
     /** Set once, the first time this anketa is approved — never reset. Used only to distinguish a brand-new submission from a resubmission in the admin moderation queue. */
     everPublished: boolean('ever_published').notNull().default(false),
 

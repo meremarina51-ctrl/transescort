@@ -130,6 +130,22 @@ export class ListingsController {
     return this.listingsService.reorderPhotos(req.user!.userId, body.photos);
   }
 
+  @Get('me/photo-reviews')
+  @ApiOperation({ summary: 'Статус проверки по каждому фото собственной анкеты — видны причины отклонения' })
+  async photoReviews(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    return this.listingsService.getPhotoReviewsForUser(req.user!.userId);
+  }
+
+  @Post('me/photos/submit')
+  @ApiOperation({ summary: 'Отправить текущий набор фото на проверку админом — требуется минимум 3 фото' })
+  @ApiResponse({ status: 200, description: 'Фото отправлены на проверку' })
+  @ApiResponse({ status: 400, description: 'Недостаточно фото' })
+  async submitPhotos(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    return this.listingsService.submitPhotosForReview(req.user!.userId);
+  }
+
   @Delete('me/photos')
   @ApiOperation({ summary: 'Удалить фото из анкеты' })
   async deletePhoto(@Request() req: RequestWithUser, @Body() body: { url?: string }) {

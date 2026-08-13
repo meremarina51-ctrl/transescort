@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowLeft, BadgeCheck, Eye, EyeOff, Lock, Send, Trash2, 
 import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
+import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
 import {
   TYPE_OPTIONS,
   FIGURE_OPTIONS,
@@ -123,8 +124,7 @@ export default function AdminPerformerDetailPage() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
 
-  const [photosVerifyBusy, setPhotosVerifyBusy] = useState(false);
-  const [photosVerifyError, setPhotosVerifyError] = useState('');
+  const [photoReviews, setPhotoReviews] = useState<PhotoReview[]>([]);
 
   const [blockOpen, setBlockOpen] = useState(false);
   const [blockNote, setBlockNote] = useState('');
@@ -144,7 +144,10 @@ export default function AdminPerformerDetailPage() {
       setLoading(true);
       setLoadError('');
       try {
-        const res = await authFetch(`/admin/listings/${id}`);
+        const [res, reviewsRes] = await Promise.all([
+          authFetch(`/admin/listings/${id}`),
+          authFetch(`/admin/listings/${id}/photo-reviews`),
+        ]);
         const data = await parseBody(res);
         if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить анкету');
         if (cancelled) return;
@@ -152,6 +155,7 @@ export default function AdminPerformerDetailPage() {
         const editable = toEditable(data);
         setForm(editable);
         setInitial(editable);
+        if (reviewsRes.ok) setPhotoReviews((await parseBody(reviewsRes)) ?? []);
       } catch (err: any) {
         if (!cancelled) setLoadError(err.message || 'Не удалось загрузить анкету');
       } finally {
@@ -206,23 +210,6 @@ export default function AdminPerformerDetailPage() {
       setStatusError(err.message || 'Не удалось изменить видимость анкеты');
     } finally {
       setStatusBusy(false);
-    }
-  };
-
-  const togglePhotosVerified = async () => {
-    if (!listing) return;
-    const action = listing.photosVerified ? 'unverify-photos' : 'verify-photos';
-    setPhotosVerifyBusy(true);
-    setPhotosVerifyError('');
-    try {
-      const res = await authFetch(`/admin/listings/${id}/${action}`, { method: 'PATCH' });
-      const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось изменить отметку о проверке фото');
-      setListing(data);
-    } catch (err: any) {
-      setPhotosVerifyError(err.message || 'Не удалось изменить отметку о проверке фото');
-    } finally {
-      setPhotosVerifyBusy(false);
     }
   };
 
@@ -349,32 +336,24 @@ export default function AdminPerformerDetailPage() {
         <div className="card p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-body text-sm uppercase tracking-wide text-white/35">Медиа</h2>
-            <div className="flex items-center gap-2">
-              {listing.photosVerified ? (
-                <span className="badge inline-flex items-center gap-1 border border-accent/25 bg-accent/10 text-accent">
-                  <BadgeCheck className="h-3.5 w-3.5" /> Фото подтверждены
-                </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={togglePhotosVerified}
-                disabled={photosVerifyBusy}
-                className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
-              >
-                {photosVerifyBusy ? 'Сохраняем…' : listing.photosVerified ? 'Снять отметку' : 'Подтвердить фото'}
-              </button>
-            </div>
+            {listing.photosVerified ? (
+              <span className="badge inline-flex items-center gap-1 border border-accent/25 bg-accent/10 text-accent">
+                <BadgeCheck className="h-3.5 w-3.5" /> Фото подтверждены
+              </span>
+            ) : null}
           </div>
-          {photosVerifyError ? <p className="mb-3 font-body text-xs text-red-400">{photosVerifyError}</p> : null}
           {listing.photos.length === 0 ? (
             <p className="font-body text-sm text-white/30">Фото не загружены</p>
           ) : (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-              {listing.photos.map((url) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={url} src={url} alt="" className="aspect-square w-full rounded-lg object-cover" />
-              ))}
-            </div>
+            <PhotoReviewPanel
+              listingId={id}
+              photos={listing.photos}
+              initialReviews={photoReviews}
+              onChanged={(reviews, data) => {
+                setPhotoReviews(reviews);
+                setListing(data);
+              }}
+            />
           )}
           {listing.videoUrl ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption

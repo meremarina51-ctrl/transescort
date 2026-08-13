@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
-import { listings, users, type Listing, type NewListing } from '@transescort/db';
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { listingPhotoReviews, listings, users, type Listing, type ListingPhotoReviewStatus, type NewListing } from '@transescort/db';
 import { slugify } from './slug.util';
 
 export interface ListingWithOwner extends Listing {
@@ -8,6 +8,12 @@ export interface ListingWithOwner extends Listing {
   ownerFullName: string | null;
   ownerTelegramUsername: string | null;
   ownerTelegramLinked: boolean;
+}
+
+export interface PhotoReview {
+  url: string;
+  status: ListingPhotoReviewStatus;
+  note: string | null;
 }
 
 /** Minimum photos required before a performer can send the anketa for admin review. */
@@ -92,25 +98,56 @@ export class ListingsService {
     return found.length > 0;
   }
 
-  /** Adding photos changes what's shown, so any existing "photos verified" mark no longer applies — needs a fresh manual check. */
+  /**
+   * Adding photos changes what's shown — a newly added photo has no review yet (implicitly
+   * "pending"), so the anketa's overall "photos verified" mark naturally drops until it's checked.
+   * Already-confirmed existing photos keep their individual status; only the new one needs review.
+   * Clears `photosSubmittedAt` — the changed set needs a fresh explicit submission before it can
+   * reappear in the admin moderation queue.
+   */
   async addPhotos(userId: string, urls: string[]): Promise<Listing> {
     const existing = await this.requireByUserId(userId);
     const photos = [...(existing.photos ?? []), ...urls];
-    const updated = await this.db
+    await this.db
       .update(listings)
-      .set({ photos, photosVerified: false, updatedAt: new Date() })
-      .where(eq(listings.userId, userId))
-      .returning();
-    return updated[0];
+      .set({ photos, photosSubmittedAt: null, updatedAt: new Date() })
+      .where(eq(listings.userId, userId));
+    return this.recomputePhotosVerified(existing.id);
   }
 
-  /** Same reasoning as `addPhotos` — removing (or effectively replacing) a photo invalidates the verified mark. */
+  /** Removing a photo drops its review record; the overall mark is recomputed from whatever remains. */
   async removePhoto(userId: string, url: string): Promise<Listing> {
     const existing = await this.requireByUserId(userId);
     const photos = (existing.photos ?? []).filter((p) => p !== url);
+    await this.db
+      .update(listings)
+      .set({ photos, photosSubmittedAt: null, updatedAt: new Date() })
+      .where(eq(listings.userId, userId));
+    await this.db
+      .delete(listingPhotoReviews)
+      .where(and(eq(listingPhotoReviews.listingId, existing.id), eq(listingPhotoReviews.url, url)));
+    return this.recomputePhotosVerified(existing.id);
+  }
+
+  /**
+   * Performer: explicitly submit the current photo set for admin review — requires at least
+   * MIN_PHOTOS_FOR_REVIEW. Any photo previously rejected is reset back to "pending" — clicking this
+   * button is how the performer asks for a fresh look, whether or not they've replaced the photo.
+   */
+  async submitPhotosForReview(userId: string): Promise<Listing> {
+    const existing = await this.requireByUserId(userId);
+    if ((existing.photos ?? []).length < MIN_PHOTOS_FOR_REVIEW) {
+      throw new BadRequestException(`Добавьте не менее ${MIN_PHOTOS_FOR_REVIEW} фото перед отправкой на проверку`);
+    }
+
+    await this.db
+      .update(listingPhotoReviews)
+      .set({ status: 'pending', note: null, reviewedAt: null, updatedAt: new Date() })
+      .where(and(eq(listingPhotoReviews.listingId, existing.id), eq(listingPhotoReviews.status, 'rejected')));
+
     const updated = await this.db
       .update(listings)
-      .set({ photos, photosVerified: false, updatedAt: new Date() })
+      .set({ photosSubmittedAt: new Date(), updatedAt: new Date() })
       .where(eq(listings.userId, userId))
       .returning();
     return updated[0];
@@ -307,40 +344,151 @@ export class ListingsService {
     return this.updateById(id, { status: 'draft', verificationNote: null });
   }
 
-  /** Admin: marks the anketa's photos as manually verified — independent of `status`, shown as a trust badge. */
-  async verifyPhotos(id: string): Promise<Listing> {
+  /** Per-photo review state for every photo currently on the anketa — a photo with no row is implicitly "pending". */
+  async getPhotoReviews(id: string): Promise<PhotoReview[]> {
     const existing = await this.findByIdForAdmin(id);
     if (!existing) throw new NotFoundException('Анкета не найдена');
-    if (existing.photosVerified) {
-      throw new BadRequestException('Фото уже подтверждены');
-    }
-    return this.updateById(id, { photosVerified: true });
+    return this.loadPhotoReviews(id, existing.photos ?? []);
   }
 
-  /** Admin: removes the "photos verified" trust badge. */
-  async unverifyPhotos(id: string): Promise<Listing> {
-    const existing = await this.findByIdForAdmin(id);
-    if (!existing) throw new NotFoundException('Анкета не найдена');
-    if (!existing.photosVerified) {
-      throw new BadRequestException('Фото не подтверждены');
-    }
-    return this.updateById(id, { photosVerified: false });
+  /** Performer: per-photo review state for their own anketa — so a rejected photo's reason is visible to them. */
+  async getPhotoReviewsForUser(userId: string): Promise<PhotoReview[]> {
+    const existing = await this.requireByUserId(userId);
+    return this.loadPhotoReviews(existing.id, existing.photos ?? []);
   }
 
   /**
-   * Admin: every anketa with at least one photo and no "photos verified" mark, regardless of `status` —
-   * covers both a fresh submission and photos added/changed on an already-published anketa (which stays
-   * live in the catalog; this is purely a worklist for the photo check, not a publish gate).
+   * Admin: confirm or reject one specific photo — a reason is required when rejecting, shown to the
+   * performer. A rejection also clears `photosSubmittedAt`, so the performer's "Отправить фото на
+   * проверку" button re-enables — that click is what sends a rejected photo back for re-verification.
    */
-  async listUnverifiedPhotos(): Promise<ListingWithOwner[]> {
+  async reviewPhoto(id: string, url: string, decision: 'confirmed' | 'rejected', note?: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    if (!(existing.photos ?? []).includes(url)) {
+      throw new BadRequestException('Это фото не относится к анкете');
+    }
+    if (decision === 'rejected' && !note?.trim()) {
+      throw new BadRequestException('Укажите причину отклонения');
+    }
+
+    await this.upsertPhotoReview(id, url, decision, decision === 'rejected' ? note!.trim() : null);
+    if (decision === 'rejected') {
+      await this.db.update(listings).set({ photosSubmittedAt: null }).where(eq(listings.id, id));
+    }
+    return this.recomputePhotosVerified(id);
+  }
+
+  /**
+   * Admin: bulk confirm/reject — only touches photos not already confirmed, so a bulk "reject all" can
+   * never undo an earlier per-photo confirmation. Same `photosSubmittedAt` reset as `reviewPhoto` when
+   * rejecting.
+   */
+  async reviewAllPhotos(id: string, decision: 'confirmed' | 'rejected', note?: string): Promise<Listing> {
+    const existing = await this.findByIdForAdmin(id);
+    if (!existing) throw new NotFoundException('Анкета не найдена');
+    const photos = existing.photos ?? [];
+    if (photos.length === 0) throw new BadRequestException('У анкеты нет фото');
+    if (decision === 'rejected' && !note?.trim()) {
+      throw new BadRequestException('Укажите причину отклонения');
+    }
+
+    const reviews = await this.loadPhotoReviews(id, photos);
+    const targets = reviews.filter((r) => r.status !== 'confirmed').map((r) => r.url);
+
+    const trimmedNote = decision === 'rejected' ? note!.trim() : null;
+    for (const url of targets) {
+      await this.upsertPhotoReview(id, url, decision, trimmedNote);
+    }
+    if (decision === 'rejected' && targets.length > 0) {
+      await this.db.update(listings).set({ photosSubmittedAt: null }).where(eq(listings.id, id));
+    }
+    return this.recomputePhotosVerified(id);
+  }
+
+  private async upsertPhotoReview(
+    listingId: string,
+    url: string,
+    status: ListingPhotoReviewStatus,
+    note: string | null,
+  ): Promise<void> {
+    await this.db
+      .insert(listingPhotoReviews)
+      .values({ listingId, url, status, note, reviewedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [listingPhotoReviews.listingId, listingPhotoReviews.url],
+        set: { status, note, reviewedAt: new Date(), updatedAt: new Date() },
+      });
+  }
+
+  private async loadPhotoReviews(listingId: string, photos: string[]): Promise<PhotoReview[]> {
+    if (photos.length === 0) return [];
+    const rows = await this.db
+      .select({ url: listingPhotoReviews.url, status: listingPhotoReviews.status, note: listingPhotoReviews.note })
+      .from(listingPhotoReviews)
+      .where(and(eq(listingPhotoReviews.listingId, listingId), inArray(listingPhotoReviews.url, photos)));
+    const byUrl = new Map<string, { url: string; status: ListingPhotoReviewStatus; note: string | null }>(
+      rows.map((r: { url: string; status: ListingPhotoReviewStatus; note: string | null }) => [r.url, r]),
+    );
+
+    return photos.map((url) => {
+      const row = byUrl.get(url);
+      return { url, status: row?.status ?? 'pending', note: row?.note ?? null };
+    });
+  }
+
+  /** Recomputes and persists the cached `photosVerified` flag: true only when every current photo is individually confirmed. */
+  private async recomputePhotosVerified(listingId: string): Promise<Listing> {
+    const rows = await this.db.select({ photos: listings.photos }).from(listings).where(eq(listings.id, listingId)).limit(1);
+    const photos: string[] = rows[0]?.photos ?? [];
+    const reviews = await this.loadPhotoReviews(listingId, photos);
+    const allConfirmed = photos.length > 0 && reviews.every((r) => r.status === 'confirmed');
+    return this.updateById(listingId, { photosVerified: allConfirmed });
+  }
+
+  /**
+   * Admin: every anketa with at least one photo, no "photos verified" mark, and an explicit performer
+   * submission (`photosSubmittedAt` set), regardless of `status` — covers both a fresh submission and
+   * photos added/changed on an already-published anketa (which stays live in the catalog; this is
+   * purely a worklist for the photo check, not a publish gate). A draft with unsubmitted photos never
+   * appears here — see `submitPhotosForReview`. Includes each anketa's per-photo review state so the
+   * moderation queue can render individual confirm/reject actions without a separate request per card.
+   */
+  async listUnverifiedPhotos(): Promise<(ListingWithOwner & { photoReviews: PhotoReview[] })[]> {
     const rows = await this.db
       .select(ListingsService.ADMIN_OWNER_SELECT)
       .from(listings)
       .leftJoin(users, eq(listings.userId, users.id))
-      .where(eq(listings.photosVerified, false))
+      .where(and(eq(listings.photosVerified, false), isNotNull(listings.photosSubmittedAt)))
       .orderBy(desc(listings.updatedAt));
 
-    return rows.map(ListingsService.toListingWithOwner).filter((l: ListingWithOwner) => l.photos.length > 0);
+    const withOwner = rows.map(ListingsService.toListingWithOwner).filter((l: ListingWithOwner) => l.photos.length > 0);
+    if (withOwner.length === 0) return [];
+
+    const listingIds = withOwner.map((l: ListingWithOwner) => l.id);
+    const reviewRows = await this.db
+      .select({
+        listingId: listingPhotoReviews.listingId,
+        url: listingPhotoReviews.url,
+        status: listingPhotoReviews.status,
+        note: listingPhotoReviews.note,
+      })
+      .from(listingPhotoReviews)
+      .where(inArray(listingPhotoReviews.listingId, listingIds));
+
+    const byListing = new Map<string, Map<string, { status: ListingPhotoReviewStatus; note: string | null }>>();
+    for (const r of reviewRows as { listingId: string; url: string; status: ListingPhotoReviewStatus; note: string | null }[]) {
+      if (!byListing.has(r.listingId)) byListing.set(r.listingId, new Map());
+      byListing.get(r.listingId)!.set(r.url, { status: r.status, note: r.note });
+    }
+
+    return withOwner.map((l: ListingWithOwner) => ({
+      ...l,
+      photoReviews: l.photos.map((url) => {
+        const row = byListing.get(l.id)?.get(url);
+        return { url, status: row?.status ?? 'pending', note: row?.note ?? null };
+      }),
+    }));
   }
 
   /** Admin: anketas awaiting a verification decision, oldest submission first. */

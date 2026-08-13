@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  BadgeCheck,
   Check,
+  ChevronDown,
+  ChevronRight,
   ImageOff,
   MessageSquare,
   MessageSquareOff,
@@ -12,10 +13,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Star,
-  Video,
   X,
 } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
+import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
 
 interface ModerationListing {
   id: string;
@@ -48,6 +49,7 @@ interface MediaListing {
   videoUrl: string | null;
   updatedAt: string;
   ownerLogin: string | null;
+  photoReviews: PhotoReview[];
 }
 
 const MEDIA_STATUS_LABEL: Record<ListingStatus, string> = {
@@ -136,14 +138,6 @@ function ColumnHeader({ title, count }: { title: string; count: number }) {
   );
 }
 
-function SubHeader({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="mb-2 flex items-center gap-2 font-body text-xs font-semibold uppercase tracking-wide text-white/35">
-      {title} <span className="text-white/25">· {count}</span>
-    </div>
-  );
-}
-
 function EmptyColumn({ text }: { text: string }) {
   return (
     <div className="card flex flex-col items-center gap-2 p-8 text-center">
@@ -153,116 +147,21 @@ function EmptyColumn({ text }: { text: string }) {
   );
 }
 
-function ModerationCard({
-  item,
-  busy,
-  decisionTarget,
-  decisionNote,
-  onNoteChange,
-  onConfirm,
-  onOpenDecision,
-  onCancelDecision,
-  onSubmitDecision,
-  onPhotoClick,
-}: {
-  item: ModerationListing;
-  busy: boolean;
-  decisionTarget: DecisionTarget | null;
-  decisionNote: string;
-  onNoteChange: (v: string) => void;
-  onConfirm: () => void;
-  onOpenDecision: () => void;
-  onCancelDecision: () => void;
-  onSubmitDecision: () => void;
-  onPhotoClick: (url: string) => void;
-}) {
-  const isDeciding = decisionTarget?.id === item.id;
-
+function ChevronCell({ expanded }: { expanded: boolean }) {
   return (
-    <div className="card p-4">
-      <div className="flex gap-3">
-        {item.photos[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.photos[0]}
-            alt=""
-            onClick={() => onPhotoClick(item.photos[0])}
-            className="h-16 w-16 flex-shrink-0 cursor-zoom-in rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.04]">
-            <ImageOff className="h-5 w-5 text-white/20" strokeWidth={1.4} />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
-          <p className="font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
-          <p className="mt-1 font-body text-xs text-white/40">
-            {[item.age ? `${item.age} лет` : null, item.city].filter(Boolean).join(' · ') || '—'}
-          </p>
-        </div>
-      </div>
+    <td className="w-8 px-2 py-3 text-white/25">
+      {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+    </td>
+  );
+}
 
-      {item.bio ? <p className="mt-3 line-clamp-2 font-body text-xs text-white/40">{item.bio}</p> : null}
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 font-body text-[11px] text-white/30">
-        <span>
-          {item.photos.length} фото{item.videoUrl ? ' · есть видео' : ''}
-        </span>
-        {item.videoUrl ? <Video className="h-3.5 w-3.5 text-white/25" /> : null}
-        {item.submittedAt ? <span className="ml-auto">{new Date(item.submittedAt).toLocaleDateString('ru-RU')}</span> : null}
-      </div>
-
-      {isDeciding ? (
-        <div className="mt-3 space-y-2">
-          <textarea
-            value={decisionNote}
-            onChange={(e) => onNoteChange(e.target.value)}
-            placeholder="Комментарий — обязателен, покажем исполнителю"
-            rows={2}
-            maxLength={1000}
-            className="input resize-none text-xs"
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancelDecision}
-              disabled={busy}
-              className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
-            >
-              Отмена
-            </button>
-            <button
-              type="button"
-              onClick={onSubmitDecision}
-              disabled={busy || !decisionNote.trim()}
-              title={!decisionNote.trim() ? 'Комментарий обязателен' : undefined}
-              className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
-            >
-              {busy ? 'Сохраняем…' : 'Отправить запрос на исправления'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={onOpenDecision}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/30 px-3.5 py-1.5 font-body text-xs font-medium text-orange-300 transition-colors hover:bg-orange-400/10 disabled:opacity-50"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Запросить исправления
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-          >
-            <Check className="h-3.5 w-3.5" /> {busy ? 'Публикуем…' : 'Подтвердить'}
-          </button>
-        </div>
-      )}
+function Thumb({ url }: { url: string | undefined }) {
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt="" className="h-10 w-10 flex-shrink-0 rounded-lg object-cover" />
+  ) : (
+    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.04]">
+      <ImageOff className="h-4 w-4 text-white/20" strokeWidth={1.4} />
     </div>
   );
 }
@@ -277,8 +176,212 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
-function ReviewCard({
+function ListingRow({
   item,
+  expanded,
+  onToggle,
+  busy,
+  decisionTarget,
+  decisionNote,
+  onNoteChange,
+  onConfirm,
+  onOpenDecision,
+  onCancelDecision,
+  onSubmitDecision,
+  onPhotoClick,
+}: {
+  item: ModerationListing;
+  expanded: boolean;
+  onToggle: () => void;
+  busy: boolean;
+  decisionTarget: DecisionTarget | null;
+  decisionNote: string;
+  onNoteChange: (v: string) => void;
+  onConfirm: () => void;
+  onOpenDecision: () => void;
+  onCancelDecision: () => void;
+  onSubmitDecision: () => void;
+  onPhotoClick: (url: string) => void;
+}) {
+  const isDeciding = decisionTarget?.id === item.id;
+  const meta = [item.age ? `${item.age} лет` : null, item.city].filter(Boolean).join(' · ');
+
+  return (
+    <>
+      <tr onClick={onToggle} className="cursor-pointer border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+        <ChevronCell expanded={expanded} />
+        <td className="px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Thumb url={item.photos[0]} />
+            <div className="min-w-0">
+              <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
+              <p className="truncate font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
+            </div>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
+            {item.everPublished ? 'Изменённая' : 'Новая'}
+          </span>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/40">
+          {item.photos.length} фото{item.videoUrl ? ' · видео' : ''}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/30">
+          {item.submittedAt ? new Date(item.submittedAt).toLocaleDateString('ru-RU') : '—'}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={onOpenDecision}
+              disabled={busy}
+              title="Запросить исправления"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-orange-400/30 text-orange-300 transition-colors hover:bg-orange-400/10 disabled:opacity-50"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={busy}
+              title="Подтвердить"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr className="border-b border-white/[0.04] bg-white/[0.015] last:border-0">
+          <td colSpan={6} className="px-4 py-4">
+            {meta ? <p className="mb-2 font-body text-xs text-white/35">{meta}</p> : null}
+            {item.bio ? <p className="mb-3 whitespace-pre-line font-body text-xs text-white/50">{item.bio}</p> : null}
+            {item.photos.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {item.photos.map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={url}
+                    src={url}
+                    alt=""
+                    onClick={() => onPhotoClick(url)}
+                    className="h-16 w-16 cursor-zoom-in rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+            ) : null}
+            {item.videoUrl ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video src={item.videoUrl} controls className="mb-3 w-full max-w-md rounded-lg border border-white/[0.08]" />
+            ) : null}
+
+            {isDeciding ? (
+              <div className="space-y-2">
+                <textarea
+                  value={decisionNote}
+                  onChange={(e) => onNoteChange(e.target.value)}
+                  placeholder="Комментарий — обязателен, покажем исполнителю"
+                  rows={2}
+                  maxLength={1000}
+                  className="input resize-none text-xs"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancelDecision}
+                    disabled={busy}
+                    className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSubmitDecision}
+                    disabled={busy || !decisionNote.trim()}
+                    title={!decisionNote.trim() ? 'Комментарий обязателен' : undefined}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                  >
+                    {busy ? 'Сохраняем…' : 'Отправить запрос на исправления'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
+function MediaRow({
+  item,
+  expanded,
+  onToggle,
+  onPhotoClick,
+  onChanged,
+}: {
+  item: MediaListing;
+  expanded: boolean;
+  onToggle: () => void;
+  onPhotoClick: (url: string) => void;
+  onChanged: (reviews: PhotoReview[]) => void;
+}) {
+  return (
+    <>
+      <tr onClick={onToggle} className="cursor-pointer border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+        <ChevronCell expanded={expanded} />
+        <td className="px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Thumb url={item.photos[0]} />
+            <div className="min-w-0">
+              <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
+              <p className="truncate font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
+            </div>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
+            {MEDIA_STATUS_LABEL[item.status]}
+          </span>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/40">
+          {item.photos.length} фото{item.videoUrl ? ' · видео' : ''}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/30">
+          {new Date(item.updatedAt).toLocaleDateString('ru-RU')}
+        </td>
+      </tr>
+      {expanded ? (
+        <tr className="border-b border-white/[0.04] bg-white/[0.015] last:border-0">
+          <td colSpan={4} className="px-4 py-4">
+            <PhotoReviewPanel
+              listingId={item.id}
+              photos={item.photos}
+              initialReviews={item.photoReviews}
+              onPhotoClick={onPhotoClick}
+              onChanged={(reviews) => onChanged(reviews)}
+            />
+            {item.videoUrl ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                src={item.videoUrl}
+                controls
+                className={`w-full max-w-md rounded-lg border border-white/[0.08] ${item.photos.length > 0 ? 'mt-3' : ''}`}
+              />
+            ) : null}
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
+function ReviewRow({
+  item,
+  expanded,
+  onToggle,
   busy,
   decisionTarget,
   decisionNote,
@@ -289,6 +392,8 @@ function ReviewCard({
   onSubmitDecision,
 }: {
   item: AdminReview;
+  expanded: boolean;
+  onToggle: () => void;
   busy: boolean;
   decisionTarget: DecisionTarget | null;
   decisionNote: string;
@@ -301,80 +406,91 @@ function ReviewCard({
   const isDeciding = decisionTarget?.id === item.id;
 
   return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+    <>
+      <tr onClick={onToggle} className="cursor-pointer border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+        <ChevronCell expanded={expanded} />
+        <td className="px-4 py-3">
           <p className="truncate font-body text-sm font-semibold text-white">
             {item.authorFullName || item.authorLogin || 'Клиент'}
           </p>
-          <p className="truncate font-body text-xs text-white/35">на анкету «{item.listingName || 'Без имени'}»</p>
-        </div>
-        <span className="flex-shrink-0 font-body text-[11px] text-white/25">
+          <p className="truncate font-body text-xs text-white/35">на «{item.listingName || 'Без имени'}»</p>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <StarRow rating={item.rating} />
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/30">
           {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-        </span>
-      </div>
-
-      <div className="mt-2">
-        <StarRow rating={item.rating} />
-      </div>
-      <p className="mt-2 whitespace-pre-line font-body text-xs text-white/50">{item.text}</p>
-
-      {isDeciding ? (
-        <div className="mt-3 space-y-2">
-          <textarea
-            value={decisionNote}
-            onChange={(e) => onNoteChange(e.target.value)}
-            placeholder="Причина отклонения — обязательна, покажем клиенту"
-            rows={2}
-            maxLength={1000}
-            className="input resize-none text-xs"
-          />
-          <div className="flex justify-end gap-2">
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              onClick={onCancelDecision}
+              onClick={onOpenDecision}
               disabled={busy}
-              className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
+              title="Отклонить"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/30 text-red-300 transition-colors hover:bg-red-400/10 disabled:opacity-50"
             >
-              Отмена
+              <X className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
-              onClick={onSubmitDecision}
-              disabled={busy || !decisionNote.trim()}
-              title={!decisionNote.trim() ? 'Причина обязательна' : undefined}
-              className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+              onClick={onApprove}
+              disabled={busy}
+              title="Опубликовать"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
             >
-              {busy ? 'Сохраняем…' : 'Отклонить'}
+              <Check className="h-3.5 w-3.5" />
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={onOpenDecision}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full border border-red-400/30 px-3.5 py-1.5 font-body text-xs font-medium text-red-300 transition-colors hover:bg-red-400/10 disabled:opacity-50"
-          >
-            <X className="h-3.5 w-3.5" /> Отклонить
-          </button>
-          <button
-            type="button"
-            onClick={onApprove}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-          >
-            <Check className="h-3.5 w-3.5" /> {busy ? 'Публикуем…' : 'Опубликовать'}
-          </button>
-        </div>
-      )}
-    </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr className="border-b border-white/[0.04] bg-white/[0.015] last:border-0">
+          <td colSpan={4} className="px-4 py-4">
+            <p className="mb-3 whitespace-pre-line font-body text-xs text-white/60">{item.text}</p>
+
+            {isDeciding ? (
+              <div className="space-y-2">
+                <textarea
+                  value={decisionNote}
+                  onChange={(e) => onNoteChange(e.target.value)}
+                  placeholder="Причина отклонения — обязательна, покажем клиенту"
+                  rows={2}
+                  maxLength={1000}
+                  className="input resize-none text-xs"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancelDecision}
+                    disabled={busy}
+                    className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSubmitDecision}
+                    disabled={busy || !decisionNote.trim()}
+                    title={!decisionNote.trim() ? 'Причина обязательна' : undefined}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {busy ? 'Сохраняем…' : 'Отклонить'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
 
-function ReportCard({
+function ReportRow({
   item,
+  expanded,
+  onToggle,
   busy,
   note,
   onNoteChange,
@@ -385,6 +501,8 @@ function ReportCard({
   onToggleMessagingRestriction,
 }: {
   item: AdminReportItem;
+  expanded: boolean;
+  onToggle: () => void;
   busy: boolean;
   note: string;
   onNoteChange: (v: string) => void;
@@ -395,9 +513,10 @@ function ReportCard({
   onToggleMessagingRestriction: () => void;
 }) {
   return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+    <>
+      <tr onClick={onToggle} className="cursor-pointer border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+        <ChevronCell expanded={expanded} />
+        <td className="px-4 py-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
               {REPORT_TARGET_LABEL[item.targetType]}
@@ -406,80 +525,107 @@ function ReportCard({
               {REPORT_CATEGORY_LABEL[item.category] ?? item.category}
             </span>
           </div>
-          <p className="mt-1.5 truncate font-body text-xs text-white/35">
-            От {item.reporterFullName || item.reporterLogin || 'пользователя'}
-          </p>
-        </div>
-        <span className="flex-shrink-0 font-body text-[11px] text-white/25">
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/40">
+          {item.reporterFullName || item.reporterLogin || 'пользователя'}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/30">
           {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-        </span>
-      </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={busy}
+              title="Отклонить"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/70 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={busy}
+              title="Обработано"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr className="border-b border-white/[0.04] bg-white/[0.015] last:border-0">
+          <td colSpan={4} className="px-4 py-4">
+            {item.target.href ? (
+              <Link href={item.target.href} className="mb-1 block truncate font-body text-xs text-accent hover:underline">
+                {item.target.label}
+              </Link>
+            ) : (
+              <p className="mb-1 truncate font-body text-xs text-white/50">{item.target.label}</p>
+            )}
 
-      {item.target.href ? (
-        <Link href={item.target.href} className="mt-2 block truncate font-body text-xs text-accent hover:underline">
-          {item.target.label}
-        </Link>
-      ) : (
-        <p className="mt-2 truncate font-body text-xs text-white/50">{item.target.label}</p>
-      )}
+            {item.targetType === 'message' ? (
+              <button
+                type="button"
+                onClick={onViewConversation}
+                className="mb-1 inline-flex items-center gap-1.5 font-body text-xs text-accent hover:underline"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> Посмотреть переписку
+              </button>
+            ) : null}
 
-      {item.targetType === 'message' ? (
-        <button
-          type="button"
-          onClick={onViewConversation}
-          className="mt-2 inline-flex items-center gap-1.5 font-body text-xs text-accent hover:underline"
-        >
-          <MessageSquare className="h-3.5 w-3.5" /> Посмотреть переписку
-        </button>
+            {item.target.restrictableUserId ? (
+              <button
+                type="button"
+                onClick={onToggleMessagingRestriction}
+                disabled={restrictBusy}
+                className={`mb-2 flex items-center gap-1.5 font-body text-xs transition-colors disabled:opacity-50 ${
+                  item.target.messagingRestricted ? 'text-orange-400 hover:text-orange-300' : 'text-white/50 hover:text-white/80'
+                }`}
+              >
+                {item.target.messagingRestricted ? (
+                  <MessageSquareOff className="h-3.5 w-3.5" />
+                ) : (
+                  <MessageSquareText className="h-3.5 w-3.5" />
+                )}
+                {item.target.messagingRestricted ? 'Ограничение отправки сообщений — снять' : 'Ограничить отправку сообщений'}
+              </button>
+            ) : null}
+
+            <p className="mb-3 whitespace-pre-line font-body text-xs text-white/60">{item.text}</p>
+
+            <textarea
+              value={note}
+              onChange={(e) => onNoteChange(e.target.value)}
+              placeholder="Заметка для админов — необязательно"
+              rows={2}
+              maxLength={1000}
+              className="input mb-2 resize-none text-xs"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onDismiss}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-medium text-white/70 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5" /> Отклонить
+              </button>
+              <button
+                type="button"
+                onClick={onResolve}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+              >
+                <Check className="h-3.5 w-3.5" /> {busy ? 'Сохраняем…' : 'Обработано'}
+              </button>
+            </div>
+          </td>
+        </tr>
       ) : null}
-
-      {item.target.restrictableUserId ? (
-        <button
-          type="button"
-          onClick={onToggleMessagingRestriction}
-          disabled={restrictBusy}
-          className={`mt-2 flex items-center gap-1.5 font-body text-xs transition-colors disabled:opacity-50 ${
-            item.target.messagingRestricted ? 'text-orange-400 hover:text-orange-300' : 'text-white/50 hover:text-white/80'
-          }`}
-        >
-          {item.target.messagingRestricted ? (
-            <MessageSquareOff className="h-3.5 w-3.5" />
-          ) : (
-            <MessageSquareText className="h-3.5 w-3.5" />
-          )}
-          {item.target.messagingRestricted ? 'Ограничение отправки сообщений — снять' : 'Ограничить отправку сообщений'}
-        </button>
-      ) : null}
-
-      <p className="mt-2 whitespace-pre-line font-body text-xs text-white/60">{item.text}</p>
-
-      <textarea
-        value={note}
-        onChange={(e) => onNoteChange(e.target.value)}
-        placeholder="Заметка для админов — необязательно"
-        rows={2}
-        maxLength={1000}
-        className="input mt-3 resize-none text-xs"
-      />
-      <div className="mt-2 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onDismiss}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-medium text-white/70 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
-        >
-          <X className="h-3.5 w-3.5" /> Отклонить
-        </button>
-        <button
-          type="button"
-          onClick={onResolve}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-        >
-          <Check className="h-3.5 w-3.5" /> {busy ? 'Сохраняем…' : 'Обработано'}
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -489,6 +635,7 @@ export default function AdminModerationPage() {
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
+  const [expandedListingId, setExpandedListingId] = useState<string | null>(null);
 
   const [decisionTarget, setDecisionTarget] = useState<DecisionTarget | null>(null);
   const [decisionNote, setDecisionNote] = useState('');
@@ -498,8 +645,7 @@ export default function AdminModerationPage() {
   const [mediaQueue, setMediaQueue] = useState<MediaListing[]>([]);
   const [mediaLoading, setMediaLoading] = useState(true);
   const [mediaLoadError, setMediaLoadError] = useState('');
-  const [mediaActionError, setMediaActionError] = useState('');
-  const [mediaActionId, setMediaActionId] = useState<string | null>(null);
+  const [expandedMediaId, setExpandedMediaId] = useState<string | null>(null);
 
   const [reviewQueue, setReviewQueue] = useState<AdminReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -508,6 +654,7 @@ export default function AdminModerationPage() {
   const [reviewActionId, setReviewActionId] = useState<string | null>(null);
   const [reviewDecisionTarget, setReviewDecisionTarget] = useState<DecisionTarget | null>(null);
   const [reviewDecisionNote, setReviewDecisionNote] = useState('');
+  const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
 
   const [reportQueue, setReportQueue] = useState<AdminReportItem[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
@@ -515,6 +662,7 @@ export default function AdminModerationPage() {
   const [reportActionError, setReportActionError] = useState('');
   const [reportActionId, setReportActionId] = useState<string | null>(null);
   const [reportNotes, setReportNotes] = useState<Record<string, string>>({});
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
   const [conversationView, setConversationView] = useState<AdminConversationView | null>(null);
   const [conversationLoading, setConversationLoading] = useState(false);
@@ -553,18 +701,11 @@ export default function AdminModerationPage() {
     }
   };
 
-  const verifyPhotos = async (id: string) => {
-    setMediaActionError('');
-    setMediaActionId(id);
-    try {
-      const res = await authFetch(`/admin/listings/${id}/verify-photos`, { method: 'PATCH' });
-      const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось подтвердить фото');
-      setMediaQueue((prev) => prev.filter((item) => item.id !== id));
-    } catch (err: any) {
-      setMediaActionError(err.message || 'Не удалось подтвердить фото');
-    } finally {
-      setMediaActionId(null);
+  /** Once every photo on the card has a decision (confirmed or rejected, none left pending), the card drops off this queue — nothing more for the admin to do right now. */
+  const handleMediaReviewChanged = (listingId: string, reviews: PhotoReview[]) => {
+    const stillPending = reviews.some((r) => r.status === 'pending');
+    if (!stillPending) {
+      setMediaQueue((prev) => prev.filter((item) => item.id !== listingId));
     }
   };
 
@@ -677,9 +818,6 @@ export default function AdminModerationPage() {
     loadReports();
   }, []);
 
-  const newItems = useMemo(() => queue.filter((item) => !item.everPublished), [queue]);
-  const modifiedItems = useMemo(() => queue.filter((item) => item.everPublished), [queue]);
-
   const verify = async (id: string, decision: Decision, note?: string) => {
     setActionError('');
     setActionId(id);
@@ -707,6 +845,7 @@ export default function AdminModerationPage() {
     setDecisionTarget({ id });
     setDecisionNote('');
     setActionError('');
+    setExpandedListingId(id);
   };
 
   const verifyReview = async (id: string, decision: 'approved' | 'rejected', note?: string) => {
@@ -736,27 +875,8 @@ export default function AdminModerationPage() {
     setReviewDecisionTarget({ id });
     setReviewDecisionNote('');
     setReviewActionError('');
+    setExpandedReviewId(id);
   };
-
-  const renderGroup = (items: ModerationListing[]) => (
-    <div className="space-y-3">
-      {items.map((item) => (
-        <ModerationCard
-          key={item.id}
-          item={item}
-          busy={actionId === item.id}
-          decisionTarget={decisionTarget}
-          decisionNote={decisionNote}
-          onNoteChange={setDecisionNote}
-          onConfirm={() => verify(item.id, 'approved')}
-          onOpenDecision={() => openDecision(item.id)}
-          onCancelDecision={() => setDecisionTarget(null)}
-          onSubmitDecision={() => verify(item.id, 'changes_requested', decisionNote.trim())}
-          onPhotoClick={setLightboxUrl}
-        />
-      ))}
-    </div>
-  );
 
   return (
     <>
@@ -768,10 +888,9 @@ export default function AdminModerationPage() {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <div className="min-w-0">
+      <div className="space-y-8">
+        <section>
           <ColumnHeader title="Анкеты" count={queue.length} />
-
           {loading ? (
             <p className="font-body text-sm text-white/40">Загрузка…</p>
           ) : loadError ? (
@@ -779,36 +898,44 @@ export default function AdminModerationPage() {
           ) : queue.length === 0 ? (
             <EmptyColumn text="Очередь пуста — нет анкет, ожидающих проверки" />
           ) : (
-            <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
-              <div>
-                <SubHeader title="Новые" count={newItems.length} />
-                {newItems.length === 0 ? (
-                  <p className="font-body text-xs text-white/25">Нет новых анкет на проверке</p>
-                ) : (
-                  renderGroup(newItems)
-                )}
-              </div>
-              <div>
-                <SubHeader title="Изменённые" count={modifiedItems.length} />
-                {modifiedItems.length === 0 ? (
-                  <p className="font-body text-xs text-white/25">Нет изменённых анкет на проверке</p>
-                ) : (
-                  renderGroup(modifiedItems)
-                )}
-              </div>
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                    <th className="px-2 py-3" />
+                    <th className="px-4 py-3 font-medium">Анкета</th>
+                    <th className="px-4 py-3 font-medium">Тип</th>
+                    <th className="px-4 py-3 font-medium">Медиа</th>
+                    <th className="px-4 py-3 font-medium">Отправлено</th>
+                    <th className="px-4 py-3 font-medium text-right">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queue.map((item) => (
+                    <ListingRow
+                      key={item.id}
+                      item={item}
+                      expanded={expandedListingId === item.id}
+                      onToggle={() => setExpandedListingId((prev) => (prev === item.id ? null : item.id))}
+                      busy={actionId === item.id}
+                      decisionTarget={decisionTarget}
+                      decisionNote={decisionNote}
+                      onNoteChange={setDecisionNote}
+                      onConfirm={() => verify(item.id, 'approved')}
+                      onOpenDecision={() => openDecision(item.id)}
+                      onCancelDecision={() => setDecisionTarget(null)}
+                      onSubmitDecision={() => verify(item.id, 'changes_requested', decisionNote.trim())}
+                      onPhotoClick={setLightboxUrl}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="min-w-0">
+        <section>
           <ColumnHeader title="Медиа" count={mediaQueue.length} />
-
-          {mediaActionError ? (
-            <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
-              {mediaActionError}
-            </p>
-          ) : null}
-
           {mediaLoading ? (
             <p className="font-body text-sm text-white/40">Загрузка…</p>
           ) : mediaLoadError ? (
@@ -816,69 +943,41 @@ export default function AdminModerationPage() {
           ) : mediaQueue.length === 0 ? (
             <EmptyColumn text="Нет фото, ожидающих проверки" />
           ) : (
-            <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
-              {mediaQueue.map((item) => (
-                <div key={item.id} className="card p-4">
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-body text-sm font-semibold text-white">{item.name || 'Без имени'}</p>
-                      <p className="font-body text-xs text-white/35">@{item.ownerLogin ?? '—'}</p>
-                    </div>
-                    <span className="flex-shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-[11px] text-white/50">
-                      {MEDIA_STATUS_LABEL[item.status]}
-                    </span>
-                  </div>
-
-                  {item.photos.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {item.photos.map((url) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={url}
-                          src={url}
-                          alt=""
-                          onClick={() => setLightboxUrl(url)}
-                          className="aspect-square w-full cursor-zoom-in rounded-md object-cover transition-opacity hover:opacity-80"
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {item.videoUrl ? (
-                    // eslint-disable-next-line jsx-a11y/media-has-caption
-                    <video
-                      src={item.videoUrl}
-                      controls
-                      className={`w-full rounded-lg border border-white/[0.08] ${item.photos.length > 0 ? 'mt-2' : ''}`}
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                    <th className="px-2 py-3" />
+                    <th className="px-4 py-3 font-medium">Анкета</th>
+                    <th className="px-4 py-3 font-medium">Статус</th>
+                    <th className="px-4 py-3 font-medium">Фото</th>
+                    <th className="px-4 py-3 font-medium">Обновлено</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mediaQueue.map((item) => (
+                    <MediaRow
+                      key={item.id}
+                      item={item}
+                      expanded={expandedMediaId === item.id}
+                      onToggle={() => setExpandedMediaId((prev) => (prev === item.id ? null : item.id))}
+                      onPhotoClick={setLightboxUrl}
+                      onChanged={(reviews) => handleMediaReviewChanged(item.id, reviews)}
                     />
-                  ) : null}
-
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => verifyPhotos(item.id)}
-                      disabled={mediaActionId === item.id}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-                    >
-                      <BadgeCheck className="h-3.5 w-3.5" />
-                      {mediaActionId === item.id ? 'Подтверждаем…' : 'Подтвердить фото'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="min-w-0">
+        <section>
           <ColumnHeader title="Отзывы" count={reviewQueue.length} />
-
           {reviewActionError ? (
             <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
               {reviewActionError}
             </p>
           ) : null}
-
           {reviewsLoading ? (
             <p className="font-body text-sm text-white/40">Загрузка…</p>
           ) : reviewsLoadError ? (
@@ -886,33 +985,47 @@ export default function AdminModerationPage() {
           ) : reviewQueue.length === 0 ? (
             <EmptyColumn text="Очередь пуста — нет отзывов, ожидающих проверки" />
           ) : (
-            <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
-              {reviewQueue.map((item) => (
-                <ReviewCard
-                  key={item.id}
-                  item={item}
-                  busy={reviewActionId === item.id}
-                  decisionTarget={reviewDecisionTarget}
-                  decisionNote={reviewDecisionNote}
-                  onNoteChange={setReviewDecisionNote}
-                  onApprove={() => verifyReview(item.id, 'approved')}
-                  onOpenDecision={() => openReviewDecision(item.id)}
-                  onCancelDecision={() => setReviewDecisionTarget(null)}
-                  onSubmitDecision={() => verifyReview(item.id, 'rejected', reviewDecisionNote.trim())}
-                />
-              ))}
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                    <th className="px-2 py-3" />
+                    <th className="px-4 py-3 font-medium">Клиент / анкета</th>
+                    <th className="px-4 py-3 font-medium">Оценка</th>
+                    <th className="px-4 py-3 font-medium">Дата</th>
+                    <th className="px-4 py-3 font-medium text-right">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviewQueue.map((item) => (
+                    <ReviewRow
+                      key={item.id}
+                      item={item}
+                      expanded={expandedReviewId === item.id}
+                      onToggle={() => setExpandedReviewId((prev) => (prev === item.id ? null : item.id))}
+                      busy={reviewActionId === item.id}
+                      decisionTarget={reviewDecisionTarget}
+                      decisionNote={reviewDecisionNote}
+                      onNoteChange={setReviewDecisionNote}
+                      onApprove={() => verifyReview(item.id, 'approved')}
+                      onOpenDecision={() => openReviewDecision(item.id)}
+                      onCancelDecision={() => setReviewDecisionTarget(null)}
+                      onSubmitDecision={() => verifyReview(item.id, 'rejected', reviewDecisionNote.trim())}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
-        <div className="min-w-0">
-          <ColumnHeader title="Жалобы" count={reportQueue.length} />
+        </section>
 
+        <section>
+          <ColumnHeader title="Жалобы" count={reportQueue.length} />
           {reportActionError ? (
             <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
               {reportActionError}
             </p>
           ) : null}
-
           {reportsLoading ? (
             <p className="font-body text-sm text-white/40">Загрузка…</p>
           ) : reportsLoadError ? (
@@ -920,24 +1033,39 @@ export default function AdminModerationPage() {
           ) : reportQueue.length === 0 ? (
             <EmptyColumn text="Очередь пуста — нет жалоб на рассмотрении" />
           ) : (
-            <div className="max-h-[75vh] space-y-3 overflow-y-auto pr-1">
-              {reportQueue.map((item) => (
-                <ReportCard
-                  key={item.id}
-                  item={item}
-                  busy={reportActionId === item.id}
-                  note={reportNotes[item.id] ?? ''}
-                  onNoteChange={(v) => setReportNotes((prev) => ({ ...prev, [item.id]: v }))}
-                  onResolve={() => verifyReport(item.id, 'resolved')}
-                  onDismiss={() => verifyReport(item.id, 'dismissed')}
-                  onViewConversation={() => openConversation(item.id)}
-                  restrictBusy={restrictActionId === item.id}
-                  onToggleMessagingRestriction={() => toggleMessagingRestriction(item)}
-                />
-              ))}
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                    <th className="px-2 py-3" />
+                    <th className="px-4 py-3 font-medium">Тип / категория</th>
+                    <th className="px-4 py-3 font-medium">От кого</th>
+                    <th className="px-4 py-3 font-medium">Дата</th>
+                    <th className="px-4 py-3 font-medium text-right">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportQueue.map((item) => (
+                    <ReportRow
+                      key={item.id}
+                      item={item}
+                      expanded={expandedReportId === item.id}
+                      onToggle={() => setExpandedReportId((prev) => (prev === item.id ? null : item.id))}
+                      busy={reportActionId === item.id}
+                      note={reportNotes[item.id] ?? ''}
+                      onNoteChange={(v) => setReportNotes((prev) => ({ ...prev, [item.id]: v }))}
+                      onResolve={() => verifyReport(item.id, 'resolved')}
+                      onDismiss={() => verifyReport(item.id, 'dismissed')}
+                      onViewConversation={() => openConversation(item.id)}
+                      restrictBusy={restrictActionId === item.id}
+                      onToggleMessagingRestriction={() => toggleMessagingRestriction(item)}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {lightboxUrl ? (
