@@ -6,6 +6,11 @@ import { Send } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 
+interface TelegramStatus {
+  linked: boolean;
+  username: string | null;
+}
+
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
 
@@ -19,7 +24,28 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
+
   const isDirty = fullName !== initial.fullName || email !== initial.email || phone !== initial.phone;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTelegramStatus() {
+      try {
+        const res = await authFetch('/telegram/status');
+        if (!res.ok || cancelled) return;
+        setTelegramStatus(await res.json());
+      } catch {
+        // stale/local values are fine if this fails
+      }
+    }
+
+    loadTelegramStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +142,9 @@ export default function ProfilePage() {
             <Send className="h-4 w-4 flex-shrink-0 text-white/40" strokeWidth={1.6} />
             <div>
               <p className="font-body text-sm text-white/70">Telegram</p>
-              <p className="font-body text-xs text-white/35">Не привязан</p>
+              <p className="font-body text-xs text-white/35">
+                {telegramStatus?.linked ? `Привязан${telegramStatus.username ? ` (@${telegramStatus.username})` : ''}` : 'Не привязан'}
+              </p>
             </div>
           </div>
           <Link href="/cabinet/settings" className="font-body text-xs font-medium text-accent hover:underline">
