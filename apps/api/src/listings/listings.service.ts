@@ -1,6 +1,17 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
-import { listingPhotoReviews, listings, users, type Listing, type ListingPhotoReviewStatus, type NewListing } from '@transescort/db';
+import { and, count, desc, eq, gte, inArray, isNotNull } from 'drizzle-orm';
+import { createHash } from 'crypto';
+import {
+  contactEvents,
+  listingPhotoReviews,
+  listingViews,
+  listings,
+  users,
+  type ContactEventAction,
+  type Listing,
+  type ListingPhotoReviewStatus,
+  type NewListing,
+} from '@transescort/db';
 import { slugify } from './slug.util';
 
 export interface ListingWithOwner extends Listing {
@@ -52,6 +63,125 @@ export class ListingsService {
       .limit(1);
     if (!rows[0]) return null;
     return { ...rows[0].listing, ownerLogin: rows[0].ownerLogin, ownerTelegramLinked: Boolean(rows[0].ownerTelegramId) };
+  }
+
+  private static hashViewer(ip: string): string {
+    return createHash('sha256').update(ip || 'unknown').digest('hex');
+  }
+
+  /**
+   * Public: records one (listing, visitor, day) view. Idempotent by design — the unique index on
+   * (listingId, viewerHash, viewDate) means repeated page loads from the same visitor on the same day
+   * insert nothing further. Best-effort: view tracking must never break the page load.
+   */
+  async recordView(listingId: string, ip: string): Promise<void> {
+    try {
+      const viewerHash = ListingsService.hashViewer(ip);
+      const viewDate = new Date().toISOString().slice(0, 10);
+      await this.db.insert(listingViews).values({ listingId, viewerHash, viewDate }).onConflictDoNothing();
+    } catch {
+      // best-effort — swallow and move on
+    }
+  }
+
+  /** Performer: view counts for their own anketa — total, rolling 7/30-day windows, and a daily breakdown for the last 30 days (zero-filled, for charting). */
+  async getViewStats(
+    userId: string,
+  ): Promise<{ totalViews: number; last7Days: number; last30Days: number; daily: { date: string; count: number }[] }> {
+    const existing = await this.requireByUserId(userId);
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const [totalRow, last7Row, last30Row, dailyRows] = await Promise.all([
+      this.db.select({ value: count() }).from(listingViews).where(eq(listingViews.listingId, existing.id)),
+      this.db
+        .select({ value: count() })
+        .from(listingViews)
+        .where(and(eq(listingViews.listingId, existing.id), gte(listingViews.viewDate, sevenDaysAgo))),
+      this.db
+        .select({ value: count() })
+        .from(listingViews)
+        .where(and(eq(listingViews.listingId, existing.id), gte(listingViews.viewDate, thirtyDaysAgo))),
+      this.db
+        .select({ date: listingViews.viewDate, value: count() })
+        .from(listingViews)
+        .where(and(eq(listingViews.listingId, existing.id), gte(listingViews.viewDate, thirtyDaysAgo)))
+        .groupBy(listingViews.viewDate),
+    ]);
+
+    const countByDate = new Map<string, number>(
+      dailyRows.map((r: { date: string; value: number }) => [r.date, Number(r.value)]),
+    );
+    const daily: { date: string; count: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      daily.push({ date, count: countByDate.get(date) ?? 0 });
+    }
+
+    return {
+      totalViews: Number(totalRow[0]?.value ?? 0),
+      last7Days: Number(last7Row[0]?.value ?? 0),
+      last30Days: Number(last30Row[0]?.value ?? 0),
+      daily,
+    };
+  }
+
+  /**
+   * Public: logs one "Связаться" action — `click` when the contact modal opens, `platform`/`telegram`
+   * when a channel is picked. Never deduped (see schema comment) and best-effort, like `recordView`.
+   */
+  async recordContactEvent(listingId: string, action: ContactEventAction): Promise<void> {
+    try {
+      await this.db.insert(contactEvents).values({ listingId, action });
+    } catch {
+      // best-effort — swallow and move on
+    }
+  }
+
+  /** Performer: "Связаться" activity for their own anketa — total clicks, rolling windows, and channel breakdown. */
+  async getContactStats(
+    userId: string,
+  ): Promise<{ totalClicks: number; last7Days: number; last30Days: number; platformSelected: number; telegramSelected: number }> {
+    const existing = await this.requireByUserId(userId);
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [totalRow, last7Row, last30Row, platformRow, telegramRow] = await Promise.all([
+      this.db
+        .select({ value: count() })
+        .from(contactEvents)
+        .where(and(eq(contactEvents.listingId, existing.id), eq(contactEvents.action, 'click'))),
+      this.db
+        .select({ value: count() })
+        .from(contactEvents)
+        .where(
+          and(eq(contactEvents.listingId, existing.id), eq(contactEvents.action, 'click'), gte(contactEvents.createdAt, sevenDaysAgo)),
+        ),
+      this.db
+        .select({ value: count() })
+        .from(contactEvents)
+        .where(
+          and(eq(contactEvents.listingId, existing.id), eq(contactEvents.action, 'click'), gte(contactEvents.createdAt, thirtyDaysAgo)),
+        ),
+      this.db
+        .select({ value: count() })
+        .from(contactEvents)
+        .where(and(eq(contactEvents.listingId, existing.id), eq(contactEvents.action, 'platform'))),
+      this.db
+        .select({ value: count() })
+        .from(contactEvents)
+        .where(and(eq(contactEvents.listingId, existing.id), eq(contactEvents.action, 'telegram'))),
+    ]);
+
+    return {
+      totalClicks: Number(totalRow[0]?.value ?? 0),
+      last7Days: Number(last7Row[0]?.value ?? 0),
+      last30Days: Number(last30Row[0]?.value ?? 0),
+      platformSelected: Number(platformRow[0]?.value ?? 0),
+      telegramSelected: Number(telegramRow[0]?.value ?? 0),
+    };
   }
 
   async upsert(userId: string, data: Partial<NewListing>): Promise<Listing> {

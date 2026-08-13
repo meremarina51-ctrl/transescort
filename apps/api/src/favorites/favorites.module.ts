@@ -7,5 +7,6 @@ import { FavoritesService } from './favorites.service';
   imports: [AuthGuardsModule],
   controllers: [FavoritesController],
   providers: [FavoritesService],
+  exports: [FavoritesService],
 })
 export class FavoritesModule {}

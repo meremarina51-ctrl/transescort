@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  NotFoundException,
   Patch,
   Post,
   Request,
@@ -20,6 +21,7 @@ import { randomUUID } from 'crypto';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, type RequestWithUser } from '../auth/guards/jwt-auth.guard';
 import { StorageService } from '../storage/storage.service';
+import { FavoritesService } from '../favorites/favorites.service';
 import { ListingsService } from './listings.service';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
@@ -50,6 +52,7 @@ export class ListingsController {
   constructor(
     private readonly listingsService: ListingsService,
     private readonly storageService: StorageService,
+    private readonly favoritesService: FavoritesService,
   ) {}
 
   @Get('me')
@@ -59,6 +62,21 @@ export class ListingsController {
   async getMine(@Request() req: RequestWithUser) {
     this.assertPerformer(req);
     return this.listingsService.findByUserId(req.user!.userId);
+  }
+
+  @Get('me/stats')
+  @ApiOperation({ summary: 'Статистика собственной анкеты — просмотры, избранное, обращения' })
+  async getMineStats(@Request() req: RequestWithUser) {
+    this.assertPerformer(req);
+    const listing = await this.listingsService.findByUserId(req.user!.userId);
+    if (!listing) throw new NotFoundException('Сначала создайте анкету');
+
+    const [views, favorites, contacts] = await Promise.all([
+      this.listingsService.getViewStats(req.user!.userId),
+      this.favoritesService.getStatsForListing(listing.id),
+      this.listingsService.getContactStats(req.user!.userId),
+    ]);
+    return { views, favorites, contacts };
   }
 
   @Patch('me')

@@ -84,18 +84,30 @@ export function ListingGallery({
   const [startingChat, setStartingChat] = useState(false);
   const [startChatError, setStartChatError] = useState('');
 
+  /** Fire-and-forget — analytics must never block or fail the actual contact flow. */
+  const trackContact = (action: 'click' | 'platform' | 'telegram') => {
+    authFetch(`/catalog/${id}/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    }).catch(() => {});
+  };
+
   const handleContactClick = () => {
     setStartChatError('');
     setContactOpen(true);
+    trackContact('click');
   };
 
   const startTelegramChat = () => {
     if (!telegramBotUsername) return;
+    trackContact('telegram');
     window.open(`https://t.me/${telegramBotUsername}?start=c_${id}`, '_blank', 'noopener,noreferrer');
     setContactOpen(false);
   };
 
   const startPlatformChat = async () => {
+    trackContact('platform');
     if (!user) {
       router.push('/login');
       return;

@@ -211,6 +211,27 @@
       "when": 1786629600000,
       "tag": "0029_backfill_photos_submitted",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786638126507,
+      "tag": "0030_moaning_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786639184425,
+      "tag": "0031_opposite_nighthawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786639878116,
+      "tag": "0032_sleepy_argent",
+      "breakpoints": true
     }
   ]
 }

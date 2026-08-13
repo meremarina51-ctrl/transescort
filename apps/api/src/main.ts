@@ -19,6 +19,7 @@ function loadRepositoryEnvFile(): void {
 loadRepositoryEnvFile();
 
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -32,8 +33,12 @@ async function bootstrap() {
   const envConfig = validateEnv(process.env);
   logger.log(`Environment validated (NODE_ENV: ${envConfig.NODE_ENV})`);
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
+
+  // Behind the production nginx reverse proxy — without this, req.ip is always nginx's own address,
+  // which would make every anketa view record as the same visitor.
+  app.set('trust proxy', 1);
 
   app.use(getHelmetConfig(configService));
 

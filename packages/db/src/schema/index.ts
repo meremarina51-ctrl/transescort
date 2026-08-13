@@ -1,6 +1,8 @@
 export * from './users';
 export * from './listings';
 export * from './favorites';
+export * from './favorite-events';
+export * from './contact-events';
 export * from './conversations';
 export * from './messages';
 export * from './telegram-link-tokens';
@@ -10,3 +12,4 @@ export * from './telegram-bot-relay-messages';
 export * from './reviews';
 export * from './reports';
 export * from './listing-photo-reviews';
+export * from './listing-views';
