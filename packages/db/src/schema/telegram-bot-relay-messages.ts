@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { telegramBotThreads } from './telegram-bot-threads';
 
 /**
@@ -18,6 +18,14 @@ export const telegramBotRelayMessages = pgTable(
     /** Telegram chat id the relayed copy was delivered to (private chats: equals the recipient's user id). */
     chatId: varchar('chat_id', { length: 32 }).notNull(),
     messageId: integer('message_id').notNull(),
+
+    /**
+     * The plain message text, kept solely so an admin reviewing a "🚩 Пожаловаться" report can see
+     * the conversation that led to it (see TelegramService.getConversationForReport — reachable
+     * only via a report id, never a general thread browser). Nullable because rows relayed before
+     * this column existed have no body on file.
+     */
+    body: text('body'),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

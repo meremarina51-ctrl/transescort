@@ -1,15 +1,18 @@
-import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, createHash } from 'crypto';
 import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
 import {
   listings,
+  TELEGRAM_REPORT_CATEGORIES,
   telegramBotClients,
   telegramBotRelayMessages,
+  telegramBotReports,
   telegramBotThreads,
   telegramLinkTokens,
   users,
   type NewTelegramLinkToken,
+  type TelegramReportCategory,
 } from '@transescort/db';
 
 const LINK_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -26,6 +29,18 @@ const WELCOME_NEXT_PREFIX = 'welcome_next:';
 const LINK_CONFIRM_PREFIX = 'lc:';
 /** The account-link confirmation's "❌ Отмена" callback_data — no payload needed, the token is simply never consumed. */
 const LINK_CANCEL = 'lx';
+/** Prefixes the "🚩 Пожаловаться" button's callback_data — the rest is the thread id. */
+const REPORT_PREFIX = 'rp:';
+/** Prefixes a category button's callback_data on the report picker — the rest is `<threadId>:<category>`. */
+const REPORT_CATEGORY_PREFIX = 'rc:';
+
+const REPORT_CATEGORY_LABELS: Record<TelegramReportCategory, string> = {
+  spam: 'Спам',
+  fake: 'Мошенничество / фейк',
+  harassment: 'Оскорбления',
+  inappropriate: 'Неприемлемый контент',
+  other: 'Другое',
+};
 /** Telegram's own cap on how many items a single sendMediaGroup call may contain. */
 const MAX_MEDIA_GROUP_PHOTOS = 10;
 /** Telegram's cap on photo/media-group captions is 1024 chars; stay comfortably under it. */
@@ -412,6 +427,63 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return deleted.length > 0;
   }
 
+  /** Admin: every complaint filed via the bot's "🚩 Пожаловаться" button, newest first, with enough thread context to review. */
+  async listBotReports() {
+    const rows = await this.db
+      .select({
+        report: telegramBotReports,
+        performerLogin: users.login,
+        performerName: users.fullName,
+        clientUsername: telegramBotClients.telegramUsername,
+        clientTelegramId: telegramBotClients.telegramId,
+      })
+      .from(telegramBotReports)
+      .innerJoin(telegramBotThreads, eq(telegramBotReports.threadId, telegramBotThreads.id))
+      .innerJoin(users, eq(telegramBotThreads.performerId, users.id))
+      .innerJoin(telegramBotClients, eq(telegramBotThreads.clientId, telegramBotClients.id))
+      .orderBy(desc(telegramBotReports.createdAt));
+
+    return rows.map(({ report, performerLogin, performerName, clientUsername, clientTelegramId }) => ({
+      ...report,
+      performerLogin,
+      performerName,
+      clientUsername,
+      clientTelegramId,
+    }));
+  }
+
+  /** Admin: close a bot-originated report as handled or dismissed — mirrors ReportsService.verify for the site-wide `reports` queue. */
+  async verifyBotReport(id: string, decision: 'resolved' | 'dismissed', note?: string) {
+    const updated = await this.db
+      .update(telegramBotReports)
+      .set({ status: decision, adminNote: note?.trim() || null, updatedAt: new Date() })
+      .where(eq(telegramBotReports.id, id))
+      .returning();
+    return updated[0];
+  }
+
+  /**
+   * Admin: the thread's relayed messages, reachable only via a report id — mirrors
+   * ReportsService.getConversationForReport, which is the same "access only through an open
+   * report" restriction for the platform's own chat. Only messages relayed *after* the `body`
+   * column was added have text on file; older ones show up with `body: null`.
+   */
+  async getConversationForReport(reportId: string) {
+    const reportRows = await this.db.select({ threadId: telegramBotReports.threadId }).from(telegramBotReports).where(eq(telegramBotReports.id, reportId)).limit(1);
+    const threadId = reportRows[0]?.threadId;
+    if (!threadId) throw new NotFoundException('Жалоба не найдена');
+
+    return this.db
+      .select({
+        direction: telegramBotRelayMessages.direction,
+        body: telegramBotRelayMessages.body,
+        createdAt: telegramBotRelayMessages.createdAt,
+      })
+      .from(telegramBotRelayMessages)
+      .where(eq(telegramBotRelayMessages.threadId, threadId))
+      .orderBy(telegramBotRelayMessages.createdAt);
+  }
+
   /**
    * Claims the token with one conditional UPDATE (not a SELECT followed by a separate UPDATE) —
    * if the same /start ever gets processed twice in close succession (e.g. Telegram redelivering
@@ -504,6 +576,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
     if (data?.startsWith(WELCOME_NEXT_PREFIX)) {
       return this.handleWelcomeNext(token, callbackQuery, data.slice(WELCOME_NEXT_PREFIX.length));
+    }
+    if (data?.startsWith(REPORT_CATEGORY_PREFIX)) {
+      return this.handleReportCategory(token, callbackQuery, data.slice(REPORT_CATEGORY_PREFIX.length));
+    }
+    if (data?.startsWith(REPORT_PREFIX)) {
+      return this.handleReportButton(token, callbackQuery, data.slice(REPORT_PREFIX.length));
     }
     if (data?.startsWith(LINK_CONFIRM_PREFIX)) {
       return this.handleLinkConfirm(token, callbackQuery, data.slice(LINK_CONFIRM_PREFIX.length));
@@ -641,12 +719,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }).catch(() => undefined);
     }
 
-    const [performerRows, clientRows] = await Promise.all([
-      this.db.select({ telegramId: users.telegramId }).from(users).where(eq(users.id, thread.performerId)).limit(1),
-      this.db.select({ telegramId: telegramBotClients.telegramId }).from(telegramBotClients).where(eq(telegramBotClients.id, thread.clientId)).limit(1),
-    ]);
-    const performerTelegramId: string | null = performerRows[0]?.telegramId ?? null;
-    const clientTelegramId: string | null = clientRows[0]?.telegramId ?? null;
+    const { performerTelegramId, clientTelegramId } = await this.resolveThreadTelegramIds(thread);
 
     const endedByPerformer = String(callbackQuery.from.id) === performerTelegramId;
     const notifyTelegramId = endedByPerformer ? clientTelegramId : performerTelegramId;
@@ -657,6 +730,76 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (notifyTelegramId) {
       await this.callApi(token, 'sendMessage', { chat_id: notifyTelegramId, text: notifyText }).catch(() => undefined);
     }
+  }
+
+  /** Client or performer tapped "🚩 Пожаловаться" — shows a category picker; nothing is recorded until they pick one. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleReportButton(token: string, callbackQuery: any, threadId: string) {
+    await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    if (!chatId) return;
+
+    const rows = await this.db.select({ id: telegramBotThreads.id }).from(telegramBotThreads).where(eq(telegramBotThreads.id, threadId)).limit(1);
+    if (!rows[0]) return;
+
+    await this.callApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: 'На что жалуетесь?',
+      reply_markup: {
+        inline_keyboard: TELEGRAM_REPORT_CATEGORIES.map((category) => [
+          { text: REPORT_CATEGORY_LABELS[category], callback_data: `${REPORT_CATEGORY_PREFIX}${threadId}:${category}` },
+        ]),
+      },
+    });
+  }
+
+  /** Client or performer picked a reason on the category picker — records the complaint for admin review. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleReportCategory(token: string, callbackQuery: any, payload: string) {
+    const [threadId, category] = payload.split(':') as [string, TelegramReportCategory];
+
+    const chatId = callbackQuery.message?.chat?.id;
+    const messageId = callbackQuery.message?.message_id;
+
+    const rows = await this.db.select().from(telegramBotThreads).where(eq(telegramBotThreads.id, threadId)).limit(1);
+    const thread = rows[0];
+    if (!thread || !TELEGRAM_REPORT_CATEGORIES.includes(category)) {
+      await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '❌ Диалог не найден' }).catch(() => undefined);
+      return;
+    }
+
+    const { performerTelegramId } = await this.resolveThreadTelegramIds(thread);
+    const reporterRole: 'client' | 'performer' = String(callbackQuery.from.id) === performerTelegramId ? 'performer' : 'client';
+
+    await this.db.insert(telegramBotReports).values({ threadId, reporterRole, category });
+
+    await this.callApi(token, 'answerCallbackQuery', {
+      callback_query_id: callbackQuery.id,
+      text: '✅ Жалоба отправлена администрации',
+    }).catch(() => undefined);
+
+    if (chatId && messageId) {
+      await this.callApi(token, 'editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text: '✅ Жалоба отправлена администрации на рассмотрение.',
+      }).catch(() => undefined);
+    }
+  }
+
+  private async resolveThreadTelegramIds(thread: {
+    performerId: string;
+    clientId: string;
+  }): Promise<{ performerTelegramId: string | null; clientTelegramId: string | null }> {
+    const [performerRows, clientRows] = await Promise.all([
+      this.db.select({ telegramId: users.telegramId }).from(users).where(eq(users.id, thread.performerId)).limit(1),
+      this.db.select({ telegramId: telegramBotClients.telegramId }).from(telegramBotClients).where(eq(telegramBotClients.id, thread.clientId)).limit(1),
+    ]);
+    return {
+      performerTelegramId: performerRows[0]?.telegramId ?? null,
+      clientTelegramId: clientRows[0]?.telegramId ?? null,
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -749,7 +892,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       `📩 Сообщение от ${clientLabel} через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
     );
 
-    await this.recordRelay(thread.id, 'client_to_performer', performerTelegramId, sent.result.message_id);
+    await this.recordRelay(thread.id, 'client_to_performer', performerTelegramId, sent.result.message_id, this.truncate(text));
     await this.touchThread(thread.id);
   }
 
@@ -803,7 +946,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     const sent = await this.sendWithEndButton(token, thread, 'client', clientTelegramId, `💬 Ответ от исполнителя:\n\n${this.truncate(text)}`);
 
-    await this.recordRelay(thread.id, 'performer_to_client', clientTelegramId, sent.result.message_id);
+    await this.recordRelay(thread.id, 'performer_to_client', clientTelegramId, sent.result.message_id, this.truncate(text));
     await this.touchThread(thread.id);
   }
 
@@ -970,10 +1113,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Sends a text message carrying the "🚫 Завершить диалог" button, and strips that same button
-   * from whichever earlier message on this side of the thread still had it (best effort — a
-   * missing/already-edited old message is not worth failing over), so it only ever lives on the
-   * single most recent message either side received.
+   * Sends a text message carrying the "🚫 Завершить диалог" / "🚩 Пожаловаться" buttons, and
+   * strips those same buttons from whichever earlier message on this side of the thread still had
+   * them (best effort — a missing/already-edited old message is not worth failing over), so they
+   * only ever live on the single most recent message either side received.
    */
   private async sendWithEndButton(
     token: string,
@@ -996,7 +1139,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       chat_id: chatId,
       text,
       reply_markup: {
-        inline_keyboard: [[{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }]],
+        inline_keyboard: [
+          [{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }],
+          [{ text: '🚩 Пожаловаться', callback_data: `${REPORT_PREFIX}${thread.id}` }],
+        ],
       },
     });
 
@@ -1006,8 +1152,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return sent;
   }
 
-  private async recordRelay(threadId: string, direction: 'client_to_performer' | 'performer_to_client', chatId: string, messageId: number) {
-    await this.db.insert(telegramBotRelayMessages).values({ threadId, direction, chatId, messageId });
+  private async recordRelay(
+    threadId: string,
+    direction: 'client_to_performer' | 'performer_to_client',
+    chatId: string,
+    messageId: number,
+    body: string,
+  ) {
+    await this.db.insert(telegramBotRelayMessages).values({ threadId, direction, chatId, messageId, body });
   }
 
   private async touchThread(threadId: string): Promise<void> {

@@ -9,6 +9,7 @@ export * from './telegram-link-tokens';
 export * from './telegram-bot-clients';
 export * from './telegram-bot-threads';
 export * from './telegram-bot-relay-messages';
+export * from './telegram-bot-reports';
 export * from './reviews';
 export * from './reports';
 export * from './listing-photo-reviews';

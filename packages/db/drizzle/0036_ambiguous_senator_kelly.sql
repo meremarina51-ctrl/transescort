@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_bot_relay_messages" ADD COLUMN "body" text;
