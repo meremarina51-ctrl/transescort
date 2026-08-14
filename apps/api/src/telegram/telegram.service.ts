@@ -528,13 +528,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       .set({ ageConfirmedAt: new Date(), rulesAcceptedAt: new Date(), pendingListingId: null, updatedAt: new Date() })
       .where(eq(telegramBotClients.id, client.id));
 
-    if (!client.pendingListingId) {
-      await this.callApi(token, 'sendMessage', {
-        chat_id: chatId,
-        text: '🙏 Спасибо! Теперь откройте «Написать в Telegram» на странице анкеты исполнителя на сайте.',
-      });
-      return;
-    }
+    if (!client.pendingListingId) return;
 
     const row = await this.findContactableListing(client.pendingListingId);
     if (!row) {
@@ -582,8 +576,17 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
 
     const chatId = callbackQuery.message?.chat?.id;
+    const messageId = callbackQuery.message?.message_id;
     const telegramId = String(callbackQuery.from?.id);
     if (!chatId) return;
+
+    // Telegram has no notion of a "disabled" button — pulling the keyboard the moment it's tapped
+    // is the closest equivalent, so a second tap (impatience, double-click) has nothing left to press.
+    if (messageId) {
+      await this.callApi(token, 'editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } }).catch(
+        () => undefined,
+      );
+    }
 
     const clientRows = await this.db.select().from(telegramBotClients).where(eq(telegramBotClients.telegramId, telegramId)).limit(1);
     const client = clientRows[0];
@@ -602,9 +605,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Performer tapped "🚫 Завершить диалог" on a relayed message. Marks the thread ended so it drops
-   * out of the "active thread" fallback (see `mostRecentThread`), removes the now-stale button, and
-   * lets the client know — without revealing anything about the performer beyond the bot already does.
+   * Either side taps "🚫 Завершить диалог" on a message they received — the performer on a
+   * relayed client message, the client on the greet message or a relayed performer reply. Marks
+   * the thread ended so it drops out of the "active thread" fallback (see `mostRecentThread`),
+   * removes the now-stale button, and notifies whichever side didn't tap it — without revealing
+   * anything about either party beyond what the bot already does.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async handleEndThread(token: string, callbackQuery: any, threadId: string) {
@@ -636,17 +641,21 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }).catch(() => undefined);
     }
 
-    const clientRows = await this.db
-      .select({ telegramId: telegramBotClients.telegramId })
-      .from(telegramBotClients)
-      .where(eq(telegramBotClients.id, thread.clientId))
-      .limit(1);
+    const [performerRows, clientRows] = await Promise.all([
+      this.db.select({ telegramId: users.telegramId }).from(users).where(eq(users.id, thread.performerId)).limit(1),
+      this.db.select({ telegramId: telegramBotClients.telegramId }).from(telegramBotClients).where(eq(telegramBotClients.id, thread.clientId)).limit(1),
+    ]);
+    const performerTelegramId: string | null = performerRows[0]?.telegramId ?? null;
     const clientTelegramId: string | null = clientRows[0]?.telegramId ?? null;
-    if (clientTelegramId) {
-      await this.callApi(token, 'sendMessage', {
-        chat_id: clientTelegramId,
-        text: '👋 Исполнитель завершил этот диалог. Чтобы написать снова, откройте «Написать в Telegram» на странице анкеты.',
-      }).catch(() => undefined);
+
+    const endedByPerformer = String(callbackQuery.from.id) === performerTelegramId;
+    const notifyTelegramId = endedByPerformer ? clientTelegramId : performerTelegramId;
+    const notifyText = endedByPerformer
+      ? '👋 Исполнитель завершил этот диалог. Чтобы написать снова, откройте «Написать в Telegram» на странице анкеты.'
+      : '👋 Клиент завершил этот диалог.';
+
+    if (notifyTelegramId) {
+      await this.callApi(token, 'sendMessage', { chat_id: notifyTelegramId, text: notifyText }).catch(() => undefined);
     }
   }
 
@@ -732,13 +741,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     const clientLabel = await this.resolveClientLabel(client, thread);
 
-    const sent = await this.callApi(token, 'sendMessage', {
-      chat_id: performerTelegramId,
-      text: `📩 Сообщение от ${clientLabel} через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
-      reply_markup: {
-        inline_keyboard: [[{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }]],
-      },
-    });
+    const sent = await this.sendWithEndButton(
+      token,
+      thread,
+      'performer',
+      performerTelegramId,
+      `📩 Сообщение от ${clientLabel} через LuxEscortia:\n\n${this.truncate(text)}\n\n(ответьте на это сообщение, чтобы отправить его клиенту)`,
+    );
 
     await this.recordRelay(thread.id, 'client_to_performer', performerTelegramId, sent.result.message_id);
     await this.touchThread(thread.id);
@@ -792,10 +801,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const clientTelegramId: string | null = clientRows[0]?.telegramId ?? null;
     if (!clientTelegramId) return;
 
-    const sent = await this.callApi(token, 'sendMessage', {
-      chat_id: clientTelegramId,
-      text: `💬 Ответ от исполнителя:\n\n${this.truncate(text)}`,
-    });
+    const sent = await this.sendWithEndButton(token, thread, 'client', clientTelegramId, `💬 Ответ от исполнителя:\n\n${this.truncate(text)}`);
 
     await this.recordRelay(thread.id, 'performer_to_client', clientTelegramId, sent.result.message_id);
     await this.touchThread(thread.id);
@@ -888,10 +894,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     // instead of to the anketa they just switched to.
     await this.touchThread(thread.id);
     const displayName = listingRow.listing.name || listingRow.performerName || 'исполнителем';
-    await this.callApi(token, 'sendMessage', {
-      chat_id: clientChatId,
-      text: `💬 Вы на связи с «${displayName}» через LuxEscortia. Напишите сообщение — оно будет передано анонимно, без раскрытия ваших данных.`,
-    });
+    await this.sendWithEndButton(
+      token,
+      thread,
+      'client',
+      clientChatId,
+      `💬 Вы на связи с «${displayName}» через LuxEscortia. Напишите сообщение — оно будет передано анонимно, без раскрытия ваших данных.`,
+    );
   }
 
   /**
@@ -958,6 +967,43 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       .where(and(eq(users.telegramId, telegramId), eq(users.role, 'performer')))
       .limit(1);
     return Boolean(rows[0]);
+  }
+
+  /**
+   * Sends a text message carrying the "🚫 Завершить диалог" button, and strips that same button
+   * from whichever earlier message on this side of the thread still had it (best effort — a
+   * missing/already-edited old message is not worth failing over), so it only ever lives on the
+   * single most recent message either side received.
+   */
+  private async sendWithEndButton(
+    token: string,
+    thread: { id: string; performerButtonMessageId: number | null; clientButtonMessageId: number | null },
+    side: 'performer' | 'client',
+    chatId: string,
+    text: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<any> {
+    const oldMessageId = side === 'performer' ? thread.performerButtonMessageId : thread.clientButtonMessageId;
+    if (oldMessageId) {
+      await this.callApi(token, 'editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: oldMessageId,
+        reply_markup: { inline_keyboard: [] },
+      }).catch(() => undefined);
+    }
+
+    const sent = await this.callApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        inline_keyboard: [[{ text: '🚫 Завершить диалог', callback_data: `${END_THREAD_PREFIX}${thread.id}` }]],
+      },
+    });
+
+    const field = side === 'performer' ? 'performerButtonMessageId' : 'clientButtonMessageId';
+    await this.db.update(telegramBotThreads).set({ [field]: sent.result.message_id }).where(eq(telegramBotThreads.id, thread.id));
+
+    return sent;
   }
 
   private async recordRelay(threadId: string, direction: 'client_to_performer' | 'performer_to_client', chatId: string, messageId: number) {

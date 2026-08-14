@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { telegramBotClients } from './telegram-bot-clients';
 import { users } from './users';
 
@@ -25,6 +25,16 @@ export const telegramBotThreads = pgTable(
      * still works regardless — that's an explicit action, not the implicit fallback.
      */
     endedAt: timestamp('ended_at'),
+
+    /**
+     * message_id of the most recent message on each side that still carries the "🚫 Завершить
+     * диалог" button — before attaching the button to a new message, the bot strips it from
+     * whichever message this points at, so only ever one message per side shows it. Each side's
+     * chat id is just their own Telegram id (performer via `users`, client via
+     * `telegram_bot_clients`), so only the message id needs storing here.
+     */
+    performerButtonMessageId: integer('performer_button_message_id'),
+    clientButtonMessageId: integer('client_button_message_id'),
   },
   (table) => ({
     pairIdx: uniqueIndex('telegram_bot_threads_pair_idx').on(table.clientId, table.performerId),
