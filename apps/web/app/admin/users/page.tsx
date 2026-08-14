@@ -14,6 +14,7 @@ import {
   Send,
   ShieldOff,
   Trash2,
+  Unlink2,
   UserCog,
   X,
 } from 'lucide-react';
@@ -32,6 +33,8 @@ interface AdminUser {
   phone: string | null;
   createdAt: string;
   messagingRestrictedAt: string | null;
+  telegramUsername: string | null;
+  telegramLinkedAt: string | null;
 }
 
 interface TelegramBotClient {
@@ -71,6 +74,7 @@ function RowActions({
   // onEdit,
   onToggleStatus,
   onToggleMessagingRestriction,
+  onUnlinkTelegram,
   onRemove,
 }: {
   user: AdminUser;
@@ -79,6 +83,7 @@ function RowActions({
   // onEdit: () => void;
   onToggleStatus: () => void;
   onToggleMessagingRestriction: () => void;
+  onUnlinkTelegram: () => void;
   onRemove: () => void;
 }) {
   const restricted = Boolean(user.messagingRestrictedAt);
@@ -92,6 +97,17 @@ function RowActions({
       >
         <Pencil className="h-4 w-4" />
       </button> */}
+      {user.telegramLinkedAt ? (
+        <button
+          type="button"
+          onClick={onUnlinkTelegram}
+          disabled={busy}
+          title={`Отвязать Telegram${user.telegramUsername ? ` (@${user.telegramUsername})` : ''}`}
+          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Unlink2 className="h-4 w-4" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onToggleMessagingRestriction}
@@ -395,6 +411,21 @@ export default function AdminUsersPage() {
     }
   };
 
+  const unlinkTelegram = async (u: AdminUser) => {
+    setActionError('');
+    setActionId(u.id);
+    try {
+      const res = await authFetch(`/admin/users/${u.id}/telegram-unlink`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось отвязать Telegram');
+      setUsers((prev) => prev.map((row) => (row.id === data.id ? data : row)));
+    } catch (err: any) {
+      setActionError(err.message || 'Не удалось отвязать Telegram');
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const openDelete = (u: AdminUser) => {
     setDeleteTarget(u);
     setDeleteError('');
@@ -544,6 +575,7 @@ export default function AdminUsersPage() {
                           // onEdit={() => openEdit(u)}
                           onToggleStatus={() => toggleStatus(u)}
                           onToggleMessagingRestriction={() => toggleMessagingRestriction(u)}
+                          onUnlinkTelegram={() => unlinkTelegram(u)}
                           onRemove={() => openDelete(u)}
                         />
                       </div>

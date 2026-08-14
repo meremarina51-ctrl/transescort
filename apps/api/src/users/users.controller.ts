@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagg
 import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
+import { TelegramService } from '../telegram/telegram.service';
 import { UsersService } from './users.service';
 
 class AdminUpdateUserDto {
@@ -55,7 +56,10 @@ class SetMessagingRestrictionDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminUsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Список всех пользователей' })
@@ -109,6 +113,16 @@ export class AdminUsersController {
     if (!existing) throw new NotFoundException('Пользователь не найден');
 
     await this.usersService.setMessagingRestriction(id, body.restricted);
+    return this.usersService.findPublicById(id);
+  }
+
+  @Patch(':id/telegram-unlink')
+  @ApiOperation({ summary: 'Принудительно отвязать Telegram-аккаунт от профиля пользователя' })
+  async unlinkTelegram(@Param('id') id: string) {
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Пользователь не найден');
+
+    await this.telegramService.unlink(id);
     return this.usersService.findPublicById(id);
   }
 
