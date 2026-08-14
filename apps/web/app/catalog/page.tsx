@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { CatalogClientPage } from './CatalogClientPage';
@@ -22,7 +23,9 @@ export default async function CatalogPage() {
       <Header />
       <main className="flex-1 py-16">
         <div className="mx-auto max-w-[1400px] px-6 md:px-10">
-          <CatalogClientPage initialListings={listings} />
+          <Suspense fallback={null}>
+            <CatalogClientPage initialListings={listings} />
+          </Suspense>
         </div>
       </main>
       <Footer />

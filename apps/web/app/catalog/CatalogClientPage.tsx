@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { BadgeCheck, ChevronLeft, ChevronRight, ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';
 import { toSelectOptions } from '@/lib/listing-options';
 import { formatPrice } from '@/lib/format';
-import { getRotatedListings } from './catalog-rotation';
+import { getOrCreateRotationSeed, getRotatedListings } from './catalog-rotation';
 import type { CategoricalField, CatalogListing, NumericField, SortOption } from './catalog.types';
 import {
   ALL_CATEGORICAL_FIELDS,
@@ -19,6 +20,8 @@ import {
   SELECT_FILTERS,
   numberInputClass,
 } from './catalog.constants';
+
+const PAGE_SIZE = 24;
 
 function anketaWord(n: number): string {
   const mod10 = n % 10;
@@ -42,7 +45,40 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-10 flex items-center justify-center gap-4">
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+        aria-label="Предыдущая страница"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] text-white/50 transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <span className="font-body text-sm text-white/50">
+        Страница {page} из {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages}
+        aria-label="Следующая страница"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] text-white/50 transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export function CatalogClientPage({ initialListings }: { initialListings: CatalogListing[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [numeric, setNumeric] = useState(EMPTY_NUMERIC);
@@ -51,6 +87,37 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
   const [mobileLocationOpen, setMobileLocationOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   useOutsideClose(panelOpen, filterRef, useCallback(() => setPanelOpen(false), []));
+
+  /** URL-backed, not component state — so the browser's own back button restores both the page number and scroll position after visiting an anketa. */
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const setPage = useCallback(
+    (next: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next <= 1) params.delete('page');
+      else params.set('page', String(next));
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    },
+    [pathname, router, searchParams],
+  );
+
+  /**
+   * Filters changing the result set makes the current page number potentially meaningless — jump
+   * back to page 1, but only when a filter actually changed. Guards with a value comparison rather
+   * than a one-shot "first run" ref: when the browser back button restores this page from Next.js's
+   * router cache, React re-invokes this effect twice in a row (reconnecting an offscreen tree), which
+   * defeats a simple "already ran once" flag — the second invocation would see the flag already
+   * flipped and fire a spurious reset. Comparing against the previous values is idempotent no matter
+   * how many times it's replayed.
+   */
+  const prevFiltersRef = useRef({ search, sortBy, numeric, categorical });
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    const changed = prev.search !== search || prev.sortBy !== sortBy || prev.numeric !== numeric || prev.categorical !== categorical;
+    prevFiltersRef.current = { search, sortBy, numeric, categorical };
+    if (changed) setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, sortBy, numeric, categorical]);
 
   const setRange = (field: NumericField, bound: 'min' | 'max', value: number) =>
     setNumeric((prev) => ({ ...prev, [field]: { ...prev[field], [bound]: value } }));
@@ -75,14 +142,16 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
   };
 
   /**
-   * Randomized once per browser session (see catalog-rotation.ts) — every filter/sort below
-   * operates on this fixed base order. Starts as the server-rendered order and only shuffles
-   * client-side after mount: Math.random() would differ between the SSR pass and the client's
-   * first render otherwise, causing a hydration mismatch.
+   * Starts as the server-rendered order and only shuffles client-side after mount: applying the seed
+   * during the SSR pass would produce different HTML than the client's own hydration render (browser
+   * `sessionStorage`/`Math.random()` aren't available/deterministic on the server), causing a
+   * mismatch. The seed itself (see catalog-rotation.ts) is read fresh on every run of this effect —
+   * it comes back from sessionStorage unchanged unless this was a genuine reload, so the shuffle
+   * stays stable across paging and back-navigation but rotates on open/reload.
    */
   const [rotatedListings, setRotatedListings] = useState(initialListings);
   useEffect(() => {
-    setRotatedListings(getRotatedListings(initialListings));
+    setRotatedListings(getRotatedListings(initialListings, getOrCreateRotationSeed()));
   }, [initialListings]);
 
   const geoData = useMemo<GeoCountry[]>(() => {
@@ -124,6 +193,10 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
 
     return result;
   }, [rotatedListings, search, sortBy, numeric, categorical]);
+
+  const totalPages = Math.max(1, Math.ceil(listings.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages);
+  const pagedListings = listings.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
 
   const locationLabel = categorical.city || categorical.country;
 
@@ -258,7 +331,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((listing) => (
+            {pagedListings.map((listing) => (
               <Link
                 key={listing.id}
                 href={`/catalog/${listing.slug ?? listing.id}`}
@@ -303,6 +376,8 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
             ))}
           </div>
         )}
+
+        <Pagination page={clampedPage} totalPages={totalPages} onChange={setPage} />
       </div>
     </div>
   );
