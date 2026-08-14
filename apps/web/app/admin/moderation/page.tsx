@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Check,
@@ -103,6 +103,26 @@ const REPORT_CATEGORY_LABEL: Record<string, string> = {
   inappropriate: 'Неприемлемый контент',
   other: 'Другое',
 };
+
+interface TelegramBotReportItem {
+  id: string;
+  threadId: string;
+  reporterRole: 'client' | 'performer';
+  category: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  adminNote: string | null;
+  createdAt: string;
+  performerLogin: string | null;
+  performerName: string | null;
+  clientUsername: string | null;
+  clientTelegramId: string;
+}
+
+interface TelegramReportMessage {
+  direction: 'client_to_performer' | 'performer_to_client';
+  body: string | null;
+  createdAt: string;
+}
 
 interface AdminConversationParticipant {
   id: string;
@@ -671,6 +691,16 @@ export default function AdminModerationPage() {
 
   const [restrictActionId, setRestrictActionId] = useState<string | null>(null);
 
+  const [telegramReportQueue, setTelegramReportQueue] = useState<TelegramBotReportItem[]>([]);
+  const [telegramReportsLoading, setTelegramReportsLoading] = useState(true);
+  const [telegramReportsLoadError, setTelegramReportsLoadError] = useState('');
+  const [telegramReportActionError, setTelegramReportActionError] = useState('');
+  const [telegramReportActionId, setTelegramReportActionId] = useState<string | null>(null);
+  const [expandedTelegramReportId, setExpandedTelegramReportId] = useState<string | null>(null);
+  const [telegramConversations, setTelegramConversations] = useState<Record<string, TelegramReportMessage[]>>({});
+  const [telegramConversationLoadingId, setTelegramConversationLoadingId] = useState<string | null>(null);
+  const [telegramConversationError, setTelegramConversationError] = useState('');
+
   const load = async () => {
     setLoading(true);
     setLoadError('');
@@ -811,11 +841,68 @@ export default function AdminModerationPage() {
     }
   };
 
+  const loadTelegramReports = async () => {
+    setTelegramReportsLoading(true);
+    setTelegramReportsLoadError('');
+    try {
+      const res = await authFetch('/admin/telegram-reports');
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить жалобы из Telegram-бота');
+      setTelegramReportQueue((data ?? []).filter((r: TelegramBotReportItem) => r.status === 'pending'));
+    } catch (err: any) {
+      setTelegramReportsLoadError(err.message || 'Не удалось загрузить жалобы из Telegram-бота');
+    } finally {
+      setTelegramReportsLoading(false);
+    }
+  };
+
+  const verifyTelegramReport = async (id: string, decision: 'resolved' | 'dismissed') => {
+    setTelegramReportActionError('');
+    setTelegramReportActionId(id);
+    try {
+      const res = await authFetch(`/admin/telegram-reports/${id}/verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось обработать жалобу');
+      setTelegramReportQueue((prev) => prev.filter((item) => item.id !== id));
+    } catch (err: any) {
+      setTelegramReportActionError(err.message || 'Не удалось обработать жалобу');
+    } finally {
+      setTelegramReportActionId(null);
+    }
+  };
+
+  const toggleTelegramReportConversation = async (id: string) => {
+    if (expandedTelegramReportId === id) {
+      setExpandedTelegramReportId(null);
+      return;
+    }
+    setExpandedTelegramReportId(id);
+    setTelegramConversationError('');
+    if (telegramConversations[id]) return;
+
+    setTelegramConversationLoadingId(id);
+    try {
+      const res = await authFetch(`/admin/telegram-reports/${id}/conversation`);
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить переписку');
+      setTelegramConversations((prev) => ({ ...prev, [id]: data ?? [] }));
+    } catch (err: any) {
+      setTelegramConversationError(err.message || 'Не удалось загрузить переписку');
+    } finally {
+      setTelegramConversationLoadingId(null);
+    }
+  };
+
   useEffect(() => {
     load();
     loadMedia();
     loadReviews();
     loadReports();
+    loadTelegramReports();
   }, []);
 
   const verify = async (id: string, decision: Decision, note?: string) => {
@@ -1060,6 +1147,131 @@ export default function AdminModerationPage() {
                       restrictBusy={restrictActionId === item.id}
                       onToggleMessagingRestriction={() => toggleMessagingRestriction(item)}
                     />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="mb-3 mt-8 flex items-center gap-2">
+            <h3 className="font-display text-sm font-bold text-white/70">Жалобы из Telegram-бота</h3>
+            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-xs text-white/50">{telegramReportQueue.length}</span>
+          </div>
+          {telegramReportActionError ? (
+            <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-body text-xs text-red-400">
+              {telegramReportActionError}
+            </p>
+          ) : null}
+          {telegramReportsLoading ? (
+            <p className="font-body text-sm text-white/40">Загрузка…</p>
+          ) : telegramReportsLoadError ? (
+            <p className="font-body text-sm text-red-400">{telegramReportsLoadError}</p>
+          ) : telegramReportQueue.length === 0 ? (
+            <EmptyColumn text="Необработанных жалоб из Telegram-бота нет" />
+          ) : (
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                    <th className="px-4 py-3 font-medium">Причина</th>
+                    <th className="px-4 py-3 font-medium">Кто пожаловался</th>
+                    <th className="px-4 py-3 font-medium">Исполнитель</th>
+                    <th className="px-4 py-3 font-medium">Клиент</th>
+                    <th className="px-4 py-3 font-medium">Дата</th>
+                    <th className="px-4 py-3 text-right font-medium">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {telegramReportQueue.map((report) => (
+                    <Fragment key={report.id}>
+                      <tr className="border-b border-white/[0.04] last:border-0">
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className="rounded-full border border-red-400/25 bg-red-400/10 px-2 py-0.5 font-body text-[11px] text-red-300">
+                            {REPORT_CATEGORY_LABEL[report.category] ?? report.category}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/50">
+                          {report.reporterRole === 'performer' ? 'Исполнитель' : 'Клиент'}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/50">
+                          {report.performerName || report.performerLogin || '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/50">
+                          {report.clientUsername ? `@${report.clientUsername}` : `id ${report.clientTelegramId}`}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/30">
+                          {new Date(report.createdAt).toLocaleDateString('ru-RU')}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleTelegramReportConversation(report.id)}
+                              title="Посмотреть переписку"
+                              className={`flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
+                                expandedTelegramReportId === report.id
+                                  ? 'border-accent/40 bg-accent/10 text-accent'
+                                  : 'border-white/15 text-white/70 hover:border-white/30 hover:text-white'
+                              }`}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => verifyTelegramReport(report.id, 'dismissed')}
+                              disabled={telegramReportActionId === report.id}
+                              title="Отклонить"
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/70 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => verifyTelegramReport(report.id, 'resolved')}
+                              disabled={telegramReportActionId === report.id}
+                              title="Обработано"
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedTelegramReportId === report.id ? (
+                        <tr className="border-b border-white/[0.04] bg-white/[0.015] last:border-0">
+                          <td colSpan={6} className="px-4 py-4">
+                            {telegramConversationLoadingId === report.id ? (
+                              <p className="font-body text-xs text-white/40">Загрузка переписки…</p>
+                            ) : telegramConversationError ? (
+                              <p className="font-body text-xs text-red-400">{telegramConversationError}</p>
+                            ) : (telegramConversations[report.id]?.length ?? 0) === 0 ? (
+                              <p className="font-body text-xs text-white/40">
+                                Переписки нет — все сообщения были отправлены до включения записи переписки.
+                              </p>
+                            ) : (
+                              <div className="max-h-80 space-y-2 overflow-y-auto">
+                                {telegramConversations[report.id]!.map((msg, i) => (
+                                  <div
+                                    key={i}
+                                    className={`max-w-[80%] rounded-xl px-3 py-2 font-body text-xs ${
+                                      msg.direction === 'client_to_performer'
+                                        ? 'bg-white/[0.06] text-white/70'
+                                        : 'ml-auto bg-accent/15 text-white/80'
+                                    }`}
+                                  >
+                                    <p className="mb-1 font-medium text-white/40">
+                                      {msg.direction === 'client_to_performer' ? 'Клиент' : 'Исполнитель'} ·{' '}
+                                      {new Date(msg.createdAt).toLocaleString('ru-RU')}
+                                    </p>
+                                    <p className="whitespace-pre-line">{msg.body ?? '(текст недоступен)'}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
