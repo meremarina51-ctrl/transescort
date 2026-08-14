@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { listings } from './listings';
 
 /**
@@ -18,6 +18,10 @@ export const telegramBotClients = pgTable(
 
     /** Listing the client tried to reach before the 18+/rules gate — resumed once they confirm. */
     pendingListingId: uuid('pending_listing_id').references(() => listings.id, { onDelete: 'set null' }),
+
+    /** Admin block for spam/abuse/rule violations — set, the bot refuses to start or continue any relay for this Telegram id. */
+    blockedAt: timestamp('blocked_at'),
+    blockedReason: text('blocked_reason'),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

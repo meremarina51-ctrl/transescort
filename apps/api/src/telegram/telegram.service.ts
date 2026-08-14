@@ -18,6 +18,14 @@ const MAX_RELAY_TEXT_LENGTH = 4000;
 const CONTACT_PAYLOAD_PREFIX = 'c_';
 /** Prefixes the "end dialog" inline button's callback_data — the rest is the thread id. */
 const END_THREAD_PREFIX = 'end_thread:';
+/** Prefixes the "start dialog" inline button's callback_data (shown under the anketa card) — the rest is the listing id. */
+const START_DIALOG_PREFIX = 'start_dialog:';
+/** Prefixes the welcome screen's "Далее" inline button's callback_data — the rest is the listing id. */
+const WELCOME_NEXT_PREFIX = 'welcome_next:';
+/** Telegram's own cap on how many items a single sendMediaGroup call may contain. */
+const MAX_MEDIA_GROUP_PHOTOS = 10;
+/** Telegram's cap on photo/media-group captions is 1024 chars; stay comfortably under it. */
+const MAX_CAPTION_LENGTH = 900;
 
 /** Anti-spam: caps how many messages one Telegram user can relay (either direction) in a short window. */
 const RELAY_SPAM_RATE_WINDOW_MS = 10_000;
@@ -159,10 +167,39 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
 
     const telegramId = String(message.from.id);
-    if (await this.isLinkedPerformer(telegramId)) {
+    if (!(await this.isLinkedPerformer(telegramId))) {
+      return this.relayFromClient(token, message, telegramId);
+    }
+
+    // This Telegram account is linked as a performer — but the same account can also be mid-flow
+    // as a *client* contacting some other anketa (or their own, while testing). Replying to a
+    // specific forwarded message is an unambiguous "I'm the performer" signal; a plain message
+    // needs a tie-breaker, so route to whichever side (client or performer) this account most
+    // recently touched — a freshly opened client thread is touched immediately by
+    // `openThreadAndGreet`, so it wins over a stale performer thread.
+    if (message.reply_to_message) {
       return this.relayFromPerformer(token, message, telegramId);
     }
-    return this.relayFromClient(token, message, telegramId);
+    const role = await this.resolveDualRoleRelayTarget(telegramId);
+    return role === 'client'
+      ? this.relayFromClient(token, message, telegramId)
+      : this.relayFromPerformer(token, message, telegramId);
+  }
+
+  private async resolveDualRoleRelayTarget(telegramId: string): Promise<'client' | 'performer'> {
+    const performerRows = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.telegramId, telegramId), eq(users.role, 'performer')))
+      .limit(1);
+    const performerThread = performerRows[0] ? await this.mostRecentThread(eq(telegramBotThreads.performerId, performerRows[0].id)) : null;
+
+    const clientRows = await this.db.select().from(telegramBotClients).where(eq(telegramBotClients.telegramId, telegramId)).limit(1);
+    const clientThread = clientRows[0] ? await this.mostRecentThread(eq(telegramBotThreads.clientId, clientRows[0].id)) : null;
+
+    if (!clientThread) return 'performer';
+    if (!performerThread) return 'client';
+    return clientThread.lastMessageAt.getTime() > performerThread.lastMessageAt.getTime() ? 'client' : 'performer';
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,6 +280,25 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       .where(eq(users.id, userId));
   }
 
+  /** Admin: every anonymous Telegram bot client (never a `users` row) — newest first. */
+  async listBotClients() {
+    return this.db.select().from(telegramBotClients).orderBy(desc(telegramBotClients.createdAt));
+  }
+
+  /**
+   * Admin: block or unblock a Telegram bot client for spam/abuse/rule violations. Once blocked, the
+   * bot refuses to start a new dialog or relay any further message for this Telegram id — see the
+   * checks in `handleClientStart` and `relayFromClient`.
+   */
+  async setBotClientBlocked(id: string, blocked: boolean, reason?: string) {
+    const updated = await this.db
+      .update(telegramBotClients)
+      .set({ blockedAt: blocked ? new Date() : null, blockedReason: blocked ? reason?.trim() || null : null, updatedAt: new Date() })
+      .where(eq(telegramBotClients.id, id))
+      .returning();
+    return updated[0];
+  }
+
   private async consumeLinkToken(
     rawToken: string,
     telegramId: string,
@@ -295,6 +351,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     const client = await this.findOrCreateClient(telegramId, telegramUsername);
 
+    if (client.blockedAt) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: '🚫 Доступ к боту ограничен администрацией.' });
+      return;
+    }
+
     if (!client.ageConfirmedAt || !client.rulesAcceptedAt) {
       await this.db
         .update(telegramBotClients)
@@ -304,7 +365,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.openThreadAndGreet(token, client.id, chatId, row);
+    await this.sendListingCard(token, chatId, row);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -312,6 +373,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const data: string | undefined = callbackQuery.data;
     if (data?.startsWith(END_THREAD_PREFIX)) {
       return this.handleEndThread(token, callbackQuery, data.slice(END_THREAD_PREFIX.length));
+    }
+    if (data?.startsWith(START_DIALOG_PREFIX)) {
+      return this.handleStartDialog(token, callbackQuery, data.slice(START_DIALOG_PREFIX.length));
+    }
+    if (data?.startsWith(WELCOME_NEXT_PREFIX)) {
+      return this.handleWelcomeNext(token, callbackQuery, data.slice(WELCOME_NEXT_PREFIX.length));
     }
 
     await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
@@ -343,6 +410,59 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       await this.callApi(token, 'sendMessage', {
         chat_id: chatId,
         text: '🚫 Спасибо! Анкета, с которой вы начинали, сейчас недоступна — попробуйте другую.',
+      });
+      return;
+    }
+
+    await this.sendWelcome(token, chatId, row.listing.id);
+  }
+
+  /**
+   * Client tapped "Далее" on the welcome screen (logo + platform blurb) shown right after they
+   * clear the 18+/rules gate. Only now does the anketa card itself appear.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleWelcomeNext(token: string, callbackQuery: any, listingId: string) {
+    await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    if (!chatId) return;
+
+    const row = await this.findContactableListing(listingId);
+    if (!row) {
+      await this.callApi(token, 'sendMessage', {
+        chat_id: chatId,
+        text: '🚫 Эта анкета сейчас недоступна для связи через Telegram.',
+      });
+      return;
+    }
+
+    await this.sendListingCard(token, chatId, row);
+  }
+
+  /**
+   * Client tapped "▶️ Начать диалог" under the anketa card. By this point they've always already
+   * cleared the 18+/rules gate — it's asked right after they first press Telegram's own "Start"
+   * button (handleClientStart/gate_accept), before the card is ever shown — so this just opens
+   * the thread. The gate fields are re-checked anyway as a defensive no-op.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleStartDialog(token: string, callbackQuery: any, listingId: string) {
+    await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    const telegramId = String(callbackQuery.from?.id);
+    if (!chatId) return;
+
+    const clientRows = await this.db.select().from(telegramBotClients).where(eq(telegramBotClients.telegramId, telegramId)).limit(1);
+    const client = clientRows[0];
+    if (!client || client.blockedAt || !client.ageConfirmedAt || !client.rulesAcceptedAt) return;
+
+    const row = await this.findContactableListing(listingId);
+    if (!row) {
+      await this.callApi(token, 'sendMessage', {
+        chat_id: chatId,
+        text: '🚫 Эта анкета сейчас недоступна для связи через Telegram.',
       });
       return;
     }
@@ -414,6 +534,29 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /** Shown once, right after the 18+/rules gate — logo banner + a short blurb about the platform, before the anketa card itself. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async sendWelcome(token: string, chatId: any, listingId: string) {
+    const frontendUrl = (this.configService.get<string>('FRONTEND_URL') ?? '').replace(/\/$/, '');
+    const logoUrl = `${frontendUrl}/telegram-logo`;
+    const caption =
+      '🌟 <b>LuxEscortia</b> — платформа проверенных анкет для организации досуга.\n\n' +
+      'Все сообщения передаются анонимно через этого бота — стороны не видят контакты друг друга.\n\n' +
+      '• Только промодерированные анкеты\n' +
+      '• Общение прямо здесь, в Telegram\n' +
+      '• Регистрация на сайте не нужна';
+
+    await this.callApi(token, 'sendPhoto', {
+      chat_id: chatId,
+      photo: logoUrl,
+      caption,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Далее ➡️', callback_data: `${WELCOME_NEXT_PREFIX}${listingId}` }]],
+      },
+    });
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async relayFromClient(token: string, message: any, telegramId: string) {
     const chatId = message.chat.id;
@@ -432,6 +575,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         chat_id: chatId,
         text: 'ℹ️ Чтобы написать исполнителю, откройте «Написать в Telegram» на странице анкеты на сайте LuxEscortia.',
       });
+      return;
+    }
+
+    if (client.blockedAt) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: '🚫 Доступ к боту ограничен администрацией.' });
       return;
     }
 
@@ -615,6 +763,63 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /**
+   * Shown before the thread opens: the performer's photos (single photo, media group, or — if the
+   * anketa has none — just text) plus a caption with their vitals, and a "▶️ Начать диалог" button
+   * underneath. `sendMediaGroup` doesn't support `reply_markup`, so with 2+ photos the button is a
+   * short follow-up message instead of living on the album itself.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async sendListingCard(token: string, chatId: any, row: { listing: any; performerName: string | null }) {
+    const caption = this.buildListingCaption(row);
+    const photos: string[] = Array.isArray(row.listing.photos) ? row.listing.photos.slice(0, MAX_MEDIA_GROUP_PHOTOS) : [];
+    const startButton = {
+      inline_keyboard: [[{ text: '▶️ Начать диалог', callback_data: `${START_DIALOG_PREFIX}${row.listing.id}` }]],
+    };
+
+    if (photos.length === 0) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: caption, parse_mode: 'HTML', reply_markup: startButton });
+      return;
+    }
+
+    if (photos.length === 1) {
+      await this.callApi(token, 'sendPhoto', {
+        chat_id: chatId,
+        photo: photos[0],
+        caption,
+        parse_mode: 'HTML',
+        reply_markup: startButton,
+      });
+      return;
+    }
+
+    await this.callApi(token, 'sendMediaGroup', {
+      chat_id: chatId,
+      media: photos.map((url, index) =>
+        index === 0 ? { type: 'photo', media: url, caption, parse_mode: 'HTML' } : { type: 'photo', media: url },
+      ),
+    });
+    await this.callApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: 'Готовы начать общение?',
+      reply_markup: startButton,
+    });
+  }
+
+  private buildListingCaption(row: { listing: any; performerName: string | null }): string {
+    const listing = row.listing;
+    const displayName = listing.name || row.performerName || 'Исполнитель';
+    const lines: string[] = [`✨ <b>${this.escapeHtml(displayName)}</b>${listing.age ? `, ${listing.age} лет` : ''}`];
+    if (listing.city) lines.push(`📍 ${this.escapeHtml(listing.city)}`);
+    if (listing.priceHour) lines.push(`💰 от ${listing.priceHour}₽/час`);
+    if (listing.bio) lines.push('', this.escapeHtml(listing.bio));
+    return this.truncate(lines.join('\n'), MAX_CAPTION_LENGTH);
+  }
+
+  private escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   private async isLinkedPerformer(telegramId: string): Promise<boolean> {
     const rows = await this.db
       .select({ id: users.id })
@@ -632,8 +837,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     await this.db.update(telegramBotThreads).set({ lastMessageAt: new Date() }).where(eq(telegramBotThreads.id, threadId));
   }
 
-  private truncate(text: string): string {
-    return text.length > MAX_RELAY_TEXT_LENGTH ? `${text.slice(0, MAX_RELAY_TEXT_LENGTH)}…` : text;
+  private truncate(text: string, maxLength: number = MAX_RELAY_TEXT_LENGTH): string {
+    return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
   }
 
   /**

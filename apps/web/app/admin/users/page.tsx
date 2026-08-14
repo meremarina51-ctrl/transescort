@@ -1,9 +1,26 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Ban, CheckCircle2, Loader2, MessageSquareOff, MessageSquareText, Search, Trash2, UserCog } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Loader2,
+  MessageSquareOff,
+  MessageSquareText,
+  Search,
+  Send,
+  ShieldOff,
+  Trash2,
+  UserCog,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+
+const PAGE_SIZE = 20;
 
 interface AdminUser {
   id: string;
@@ -15,6 +32,17 @@ interface AdminUser {
   phone: string | null;
   createdAt: string;
   messagingRestrictedAt: string | null;
+}
+
+interface TelegramBotClient {
+  id: string;
+  telegramId: string;
+  telegramUsername: string | null;
+  ageConfirmedAt: string | null;
+  rulesAcceptedAt: string | null;
+  blockedAt: string | null;
+  blockedReason: string | null;
+  createdAt: string;
 }
 
 const ROLE_LABELS: Record<AdminUser['role'], string> = {
@@ -109,6 +137,96 @@ function RowActions({
   );
 }
 
+function TelegramClientRow({
+  client,
+  busy,
+  onBlock,
+  onUnblock,
+}: {
+  client: TelegramBotClient;
+  busy: boolean;
+  onBlock: () => void;
+  onUnblock: () => void;
+}) {
+  const blocked = Boolean(client.blockedAt);
+  const gated = Boolean(client.ageConfirmedAt && client.rulesAcceptedAt);
+  return (
+    <tr className="border-b border-white/[0.04] last:border-0">
+      <td className="whitespace-nowrap px-4 py-3">
+        <p className="font-body text-sm font-medium text-white">
+          {client.telegramUsername ? `@${client.telegramUsername}` : 'Без username'}
+        </p>
+        <p className="font-body text-xs text-white/35">id {client.telegramId}</p>
+      </td>
+      <td className="whitespace-nowrap px-4 py-3">
+        {gated ? (
+          <span className="badge border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">Подтверждён</span>
+        ) : (
+          <span className="badge border border-white/10 bg-white/[0.06] text-white/50">Ожидает подтверждения</span>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3">
+        {blocked ? (
+          <span className="badge border border-red-500/25 bg-red-500/10 text-red-400" title={client.blockedReason ?? undefined}>
+            Заблокирован
+          </span>
+        ) : (
+          <span className="badge border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">Активен</span>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/40">
+        {new Date(client.createdAt).toLocaleDateString('ru-RU')}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={blocked ? onUnblock : onBlock}
+            disabled={busy}
+            title={blocked ? 'Снять блокировку' : 'Заблокировать доступ к боту'}
+            className={`rounded-lg p-2 transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30 ${
+              blocked ? 'text-emerald-400 hover:text-emerald-300' : 'text-white/40 hover:text-red-400'
+            }`}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : blocked ? <ShieldOff className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-3 flex items-center justify-end gap-3">
+      <span className="font-body text-xs text-white/35">
+        Страница {page} из {totalPages}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(page - 1)}
+          disabled={page <= 1}
+          aria-label="Предыдущая страница"
+          className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(page + 1)}
+          disabled={page >= totalPages}
+          aria-label="Следующая страница"
+          className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -128,6 +246,16 @@ export default function AdminUsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [usersPage, setUsersPage] = useState(1);
+
+  const [telegramClients, setTelegramClients] = useState<TelegramBotClient[]>([]);
+  const [telegramLoading, setTelegramLoading] = useState(true);
+  const [telegramLoadError, setTelegramLoadError] = useState('');
+  const [telegramActionError, setTelegramActionError] = useState('');
+  const [telegramActionId, setTelegramActionId] = useState<string | null>(null);
+  const [blockTarget, setBlockTarget] = useState<TelegramBotClient | null>(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [telegramPage, setTelegramPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -144,8 +272,24 @@ export default function AdminUsersPage() {
     }
   };
 
+  const loadTelegramClients = async () => {
+    setTelegramLoading(true);
+    setTelegramLoadError('');
+    try {
+      const res = await authFetch('/admin/telegram-clients');
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось загрузить пользователей Telegram-бота');
+      setTelegramClients(data ?? []);
+    } catch (err: any) {
+      setTelegramLoadError(err.message || 'Не удалось загрузить пользователей Telegram-бота');
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadTelegramClients();
   }, []);
 
   const filtered = useMemo(() => {
@@ -153,6 +297,16 @@ export default function AdminUsersPage() {
     if (!q) return users;
     return users.filter((u) => [u.login, u.fullName, u.email, u.phone].some((field) => field?.toLowerCase().includes(q)));
   }, [users, search]);
+
+  useEffect(() => {
+    setUsersPage(1);
+  }, [search]);
+
+  const usersTotalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedUsers = filtered.slice((usersPage - 1) * PAGE_SIZE, usersPage * PAGE_SIZE);
+
+  const telegramTotalPages = Math.max(1, Math.ceil(telegramClients.length / PAGE_SIZE));
+  const paginatedTelegramClients = telegramClients.slice((telegramPage - 1) * PAGE_SIZE, telegramPage * PAGE_SIZE);
 
   // const openEdit = (u: AdminUser) => {
   //   setEditingUser(u);
@@ -253,6 +407,36 @@ export default function AdminUsersPage() {
     }
   };
 
+  const setTelegramClientBlocked = async (id: string, blocked: boolean, reason?: string) => {
+    setTelegramActionError('');
+    setTelegramActionId(id);
+    try {
+      const res = await authFetch(`/admin/telegram-clients/${id}/block`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked, reason }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) {
+        const msgRaw = data?.message;
+        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось изменить блокировку');
+      }
+      setTelegramClients((prev) => prev.map((row) => (row.id === data.id ? data : row)));
+      setBlockTarget(null);
+      setBlockReason('');
+    } catch (err: any) {
+      setTelegramActionError(err.message || 'Не удалось изменить блокировку');
+    } finally {
+      setTelegramActionId(null);
+    }
+  };
+
+  const openBlock = (client: TelegramBotClient) => {
+    setBlockTarget(client);
+    setBlockReason('');
+    setTelegramActionError('');
+  };
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -297,7 +481,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => {
+              {paginatedUsers.map((u) => {
                 const isSelf = u.id === currentUser?.id;
                 const busy = actionId === u.id;
                 return (
@@ -338,6 +522,59 @@ export default function AdminUsersPage() {
               })}
             </tbody>
           </table>
+          <div className="px-4 pb-3">
+            <Pagination page={usersPage} totalPages={usersTotalPages} onChange={setUsersPage} />
+          </div>
+        </div>
+      )}
+
+      <div className="mb-4 mt-10 flex items-center gap-2">
+        <h2 className="font-display text-xl font-bold">Пользователи Telegram-бота</h2>
+        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-body text-xs text-white/50">{telegramClients.length}</span>
+      </div>
+
+      {telegramActionError ? (
+        <p className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2 font-body text-sm text-red-400">
+          {telegramActionError}
+        </p>
+      ) : null}
+
+      {telegramLoading ? (
+        <p className="font-body text-sm text-white/40">Загрузка…</p>
+      ) : telegramLoadError ? (
+        <p className="font-body text-sm text-red-400">{telegramLoadError}</p>
+      ) : telegramClients.length === 0 ? (
+        <div className="card flex flex-col items-center gap-3 p-12 text-center">
+          <Send className="h-8 w-8 text-white/25" strokeWidth={1.4} />
+          <p className="font-body text-sm text-white/40">Пока никто не писал через Telegram-бота</p>
+        </div>
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-white/[0.06] text-xs uppercase tracking-wide text-white/35">
+                <th className="px-4 py-3 font-medium">Telegram</th>
+                <th className="px-4 py-3 font-medium">Гейт 18+/правила</th>
+                <th className="px-4 py-3 font-medium">Статус</th>
+                <th className="px-4 py-3 font-medium">Первое обращение</th>
+                <th className="px-4 py-3 text-right font-medium">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedTelegramClients.map((client) => (
+                <TelegramClientRow
+                  key={client.id}
+                  client={client}
+                  busy={telegramActionId === client.id}
+                  onBlock={() => openBlock(client)}
+                  onUnblock={() => setTelegramClientBlocked(client.id, false)}
+                />
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 pb-3">
+            <Pagination page={telegramPage} totalPages={telegramTotalPages} onChange={setTelegramPage} />
+          </div>
         </div>
       )}
 
@@ -420,6 +657,52 @@ export default function AdminUsersPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-2.5 font-body text-sm font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
               >
                 {deleting ? 'Удаляем…' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {blockTarget ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setBlockTarget(null)} />
+          <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Заблокировать доступ к боту</h2>
+              <button type="button" onClick={() => setBlockTarget(null)} className="text-white/40 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 font-body text-sm text-white/40">
+              {blockTarget.telegramUsername ? `@${blockTarget.telegramUsername}` : `id ${blockTarget.telegramId}`} больше не
+              сможет писать через бота ни одному исполнителю.
+            </p>
+            <textarea
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              placeholder="Причина — необязательно (спам, жалоба, нарушение правил)"
+              rows={3}
+              maxLength={500}
+              className="input resize-none text-sm"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBlockTarget(null)}
+                disabled={telegramActionId === blockTarget.id}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => setTelegramClientBlocked(blockTarget.id, true, blockReason.trim() || undefined)}
+                disabled={telegramActionId === blockTarget.id}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-2.5 font-body text-sm font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
+              >
+                {telegramActionId === blockTarget.id ? 'Блокируем…' : 'Заблокировать'}
               </button>
             </div>
           </div>

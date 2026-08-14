@@ -55,9 +55,9 @@ export default async function HomePage() {
               Сервис по подбору моделей для досуга в Москве и Московской области
             </p>
             <div className="mt-10">
-              <button type="button" className="btn-primary">
+              <Link href="/catalog" className="btn-primary">
                 Перейти в каталог
-              </button>
+              </Link>
             </div>
           </div>
         </div>

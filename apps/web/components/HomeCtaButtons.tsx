@@ -13,9 +13,9 @@ export function HomeCtaButtons() {
           Создать аккаунт
         </Link>
       )}
-      <button type="button" className="btn-secondary">
+      <Link href="/catalog" className="btn-secondary">
         Исполнители
-      </button>
+      </Link>
     </div>
   );
 }
