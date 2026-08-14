@@ -299,6 +299,16 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return updated[0];
   }
 
+  /**
+   * Admin: permanently remove an anonymous Telegram bot client. Cascades (via FK `onDelete:
+   * 'cascade'`) to their threads and every relayed message in them — the performer side of any
+   * conversation just sees it go silent, same as if the client had never contacted them.
+   */
+  async deleteBotClient(id: string): Promise<boolean> {
+    const deleted = await this.db.delete(telegramBotClients).where(eq(telegramBotClients.id, id)).returning();
+    return deleted.length > 0;
+  }
+
   private async consumeLinkToken(
     rawToken: string,
     telegramId: string,

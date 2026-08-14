@@ -142,11 +142,13 @@ function TelegramClientRow({
   busy,
   onBlock,
   onUnblock,
+  onDelete,
 }: {
   client: TelegramBotClient;
   busy: boolean;
   onBlock: () => void;
   onUnblock: () => void;
+  onDelete: () => void;
 }) {
   const blocked = Boolean(client.blockedAt);
   const gated = Boolean(client.ageConfirmedAt && client.rulesAcceptedAt);
@@ -178,7 +180,7 @@ function TelegramClientRow({
         {new Date(client.createdAt).toLocaleDateString('ru-RU')}
       </td>
       <td className="whitespace-nowrap px-4 py-3">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-1">
           <button
             type="button"
             onClick={blocked ? onUnblock : onBlock}
@@ -189,6 +191,15 @@ function TelegramClientRow({
             }`}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : blocked ? <ShieldOff className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            title="Удалить"
+            className="rounded-lg p-2 text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </td>
@@ -255,6 +266,7 @@ export default function AdminUsersPage() {
   const [telegramActionId, setTelegramActionId] = useState<string | null>(null);
   const [blockTarget, setBlockTarget] = useState<TelegramBotClient | null>(null);
   const [blockReason, setBlockReason] = useState('');
+  const [telegramDeleteTarget, setTelegramDeleteTarget] = useState<TelegramBotClient | null>(null);
   const [telegramPage, setTelegramPage] = useState(1);
 
   const load = async () => {
@@ -437,6 +449,25 @@ export default function AdminUsersPage() {
     setTelegramActionError('');
   };
 
+  const confirmDeleteTelegramClient = async () => {
+    if (!telegramDeleteTarget) return;
+    setTelegramActionError('');
+    setTelegramActionId(telegramDeleteTarget.id);
+    try {
+      const res = await authFetch(`/admin/telegram-clients/${telegramDeleteTarget.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await parseBody(res);
+        throw new Error(data?.message || 'Не удалось удалить пользователя Telegram-бота');
+      }
+      setTelegramClients((prev) => prev.filter((row) => row.id !== telegramDeleteTarget.id));
+      setTelegramDeleteTarget(null);
+    } catch (err: any) {
+      setTelegramActionError(err.message || 'Не удалось удалить пользователя Telegram-бота');
+    } finally {
+      setTelegramActionId(null);
+    }
+  };
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -568,6 +599,10 @@ export default function AdminUsersPage() {
                   busy={telegramActionId === client.id}
                   onBlock={() => openBlock(client)}
                   onUnblock={() => setTelegramClientBlocked(client.id, false)}
+                  onDelete={() => {
+                    setTelegramDeleteTarget(client);
+                    setTelegramActionError('');
+                  }}
                 />
               ))}
             </tbody>
@@ -703,6 +738,47 @@ export default function AdminUsersPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-2.5 font-body text-sm font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
               >
                 {telegramActionId === blockTarget.id ? 'Блокируем…' : 'Заблокировать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {telegramDeleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            onClick={telegramActionId === telegramDeleteTarget.id ? undefined : () => setTelegramDeleteTarget(null)}
+          />
+          <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <AlertTriangle className="h-6 w-6 text-red-400" strokeWidth={1.6} />
+            </div>
+            <h2 className="mb-2 font-display text-lg font-bold">Удалить пользователя Telegram-бота?</h2>
+            <p className="font-body text-sm text-white/40">
+              {telegramDeleteTarget.telegramUsername ? `@${telegramDeleteTarget.telegramUsername}` : `id ${telegramDeleteTarget.telegramId}`} и
+              вся переписка с исполнителями будут удалены без возможности восстановления.
+            </p>
+
+            {telegramActionError ? <p className="mt-4 font-body text-sm text-red-400">{telegramActionError}</p> : null}
+
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setTelegramDeleteTarget(null)}
+                disabled={telegramActionId === telegramDeleteTarget.id}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteTelegramClient}
+                disabled={telegramActionId === telegramDeleteTarget.id}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-2.5 font-body text-sm font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
+              >
+                {telegramActionId === telegramDeleteTarget.id ? 'Удаляем…' : 'Удалить'}
               </button>
             </div>
           </div>
