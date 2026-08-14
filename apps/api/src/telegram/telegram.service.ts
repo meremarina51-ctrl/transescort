@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, createHash } from 'crypto';
-import { and, desc, eq, isNull, lt } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
 import {
   listings,
   telegramBotClients,
@@ -22,6 +22,10 @@ const END_THREAD_PREFIX = 'end_thread:';
 const START_DIALOG_PREFIX = 'start_dialog:';
 /** Prefixes the welcome screen's "Далее" inline button's callback_data — the rest is the listing id. */
 const WELCOME_NEXT_PREFIX = 'welcome_next:';
+/** Prefixes the account-link confirmation's "✅ Подтвердить" callback_data — the rest is the raw link token. */
+const LINK_CONFIRM_PREFIX = 'lc:';
+/** The account-link confirmation's "❌ Отмена" callback_data — no payload needed, the token is simply never consumed. */
+const LINK_CANCEL = 'lx';
 /** Telegram's own cap on how many items a single sendMediaGroup call may contain. */
 const MAX_MEDIA_GROUP_PHOTOS = 10;
 /** Telegram's cap on photo/media-group captions is 1024 chars; stay comfortably under it. */
@@ -60,7 +64,9 @@ export interface BotInfo {
  * Two independent flows share one bot:
  *
  * 1. **Account linking** (existing) — a logged-in user opens `t.me/<bot>?start=<token>` from
- *    /cabinet/settings to attach their Telegram to their platform account.
+ *    /cabinet/settings to attach their Telegram to their platform account. Shows a confirmation
+ *    screen first (nothing is claimed until they tap "✅ Подтвердить" — see `handleLinkConfirm`),
+ *    then a welcome screen with the platform logo once linked.
  * 2. **Anonymous client contact** (this file's main addition) — a site visitor, no account needed,
  *    opens `t.me/<bot>?start=c_<listingId>` from an anketa page. On first contact ever they must
  *    confirm 18+ and accept the rules (inline button); after that every message they send is
@@ -225,21 +231,118 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   // Flow 1: account linking (performer/client attaches their own Telegram in /cabinet/settings)
   // ---------------------------------------------------------------------------------------------
 
+  /**
+   * `/start <token>` only shows a confirmation screen — the token itself isn't touched here (see
+   * `peekLinkToken`, a plain read). Actually claiming it happens atomically in `handleLinkConfirm`
+   * once the user taps "✅ Подтвердить", so a stale/expired link never gets a false-positive
+   * confirmation prompt, and nothing is committed until the user explicitly agrees.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async handleLinkStart(token: string, message: any, linkToken: string) {
     const chatId = message.chat.id;
-    const telegramId = String(message.from.id);
-    const telegramUsername: string | null = message.from.username ?? null;
+    const peek = await this.peekLinkToken(linkToken);
+    if (!peek.valid) {
+      await this.callApi(token, 'sendMessage', {
+        chat_id: chatId,
+        text: '⏰ Ссылка недействительна или устарела. Сгенерируйте новую в личном кабинете.',
+      });
+      return;
+    }
+
+    await this.callApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: `🔗 Привязать этот Telegram-аккаунт к профилю LuxEscortia${peek.login ? ` «@${peek.login}»` : ''}?`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Подтвердить', callback_data: `${LINK_CONFIRM_PREFIX}${linkToken}` },
+            { text: '❌ Отмена', callback_data: LINK_CANCEL },
+          ],
+        ],
+      },
+    });
+  }
+
+  private async peekLinkToken(rawToken: string): Promise<{ valid: boolean; login: string | null }> {
+    const tokenHash = this.hashToken(rawToken);
+    const rows = await this.db
+      .select({ usedAt: telegramLinkTokens.usedAt, expiresAt: telegramLinkTokens.expiresAt, userId: telegramLinkTokens.userId })
+      .from(telegramLinkTokens)
+      .where(eq(telegramLinkTokens.tokenHash, tokenHash))
+      .limit(1);
+    const record = rows[0];
+    if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+      return { valid: false, login: null };
+    }
+    const userRows = await this.db.select({ login: users.login }).from(users).where(eq(users.id, record.userId)).limit(1);
+    return { valid: true, login: userRows[0]?.login ?? null };
+  }
+
+  /**
+   * User tapped "✅ Подтвердить" on the confirmation screen. Actually claims and consumes the
+   * token (the atomic UPDATE in `consumeLinkToken`) and, on success, shows the welcome screen
+   * instead of a plain text reply.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleLinkConfirm(token: string, callbackQuery: any, linkToken: string) {
+    await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    const messageId = callbackQuery.message?.message_id;
+    if (!chatId) return;
+    if (messageId) {
+      await this.callApi(token, 'editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } }).catch(
+        () => undefined,
+      );
+    }
+
+    const telegramId = String(callbackQuery.from.id);
+    const telegramUsername: string | null = callbackQuery.from.username ?? null;
     const result = await this.consumeLinkToken(linkToken, telegramId, telegramUsername);
 
-    const reply =
-      result === 'ok'
-        ? '✅ Готово! Telegram привязан к вашему аккаунту LuxEscortia.'
-        : result === 'taken'
-          ? '⚠️ Этот Telegram-аккаунт уже привязан к другому профилю.'
-          : '⏰ Ссылка недействительна или устарела. Сгенерируйте новую в личном кабинете.';
+    if (result === 'ok') {
+      await this.sendLinkWelcome(token, chatId);
+      return;
+    }
 
+    const reply =
+      result === 'taken'
+        ? '⚠️ Этот Telegram-аккаунт уже привязан к другому профилю.'
+        : '⏰ Ссылка недействительна или устарела. Сгенерируйте новую в личном кабинете.';
     await this.callApi(token, 'sendMessage', { chat_id: chatId, text: reply });
+  }
+
+  /** User tapped "❌ Отмена" — the token was never claimed (see handleLinkStart), so it's still usable if they change their mind before it expires. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleLinkCancel(token: string, callbackQuery: any) {
+    await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
+
+    const chatId = callbackQuery.message?.chat?.id;
+    const messageId = callbackQuery.message?.message_id;
+    if (messageId) {
+      await this.callApi(token, 'editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } }).catch(
+        () => undefined,
+      );
+    }
+    if (chatId) {
+      await this.callApi(token, 'sendMessage', { chat_id: chatId, text: 'Привязка отменена.' }).catch(() => undefined);
+    }
+  }
+
+  /** Shown right after a successful account link — same logo banner as the client-contact welcome screen. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async sendLinkWelcome(token: string, chatId: any) {
+    const frontendUrl = (this.configService.get<string>('FRONTEND_URL') ?? '').replace(/\/$/, '');
+    const caption =
+      '🎉 <b>Готово!</b> Ваш Telegram привязан к аккаунту LuxEscortia.\n\n' +
+      'Уведомления и переписка теперь будут приходить прямо в этот чат.';
+
+    await this.callApi(token, 'sendPhoto', {
+      chat_id: chatId,
+      photo: `${frontendUrl}/telegram-logo`,
+      caption,
+      parse_mode: 'HTML',
+    });
   }
 
   private hashToken(token: string): string {
@@ -309,24 +412,37 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return deleted.length > 0;
   }
 
+  /**
+   * Claims the token with one conditional UPDATE (not a SELECT followed by a separate UPDATE) —
+   * if the same /start ever gets processed twice in close succession (e.g. Telegram redelivering
+   * an update across an API restart, since `updateOffset` only lives in memory), only one caller
+   * can ever see a row come back from this WHERE clause; the other unambiguously gets 'invalid'
+   * instead of both racing past a read that still showed the token as unused.
+   */
   private async consumeLinkToken(
     rawToken: string,
     telegramId: string,
     telegramUsername: string | null,
   ): Promise<'ok' | 'invalid' | 'taken'> {
     const tokenHash = this.hashToken(rawToken);
-    const rows = await this.db
-      .select()
-      .from(telegramLinkTokens)
-      .where(eq(telegramLinkTokens.tokenHash, tokenHash))
-      .limit(1);
-    const record = rows[0];
-    if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
-      return 'invalid';
-    }
+    const claimed = await this.db
+      .update(telegramLinkTokens)
+      .set({ usedAt: new Date() })
+      .where(
+        and(
+          eq(telegramLinkTokens.tokenHash, tokenHash),
+          isNull(telegramLinkTokens.usedAt),
+          gt(telegramLinkTokens.expiresAt, new Date()),
+        ),
+      )
+      .returning();
+    const record = claimed[0];
+    if (!record) return 'invalid';
 
     const takenRows = await this.db.select({ id: users.id }).from(users).where(eq(users.telegramId, telegramId)).limit(1);
     if (takenRows[0] && takenRows[0].id !== record.userId) {
+      // Not this attempt's fault — release the claim so the token is still usable once the conflict is resolved.
+      await this.db.update(telegramLinkTokens).set({ usedAt: null }).where(eq(telegramLinkTokens.id, record.id));
       return 'taken';
     }
 
@@ -334,7 +450,6 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       .update(users)
       .set({ telegramId, telegramUsername, telegramLinkedAt: new Date(), updatedAt: new Date() })
       .where(eq(users.id, record.userId));
-    await this.db.update(telegramLinkTokens).set({ usedAt: new Date() }).where(eq(telegramLinkTokens.id, record.id));
     await this.db.delete(telegramLinkTokens).where(lt(telegramLinkTokens.expiresAt, new Date()));
 
     return 'ok';
@@ -389,6 +504,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
     if (data?.startsWith(WELCOME_NEXT_PREFIX)) {
       return this.handleWelcomeNext(token, callbackQuery, data.slice(WELCOME_NEXT_PREFIX.length));
+    }
+    if (data?.startsWith(LINK_CONFIRM_PREFIX)) {
+      return this.handleLinkConfirm(token, callbackQuery, data.slice(LINK_CONFIRM_PREFIX.length));
+    }
+    if (data === LINK_CANCEL) {
+      return this.handleLinkCancel(token, callbackQuery);
     }
 
     await this.callApi(token, 'answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => undefined);
