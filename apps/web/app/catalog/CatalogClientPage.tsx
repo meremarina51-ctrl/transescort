@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { BadgeCheck, ChevronLeft, ChevronRight, ImageOff, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { BadgeCheck, ChevronLeft, ChevronRight, ImageOff, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
@@ -189,6 +189,8 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
 
     if (sortBy === 'name') {
       result = [...result].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'ru'));
+    } else if (sortBy === 'rating') {
+      result = [...result].sort((a, b) => b.averageRating - a.averageRating || b.reviewCount - a.reviewCount);
     }
 
     return result;
@@ -224,28 +226,33 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Pill active={sortBy === 'newest'} onClick={() => setSortBy('newest')}>
-              Новые
-            </Pill>
-            <Pill active={sortBy === 'name'} onClick={() => setSortBy('name')}>
-              А–Я
-            </Pill>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <Pill active={sortBy === 'newest'} onClick={() => setSortBy('newest')}>
+                Новые
+              </Pill>
+              <Pill active={sortBy === 'name'} onClick={() => setSortBy('name')}>
+                А–Я
+              </Pill>
+              <Pill active={sortBy === 'rating'} onClick={() => setSortBy('rating')}>
+                По рейтингу
+              </Pill>
 
-            <button
-              type="button"
-              onClick={() => setMobileLocationOpen(true)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-body text-xs font-medium transition-colors md:hidden ${
-                locationLabel
-                  ? 'border-accent/40 bg-accent/10 text-accent'
-                  : 'border-white/10 text-white/40 hover:text-white/70'
-              }`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              {locationLabel || 'Локация'}
-            </button>
+              <button
+                type="button"
+                onClick={() => setMobileLocationOpen(true)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-body text-xs font-medium transition-colors md:hidden ${
+                  locationLabel
+                    ? 'border-accent/40 bg-accent/10 text-accent'
+                    : 'border-white/10 text-white/40 hover:text-white/70'
+                }`}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                {locationLabel || 'Локация'}
+              </button>
+            </div>
 
-            <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3 sm:ml-auto">
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -360,9 +367,17 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                   </div>
                 )}
                 <div className="p-5">
-                  <h3 className="font-display text-xl font-bold transition-colors group-hover:text-accent">
-                    {listing.name || 'Без имени'}
-                  </h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-display text-xl font-bold transition-colors group-hover:text-accent">
+                      {listing.name || 'Без имени'}
+                    </h3>
+                    {listing.reviewCount > 0 ? (
+                      <span className="flex flex-shrink-0 items-center gap-1 font-body text-sm text-white/50">
+                        <Star className="h-3.5 w-3.5 fill-accent text-accent" strokeWidth={0} />
+                        {listing.averageRating.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-1 font-body text-sm text-white/40">
                     {[listing.age ? `${listing.age} лет` : null, listing.city].filter(Boolean).join(' · ')}
                   </p>

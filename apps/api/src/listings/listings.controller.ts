@@ -220,6 +220,12 @@ export class ListingsController {
     return this.listingsService.setVideo(req.user!.userId, null);
   }
 
+  @Get("me/media")
+  @ApiOperation({ summary: 'Получить медиа профиля' })
+  async getProfileMedia(@Request() req: RequestWithUser) {
+    return this.listingsService.getProfileMedia(req.user!.userId)
+  }
+
   private assertPerformer(req: RequestWithUser) {
     if (req.user?.role !== 'performer') {
       throw new ForbiddenException('Доступно только для исполнителей');

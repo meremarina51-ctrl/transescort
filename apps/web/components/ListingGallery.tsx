@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BadgeCheck, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
+import { BadgeCheck, Eye, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { ReportButton } from '@/components/ReportButton';
 import { formatPrice } from '@/lib/format';
@@ -40,6 +40,9 @@ interface Props {
   contactPhone: string | null;
   contactTelegram: string | null;
   contactWhatsapp: string | null;
+  /** The performer viewing their own anketa before publishing — hides actions that don't make sense on your own listing (contact, favorite, report) and swaps the close button's destination. */
+  preview?: boolean;
+  onClose?: () => void;
 }
 
 const PLACEHOLDER_COUNT = 6;
@@ -85,6 +88,8 @@ export function ListingGallery({
   contactPhone,
   contactTelegram,
   contactWhatsapp,
+  preview = false,
+  onClose,
 }: Props) {
   const router = useRouter();
   const { user } = useAuth();
@@ -235,10 +240,10 @@ export function ListingGallery({
               {active + 1} / {total}
             </div>
           )}
-          <FavoriteButton listingId={id} positionClassName="" />
+          {preview ? null : <FavoriteButton listingId={id} positionClassName="" />}
           <button
             type="button"
-            onClick={() => router.push('/catalog')}
+            onClick={() => (onClose ? onClose() : router.push('/catalog'))}
             aria-label="Закрыть просмотр анкеты"
             title="Закрыть просмотр анкеты"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
@@ -250,6 +255,12 @@ export function ListingGallery({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-6 pt-16">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h1 className="font-display text-3xl font-extrabold text-white drop-shadow-sm">{name}</h1>
+            {preview ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent/90 px-2.5 py-1 font-body text-xs font-medium text-white backdrop-blur-sm">
+                <Eye className="h-3.5 w-3.5" />
+                Предпросмотр
+              </span>
+            ) : null}
             {photosVerified ? (
               <span
                 title="Фото подтверждены модератором"
@@ -486,15 +497,17 @@ export function ListingGallery({
             )}
           </div>
 
-          <div className="grid flex-shrink-0 grid-cols-3 gap-2 border-t border-white/[0.06] p-3">
-            <button
-              type="button"
-              onClick={handleContactClick}
-              className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-2 py-2 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Связаться
-            </button>
+          <div className={`grid flex-shrink-0 gap-2 border-t border-white/[0.06] p-3 ${preview ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {preview ? null : (
+              <button
+                type="button"
+                onClick={handleContactClick}
+                className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-2 py-2 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Связаться
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setContactInfoOpen(true)}
@@ -517,9 +530,11 @@ export function ListingGallery({
             </button>
           </div>
 
-          <div className="flex flex-shrink-0 justify-center border-t border-white/[0.06] py-2">
-            <ReportButton targetType="listing" targetId={id} label="Пожаловаться на анкету" />
-          </div>
+          {preview ? null : (
+            <div className="flex flex-shrink-0 justify-center border-t border-white/[0.06] py-2">
+              <ReportButton targetType="listing" targetId={id} label="Пожаловаться на анкету" />
+            </div>
+          )}
         </div>
       </div>
 

@@ -4,31 +4,39 @@ import {
   Settings,
   FileText,
   BarChart3,
-  CreditCard,
   LayoutGrid,
   Heart,
   HelpCircle,
-  MessageCircle,
   MessageSquare,
   Image as ImageIcon,
   Star,
-  LifeBuoy,
 } from 'lucide-react';
 import { SITE_LINK } from '@/lib/site-nav.constants';
 
-export const OVERVIEW_TILES = [
-  {
-    href: '/cabinet/profile',
-    icon: User,
-    title: 'Профиль',
-    description: 'Имя, логин и данные аккаунта',
-  },
-  {
-    href: '/cabinet/settings',
-    icon: Settings,
-    title: 'Настройки',
-    description: 'Сессия и выход из аккаунта',
-  },
+/** Overview page tiles — one set per role, mirroring that role's sidebar nav (+ Настройки) so nothing on /cabinet is missing a shortcut. */
+export const PERFORMER_OVERVIEW_TILES = [
+  { href: '/cabinet/profile', icon: User, title: 'Профиль', description: 'Имя, логин и данные аккаунта' },
+  { href: '/cabinet/listing', icon: FileText, title: 'Моя анкета', description: 'Данные анкеты, цены и статус проверки' },
+  { href: '/cabinet/photos', icon: ImageIcon, title: 'Фото и видео', description: 'Фото, видео и статус модерации' },
+  { href: '/cabinet/reviews', icon: Star, title: 'Отзывы', description: 'Отзывы клиентов о вас' },
+  { href: '/cabinet/stats', icon: BarChart3, title: 'Статистика', description: 'Просмотры, избранное и обращения' },
+  { href: '/cabinet/chats', icon: MessageSquare, title: 'Чаты', description: 'Переписка с клиентами' },
+  { href: '/cabinet/settings', icon: Settings, title: 'Настройки', description: 'Сессия и выход из аккаунта' },
+] as const;
+
+export const CLIENT_OVERVIEW_TILES = [
+  { href: '/cabinet/profile', icon: User, title: 'Профиль', description: 'Имя, логин и данные аккаунта' },
+  { href: '/cabinet/favorites', icon: Heart, title: 'Избранное', description: 'Сохранённые анкеты' },
+  { href: '/cabinet/reviews', icon: Star, title: 'Мои отзывы', description: 'Отзывы, которые вы оставили' },
+  { href: '/cabinet/messages', icon: MessageSquare, title: 'Чаты', description: 'Переписка с исполнителями' },
+  { href: '/cabinet/settings', icon: Settings, title: 'Настройки', description: 'Сессия и выход из аккаунта' },
+] as const;
+
+/** Fallback for any account that's neither performer nor client (e.g. an admin visiting /cabinet directly). */
+export const DEFAULT_OVERVIEW_TILES = [
+  { href: '/cabinet/profile', icon: User, title: 'Профиль', description: 'Имя, логин и данные аккаунта' },
+  { href: '/cabinet/messages', icon: MessageSquare, title: 'Чаты', description: 'Переписка' },
+  { href: '/cabinet/settings', icon: Settings, title: 'Настройки', description: 'Сессия и выход из аккаунта' },
 ] as const;
 
 export const SIDEBAR_COLLAPSED_KEY = 'cabinet-sidebar-collapsed';

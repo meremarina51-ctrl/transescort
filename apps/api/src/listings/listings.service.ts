@@ -1,11 +1,12 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, count, desc, eq, gte, inArray, isNotNull } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import {
   contactEvents,
   listingPhotoReviews,
   listingViews,
   listings,
+  reviews,
   users,
   type ContactEventAction,
   type Listing,
@@ -21,10 +22,20 @@ export interface ListingWithOwner extends Listing {
   ownerTelegramLinked: boolean;
 }
 
+export interface ListingWithRating extends Listing {
+  averageRating: number;
+  reviewCount: number;
+}
+
 export interface PhotoReview {
   url: string;
   status: ListingPhotoReviewStatus;
   note: string | null;
+}
+
+export interface MediaResponse {
+  photos: string[],
+  videoUrl: string | null
 }
 
 /** Minimum photos required before a performer can send the anketa for admin review. */
@@ -39,13 +50,29 @@ export class ListingsService {
     return found[0] || null;
   }
 
-  /** Public catalog feed — published anketas only, newest first. */
-  async listPublished(): Promise<Listing[]> {
-    return this.db
-      .select()
+  /**
+   * Public catalog feed — published anketas only, newest first, each with its average rating and
+   * review count (published reviews only, same rule as the anketa page) computed in one aggregate
+   * query rather than N+1 per-listing lookups.
+   */
+  async listPublished(): Promise<ListingWithRating[]> {
+    const rows = await this.db
+      .select({
+        listing: listings,
+        averageRating: sql<number>`coalesce(avg(${reviews.rating}) filter (where ${reviews.status} = 'published'), 0)`,
+        reviewCount: sql<number>`count(${reviews.id}) filter (where ${reviews.status} = 'published')`,
+      })
       .from(listings)
+      .leftJoin(reviews, eq(reviews.listingId, listings.id))
       .where(eq(listings.status, 'published'))
+      .groupBy(listings.id)
       .orderBy(desc(listings.updatedAt));
+
+    return rows.map((row: { listing: Listing; averageRating: number; reviewCount: number }) => ({
+      ...row.listing,
+      averageRating: Number(row.averageRating),
+      reviewCount: Number(row.reviewCount),
+    }));
   }
 
   /**
@@ -654,5 +681,26 @@ export class ListingsService {
       .where(eq(listings.id, id))
       .returning();
     return updated[0];
+  }
+
+  async getProfileMedia(userId: string): Promise<MediaResponse> {
+    const [listing] = await this.db.select({ 
+        photos: listings.photos,
+        videoUrl: listings.videoUrl
+     })
+     .from(listings)
+     .where(eq(listings.userId, userId));
+
+     if(!listing) {
+      return {
+        photos: [],
+        videoUrl: null
+      }
+     }
+
+     return {
+      photos: listing.photos,
+      videoUrl: listing.videoUrl
+     }
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import {
   AlertCircle,
   BookOpen,
@@ -40,6 +41,7 @@ import {
   toSelectOptions,
 } from '@/lib/listing-options';
 import type { ListingAttributes } from '@/lib/listing.types';
+import { parseBody } from '@/lib/parse-body';
 
 /** Form state — unlike the read-only ListingAttributes shape, name/bio are always controlled strings, never null. */
 interface ListingParams extends Omit<ListingAttributes, 'name'> {
@@ -230,11 +232,6 @@ export default function ListingPage() {
   };
 
   const isDirty = JSON.stringify(params) !== JSON.stringify(initialParams);
-
-  const parseBody = async (res: Response) => {
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-  };
 
   const submitForReview = async () => {
     setSubmitting(true);
@@ -446,6 +443,17 @@ export default function ListingPage() {
         ) : (
           <span className="badge border border-white/10 bg-white/[0.06] text-white/40">Черновик</span>
         )}
+        {status !== null ? (
+          <Link
+            href="/preview"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-semibold text-white/70 transition-colors hover:border-accent hover:text-white"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Предпросмотр
+          </Link>
+        ) : null}
       </div>
       {(status === 'changes_requested' || status === 'blocked') && verificationNote ? (
         <p className={`mb-6 font-body text-sm ${status === 'blocked' ? 'text-red-400' : 'text-orange-300'}`}>
