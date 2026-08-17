@@ -13,6 +13,9 @@ interface ListingDetail extends ListingAttributes {
   ownerLogin: string | null;
   ownerTelegramLinked: boolean;
   photosVerified: boolean;
+  contactPhone: string | null;
+  contactTelegram: string | null;
+  contactWhatsapp: string | null;
 }
 
 const EMPTY_REVIEWS: ListingReviewsSummary = { items: [], count: 0, averageRating: 0 };
@@ -96,6 +99,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           telegramBotUsername={telegramBotUsername}
           initialReviews={reviews}
           photosVerified={listing.photosVerified}
+          contactPhone={listing.contactPhone}
+          contactTelegram={listing.contactTelegram}
+          contactWhatsapp={listing.contactWhatsapp}
         />
       </main>
       <Footer />

@@ -37,9 +37,22 @@ interface Props {
   telegramBotUsername: string | null;
   initialReviews: ListingReviewsSummary;
   photosVerified: boolean;
+  contactPhone: string | null;
+  contactTelegram: string | null;
+  contactWhatsapp: string | null;
 }
 
 const PLACEHOLDER_COUNT = 6;
+
+function telegramHref(value: string): string {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://t.me/${trimmed.replace(/^@/, '')}`;
+}
+
+function whatsappHref(value: string): string {
+  return `https://wa.me/${value.replace(/[^\d]/g, '')}`;
+}
 
 function formatReviewDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -69,6 +82,9 @@ export function ListingGallery({
   telegramBotUsername,
   initialReviews,
   photosVerified,
+  contactPhone,
+  contactTelegram,
+  contactWhatsapp,
 }: Props) {
   const router = useRouter();
   const { user } = useAuth();
@@ -81,6 +97,7 @@ export function ListingGallery({
   const current = media[active];
 
   const [contactOpen, setContactOpen] = useState(false);
+  const [contactInfoOpen, setContactInfoOpen] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
   const [startChatError, setStartChatError] = useState('');
 
@@ -480,6 +497,7 @@ export function ListingGallery({
             </button>
             <button
               type="button"
+              onClick={() => setContactInfoOpen(true)}
               className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
             >
               <Phone className="h-3.5 w-3.5" />
@@ -551,6 +569,76 @@ export function ListingGallery({
             </div>
 
             {startChatError ? <p className="mt-3 font-body text-sm text-red-400">{startChatError}</p> : null}
+          </div>
+        </div>
+      ) : null}
+
+      {contactInfoOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setContactInfoOpen(false)} />
+          <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Контакты {name}</h2>
+              <button type="button" onClick={() => setContactInfoOpen(false)} className="text-white/40 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {contactPhone || contactTelegram || contactWhatsapp ? (
+              <div className="space-y-2">
+                {contactPhone ? (
+                  <a
+                    href={`tel:${contactPhone.replace(/[^\d+]/g, '')}`}
+                    className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3 transition-colors hover:bg-accent/15"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-body text-sm font-medium text-white">Телефон</p>
+                      <p className="truncate font-body text-xs text-white/40">{contactPhone}</p>
+                    </div>
+                  </a>
+                ) : null}
+
+                {contactTelegram ? (
+                  <a
+                    href={telegramHref(contactTelegram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3 transition-colors hover:bg-accent/15"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                      <Send className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-body text-sm font-medium text-white">Telegram</p>
+                      <p className="truncate font-body text-xs text-white/40">{contactTelegram}</p>
+                    </div>
+                  </a>
+                ) : null}
+
+                {contactWhatsapp ? (
+                  <a
+                    href={whatsappHref(contactWhatsapp)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3 transition-colors hover:bg-accent/15"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                      <MessageCircle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-body text-sm font-medium text-white">WhatsApp</p>
+                      <p className="truncate font-body text-xs text-white/40">{contactWhatsapp}</p>
+                    </div>
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-white/40">Исполнитель пока не указал контакты для прямой связи.</p>
+            )}
           </div>
         </div>
       ) : null}
