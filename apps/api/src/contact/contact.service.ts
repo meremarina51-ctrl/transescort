@@ -14,15 +14,20 @@ export class ContactService {
   private readonly toEmail: string;
 
   constructor(private readonly configService: ConfigService) {
+    const port = this.configService.get<number>('SMTP_PORT');
+    const user = this.configService.get<string>('SMTP_USER');
+    const pass = this.configService.get<string>('SMTP_PASS');
+
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST'),
-      port: this.configService.get<number>('SMTP_PORT'),
-      secure: false,
-      // The relay (Mailhog locally; a same-host/trusted relay in prod per SMTP_HOST) doesn't need
-      // TLS — without this, nodemailer opportunistically negotiates STARTTLS if the server merely
-      // advertises it, and a broken handshake silently hangs for its ~2min default timeout instead
-      // of failing fast.
-      ignoreTLS: true,
+      port,
+      // 465 is implicit TLS (e.g. Yandex); everything else (587, Mailhog's 1025/1026, ...) starts
+      // plain and upgrades via STARTTLS only if the server actually advertises it — Mailhog doesn't,
+      // so it stays plain; real providers like Yandex require this and will reject a plain connection.
+      secure: Number(port) === 465,
+      auth: user && pass ? { user, pass } : undefined,
+      // Fails fast instead of silently hanging on a broken/unreachable host — see the 127.0.0.1
+      // vs "localhost" IPv6 issue this project hit locally with Mailhog on Docker Desktop.
       connectionTimeout: 10_000,
     });
     this.fromEmail = this.configService.get<string>('SMTP_FROM') ?? 'LuxEscortia <noreply@luxescortia.local>';
