@@ -28,6 +28,12 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+
   const [recoveryPromptOpen, setRecoveryPromptOpen] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
   const [regenerating, setRegenerating] = useState(false);
@@ -179,6 +185,33 @@ export default function SettingsPage() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || newPassword !== confirmPassword) return;
+
+    setChangingPassword(true);
+    setChangePasswordError('');
+    try {
+      const res = await authFetch('/auth/change-password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await parseBody(res);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Не удалось изменить пароль');
+      }
+
+      // Server ends every session (including this one) on a successful change — log out here too,
+      // so the user re-authenticates with the new password instead of riding the old access token
+      // until it silently expires.
+      logout();
+    } catch (err: any) {
+      setChangePasswordError(err.message || 'Не удалось изменить пароль');
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <>
       <h1 className="mb-6 font-display text-2xl font-bold">Настройки</h1>
@@ -238,6 +271,53 @@ export default function SettingsPage() {
           >
             Выйти из аккаунта
           </button>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="mb-2 font-body text-sm uppercase tracking-wide text-white/35">
+            Изменить пароль
+          </h2>
+          <p className="mb-4 font-body text-sm text-white/40">
+            Позволяет сменить пароль, если вы помните текущий. Если забыли, используйте код восстановления.
+          </p>
+
+          <div className="space-y-4">
+            <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Текущий пароль</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="input"
+            />
+
+            <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Новый пароль</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="input"
+            />
+
+            <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Повторите новый пароль</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input"
+            />
+
+            {changePasswordError ? <p className="font-body text-sm text-red-400">{changePasswordError}</p> : null}
+
+            <button
+              type="button"
+              disabled={!currentPassword || !newPassword || newPassword !== confirmPassword || changingPassword}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+              onClick={handleChangePassword}
+            >
+              {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {changingPassword ? 'Меняем…' : 'Сменить пароль'}
+            </button>
+          </div>
         </div>
 
         <div className="card p-6">

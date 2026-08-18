@@ -274,10 +274,14 @@ export function ListingGallery({
           {priceHour || priceNight ? (
             <div className="mb-2 flex flex-wrap gap-2">
               {priceHour ? (
-                <span className="badge badge-accent">{formatPrice(priceHour)} / час</span>
+                <span className="badge bg-accent text-white shadow-md shadow-black/40">
+                  {formatPrice(priceHour)} / час
+                </span>
               ) : null}
               {priceNight ? (
-                <span className="badge badge-accent">{formatPrice(priceNight)} / ночь</span>
+                <span className="badge bg-accent text-white shadow-md shadow-black/40">
+                  {formatPrice(priceNight)} / ночь
+                </span>
               ) : null}
             </div>
           ) : null}

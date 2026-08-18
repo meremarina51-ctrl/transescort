@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
@@ -105,7 +105,10 @@ export class AuthService {
 
     const isValid = await this.usersService.validatePassword(user, password);
     if (!isValid) {
-      throw new UnauthorizedException('Неверный пароль');
+      // 403, not 401 — same reasoning as the change-password/delete-account confirmations: this is a
+      // valid session, only the confirmation password was wrong, and authFetch's silent
+      // refresh-and-retry-then-logout on repeated 401s would otherwise bounce the user to /login.
+      throw new ForbiddenException('Неверный пароль');
     }
 
     return this.usersService.setRecoveryCode(userId);

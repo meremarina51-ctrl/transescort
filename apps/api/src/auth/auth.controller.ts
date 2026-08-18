@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
 import {
@@ -137,6 +138,19 @@ export class UpdateProfileDto {
   phone?: string;
 }
 
+export class UpdatePasswordDto {
+  @ApiProperty({ example: 'currentPassword123' })
+  @IsString()
+  @IsNotEmpty({ message: 'Введите текущий пароль' })
+  currentPassword!: string;
+
+  @ApiProperty({ example: 'newPassword123' })
+  @IsString()
+  @MinLength(8)
+  @Matches(/(?:.*\S){8,}/, { message: 'Пароль должен содержать минимум 8 значащих символов' })
+  newPassword!: string;
+}
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -195,7 +209,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Перевыпустить код восстановления' })
-  @ApiResponse({ status: 401, description: 'Неверный пароль' })
+  @ApiResponse({ status: 403, description: 'Неверный пароль' })
   async regenerateRecoveryCode(@Request() req: any, @Body() body: RegenerateRecoveryCodeDto) {
     const recoveryCode = await this.authService.regenerateRecoveryCode(req.user.userId as string, body.password);
     return { recoveryCode };
@@ -216,7 +230,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Удалить свой аккаунт' })
-  @ApiResponse({ status: 401, description: 'Неверный пароль' })
+  @ApiResponse({ status: 403, description: 'Неверный пароль' })
   async deleteOwnAccount(@Request() req: any, @Body() body: DeleteAccountDto) {
     const userId = req.user.userId as string;
     const user = await this.usersService.findById(userId);
@@ -226,11 +240,42 @@ export class AuthController {
 
     const isValid = await this.usersService.validatePassword(user, body.password);
     if (!isValid) {
-      throw new UnauthorizedException('Неверный пароль');
+      // 403, not 401 — the session/access token is perfectly valid here, only the confirmation
+      // password was wrong. authFetch treats any 401 as "token expired" and silently refreshes +
+      // retries; since the retry would fail with the same wrong-password 401, that logs the user
+      // out and bounces them to /login instead of just showing "Неверный пароль" on this form.
+      throw new ForbiddenException('Неверный пароль');
     }
 
     await this.usersService.deleteUser(userId);
     return { message: 'Аккаунт удалён' };
+  }
+
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Обновить пароль пользователя' })
+  @ApiResponse({ status: 403, description: 'Неверный текущий пароль' })
+  async updatePassword(@Request() req: any, @Body() body: UpdatePasswordDto) {
+    const userId = req.user.userId as string;
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await this.usersService.validatePassword(user, body.currentPassword);
+    if (!isValid) {
+      // See the same note in deleteOwnAccount — must be 403, not 401, or authFetch's silent
+      // refresh-and-retry-then-logout logic kicks the user to /login on a simple wrong-password entry.
+      throw new ForbiddenException('Неверный текущий пароль');
+    }
+
+    await this.usersService.updatePassword(userId, body.newPassword);
+    await this.authService.logoutAllDevices(userId);
+
+    return { message: 'Пароль обновлён, все сессии завершены' };
   }
 
   @Get('me')
