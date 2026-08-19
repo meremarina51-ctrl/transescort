@@ -12,13 +12,11 @@ export const RANGE_FILTERS: { label: string; field: NumericField; minPh: string;
   { label: 'Рост, см', field: 'height', minPh: '155', maxPh: '185' },
   { label: 'Вес, кг', field: 'weight', minPh: '45', maxPh: '70' },
   { label: 'Грудь', field: 'breastSize', minPh: '1', maxPh: '6' },
+  { label: 'Член, см', field: 'penisSize', minPh: '10', maxPh: '25' },
   { label: 'Цена/час, ₽', field: 'priceHour', minPh: '1000', maxPh: '10000' },
 ];
 
 export const SELECT_FILTERS: { label: string; field: CategoricalField; options: string[] }[] = [
-  { label: 'Тип', field: 'type', options: TYPE_OPTIONS },
-  { label: 'Фигура', field: 'figure', options: FIGURE_OPTIONS },
-  { label: 'Темперамент', field: 'temperament', options: TEMPERAMENT_OPTIONS },
   { label: 'Волосы', field: 'hairColor', options: HAIR_COLOR_OPTIONS },
   { label: 'Глаза', field: 'eyeColor', options: EYE_COLOR_OPTIONS },
 ];
@@ -31,6 +29,7 @@ export const EMPTY_NUMERIC: Filters['numeric'] = {
   height: { min: 0, max: 0 },
   weight: { min: 0, max: 0 },
   breastSize: { min: 0, max: 0 },
+  penisSize: { min: 0, max: 0 },
   priceHour: { min: 0, max: 0 },
 };
 

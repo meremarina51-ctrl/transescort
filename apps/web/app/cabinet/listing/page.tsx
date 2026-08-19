@@ -59,6 +59,7 @@ const EMPTY_PARAMS: ListingParams = {
   height: 165,
   weight: 55,
   breastSize: 2,
+  penisSize: 15,
   type: TYPE_OPTIONS[0],
   figure: FIGURE_OPTIONS[0],
   temperament: TEMPERAMENT_OPTIONS[0],
@@ -157,6 +158,7 @@ export default function ListingPage() {
               height: data.height ?? EMPTY_PARAMS.height,
               weight: data.weight ?? EMPTY_PARAMS.weight,
               breastSize: data.breastSize ?? EMPTY_PARAMS.breastSize,
+              penisSize: data.penisSize ?? EMPTY_PARAMS.penisSize,
               type: data.type ?? EMPTY_PARAMS.type,
               figure: data.figure ?? EMPTY_PARAMS.figure,
               temperament: data.temperament ?? EMPTY_PARAMS.temperament,
@@ -210,6 +212,7 @@ export default function ListingPage() {
       if (params.height !== null) payload.height = params.height;
       if (params.weight !== null) payload.weight = params.weight;
       if (params.breastSize !== null) payload.breastSize = params.breastSize;
+      if (params.penisSize !== null) payload.penisSize = params.penisSize;
       if (params.type) payload.type = params.type;
       if (params.figure) payload.figure = params.figure;
       if (params.temperament) payload.temperament = params.temperament;
@@ -677,25 +680,13 @@ export default function ListingPage() {
                   placeholder="Размер"
                 />
               </Field>
-              <Field label="Тип">
-                <Select
-                  value={params.type}
-                  onChange={(v) => setParams((p) => ({ ...p, type: v }))}
-                  options={toSelectOptions(TYPE_OPTIONS)}
-                />
-              </Field>
-              <Field label="Фигура">
-                <Select
-                  value={params.figure}
-                  onChange={(v) => setParams((p) => ({ ...p, figure: v }))}
-                  options={toSelectOptions(FIGURE_OPTIONS)}
-                />
-              </Field>
-              <Field label="Темперамент">
-                <Select
-                  value={params.temperament}
-                  onChange={(v) => setParams((p) => ({ ...p, temperament: v }))}
-                  options={toSelectOptions(TEMPERAMENT_OPTIONS)}
+              <Field label="Член, см">
+                <NumberStepper
+                  value={params.penisSize}
+                  onChange={(v) => setParams((p) => ({ ...p, penisSize: v }))}
+                  min={5}
+                  max={30}
+                  placeholder="См"
                 />
               </Field>
               <Field label="Волосы">

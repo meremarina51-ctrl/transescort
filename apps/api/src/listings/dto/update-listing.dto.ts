@@ -59,6 +59,13 @@ export class UpdateListingDto {
   @Max(20)
   breastSize?: number;
 
+  @ApiProperty({ required: false, description: 'Член, см', minimum: 5, maximum: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(30)
+  penisSize?: number;
+
   @ApiProperty({ required: false, enum: TYPE_OPTIONS })
   @IsOptional()
   @IsIn(TYPE_OPTIONS)

@@ -56,13 +56,11 @@ const VITALS: { key: keyof ListingDetail; label: string; suffix?: string }[] = [
   { key: 'height', label: 'Рост', suffix: 'см' },
   { key: 'weight', label: 'Вес', suffix: 'кг' },
   { key: 'breastSize', label: 'Грудь' },
+  { key: 'penisSize', label: 'Член', suffix: 'см' },
   { key: 'city', label: 'Город' },
 ];
 
 const OTHER_PARAMS: { key: keyof ListingDetail; label: string }[] = [
-  { key: 'type', label: 'Тип' },
-  { key: 'figure', label: 'Фигура' },
-  { key: 'temperament', label: 'Темперамент' },
   { key: 'hairColor', label: 'Волосы' },
   { key: 'eyeColor', label: 'Глаза' },
   { key: 'country', label: 'Страна' },

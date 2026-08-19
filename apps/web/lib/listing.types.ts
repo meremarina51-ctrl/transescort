@@ -5,6 +5,7 @@ export interface ListingAttributes {
   height: number | null;
   weight: number | null;
   breastSize: number | null;
+  penisSize: number | null;
   type: string | null;
   figure: string | null;
   temperament: string | null;

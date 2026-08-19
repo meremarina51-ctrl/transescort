@@ -10,7 +10,7 @@ export interface CatalogListing extends ListingAttributes {
   reviewCount: number;
 }
 
-export type NumericField = 'age' | 'height' | 'weight' | 'breastSize' | 'priceHour';
+export type NumericField = 'age' | 'height' | 'weight' | 'breastSize' | 'penisSize' | 'priceHour';
 export type CategoricalField = 'type' | 'figure' | 'temperament' | 'hairColor' | 'eyeColor' | 'country' | 'city';
 export type SortOption = 'newest' | 'name' | 'rating';
 

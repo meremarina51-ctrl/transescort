@@ -409,27 +409,6 @@ export default function AdminPerformerDetailPage() {
                 max={10}
               />
             </Field>
-            <Field label="Тип">
-              <Select
-                value={form.type}
-                onChange={(v) => setForm((f) => (f ? { ...f, type: v } : f))}
-                options={toSelectOptions(TYPE_OPTIONS)}
-              />
-            </Field>
-            <Field label="Фигура">
-              <Select
-                value={form.figure}
-                onChange={(v) => setForm((f) => (f ? { ...f, figure: v } : f))}
-                options={toSelectOptions(FIGURE_OPTIONS)}
-              />
-            </Field>
-            <Field label="Темперамент">
-              <Select
-                value={form.temperament}
-                onChange={(v) => setForm((f) => (f ? { ...f, temperament: v } : f))}
-                options={toSelectOptions(TEMPERAMENT_OPTIONS)}
-              />
-            </Field>
             <Field label="Волосы">
               <Select
                 value={form.hairColor}

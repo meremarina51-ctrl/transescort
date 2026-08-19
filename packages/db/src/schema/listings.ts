@@ -60,6 +60,8 @@ export const listings = pgTable(
     weight: integer('weight'),
 
     breastSize: integer('breast_size'),
+    /** Centimeters. */
+    penisSize: integer('penis_size'),
     type: varchar('type', { length: 30 }),
     figure: varchar('figure', { length: 30 }),
     temperament: varchar('temperament', { length: 30 }),
