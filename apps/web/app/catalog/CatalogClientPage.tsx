@@ -278,24 +278,24 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
 
                 {panelOpen && (
                   <div className="absolute right-0 top-full z-20 mt-2 w-[min(90vw,560px)] space-y-5 rounded-2xl border border-white/[0.08] bg-[#141414] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
-                    <div className="flex flex-wrap gap-4">
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                       {RANGE_FILTERS.map(({ label, field, minPh, maxPh }) => (
-                        <div key={field} className="flex items-center gap-2">
-                          <span className="font-body text-xs text-white/40">{label}</span>
+                        <div key={field} className="flex min-w-0 items-center gap-2">
+                          <span className="w-24 shrink-0 whitespace-nowrap font-body text-xs text-white/40">{label}</span>
                           <input
                             type="number"
                             placeholder={minPh}
                             value={numeric[field].min || ''}
                             onChange={(e) => setRange(field, 'min', Number(e.target.value) || 0)}
-                            className={numberInputClass}
+                            className={`${numberInputClass} min-w-0 flex-1`}
                           />
-                          <span className="text-xs text-white/20">—</span>
+                          <span className="shrink-0 text-xs text-white/20">—</span>
                           <input
                             type="number"
                             placeholder={maxPh}
                             value={numeric[field].max || ''}
                             onChange={(e) => setRange(field, 'max', Number(e.target.value) || 0)}
-                            className={numberInputClass}
+                            className={`${numberInputClass} min-w-0 flex-1`}
                           />
                         </div>
                       ))}

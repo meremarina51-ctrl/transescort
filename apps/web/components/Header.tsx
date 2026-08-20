@@ -43,7 +43,7 @@ export function Header() {
           <Logo />
         </Link>
 
-        <nav className="col-start-2 hidden items-center gap-8 md:flex">
+        <nav className="col-start-2 flex items-center gap-8 max-[975px]:hidden">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -56,7 +56,7 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="col-start-3 hidden items-center gap-4 justify-self-end md:flex">
+        <div className="col-start-3 flex items-center gap-4 justify-self-end max-[975px]:hidden">
           {user ? (
             <>
               <Link href={privateAreaHref} className="btn-secondary !px-6 !py-2.5">
@@ -78,7 +78,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="col-start-3 justify-self-end text-white/70 md:hidden"
+          className="col-start-3 hidden justify-self-end text-white/70 max-[975px]:block"
           aria-label={open ? 'Закрыть меню' : 'Меню'}
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -87,7 +87,7 @@ export function Header() {
     </header>
 
     {open && (
-      <div className="fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col bg-[#0a0a0a]/90 backdrop-blur-2xl md:hidden">
+      <div className="fixed inset-x-0 bottom-0 top-16 z-40 hidden flex-col bg-[#0a0a0a]/90 backdrop-blur-2xl max-[975px]:flex">
         <nav className="flex flex-1 flex-col items-center justify-center gap-8 px-6">
           {NAV_LINKS.map((link) => (
             <Link

@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Ban,
+  Check,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Copy,
+  KeyRound,
   Loader2,
   MessageSquareOff,
   MessageSquareText,
@@ -75,6 +78,7 @@ function RowActions({
   onToggleStatus,
   onToggleMessagingRestriction,
   onUnlinkTelegram,
+  onResetPassword,
   onRemove,
 }: {
   user: AdminUser;
@@ -84,6 +88,7 @@ function RowActions({
   onToggleStatus: () => void;
   onToggleMessagingRestriction: () => void;
   onUnlinkTelegram: () => void;
+  onResetPassword: () => void;
   onRemove: () => void;
 }) {
   const restricted = Boolean(user.messagingRestrictedAt);
@@ -124,6 +129,15 @@ function RowActions({
         }`}
       >
         {restricted ? <MessageSquareOff className="h-4 w-4" /> : <MessageSquareText className="h-4 w-4" />}
+      </button>
+      <button
+        type="button"
+        onClick={onResetPassword}
+        disabled={isSelf || busy}
+        title={isSelf ? 'Нельзя сбросить пароль своего аккаунта' : 'Сбросить пароль'}
+        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        <KeyRound className="h-4 w-4" />
       </button>
       <button
         type="button"
@@ -274,6 +288,12 @@ export default function AdminUsersPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [usersPage, setUsersPage] = useState(1);
+
+  const [resetTarget, setResetTarget] = useState<AdminUser | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetResult, setResetResult] = useState<{ login: string; password: string } | null>(null);
+  const [resetCopied, setResetCopied] = useState(false);
 
   const [telegramClients, setTelegramClients] = useState<TelegramBotClient[]>([]);
   const [telegramLoading, setTelegramLoading] = useState(true);
@@ -426,6 +446,39 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openResetPassword = (u: AdminUser) => {
+    setResetTarget(u);
+    setResetError('');
+  };
+
+  const closeResetPassword = () => setResetTarget(null);
+
+  const confirmResetPassword = async () => {
+    if (!resetTarget) return;
+    setResetting(true);
+    setResetError('');
+    try {
+      const res = await authFetch(`/admin/users/${resetTarget.id}/reset-password`, { method: 'PATCH' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || 'Не удалось сбросить пароль');
+      setResetResult({ login: resetTarget.login, password: data.temporaryPassword });
+      setResetTarget(null);
+      setResetCopied(false);
+    } catch (err: any) {
+      setResetError(err.message || 'Не удалось сбросить пароль');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const copyResetPassword = () => {
+    if (!resetResult) return;
+    navigator.clipboard.writeText(resetResult.password).then(() => {
+      setResetCopied(true);
+      setTimeout(() => setResetCopied(false), 2000);
+    });
+  };
+
   const openDelete = (u: AdminUser) => {
     setDeleteTarget(u);
     setDeleteError('');
@@ -576,6 +629,7 @@ export default function AdminUsersPage() {
                           onToggleStatus={() => toggleStatus(u)}
                           onToggleMessagingRestriction={() => toggleMessagingRestriction(u)}
                           onUnlinkTelegram={() => unlinkTelegram(u)}
+                          onResetPassword={() => openResetPassword(u)}
                           onRemove={() => openDelete(u)}
                         />
                       </div>
@@ -696,6 +750,74 @@ export default function AdminUsersPage() {
           </div>
         </div>
       ) : null} */}
+
+      {resetTarget ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={resetting ? undefined : closeResetPassword} />
+          <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+              <KeyRound className="h-6 w-6 text-accent" strokeWidth={1.6} />
+            </div>
+            <h2 className="mb-2 font-display text-lg font-bold">Сбросить пароль?</h2>
+            <p className="font-body text-sm text-white/40">
+              Пользователю «{resetTarget.fullName || resetTarget.login}» (@{resetTarget.login}) будет выдан новый временный
+              пароль, все текущие сессии завершатся.
+            </p>
+
+            {resetError ? <p className="mt-4 font-body text-sm text-red-400">{resetError}</p> : null}
+
+            <div className="mt-6 flex justify-center gap-3">
+              <button type="button" onClick={closeResetPassword} disabled={resetting} className="btn-secondary disabled:opacity-50">
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={confirmResetPassword}
+                disabled={resetting}
+                className="btn-primary disabled:opacity-50"
+              >
+                {resetting ? 'Сбрасываем…' : 'Сбросить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {resetResult ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setResetResult(null)} />
+          <div className="card relative w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] !rounded-b-none sm:max-w-sm sm:!rounded-2xl sm:pb-6">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold">Новый пароль для @{resetResult.login}</h2>
+              <button type="button" onClick={() => setResetResult(null)} className="text-white/40 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 font-body text-sm text-white/40">
+              Скопируйте и передайте пароль пользователю — повторно он показан не будет.
+            </p>
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a0a0a] px-4 py-3">
+              <span className="flex-1 select-all break-all font-mono text-sm text-white">{resetResult.password}</span>
+              <button
+                type="button"
+                onClick={copyResetPassword}
+                title="Скопировать"
+                className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                {resetCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button type="button" onClick={() => setResetResult(null)} className="btn-primary">
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">

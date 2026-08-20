@@ -33,6 +33,7 @@ interface AdminListingDetail {
   height: number | null;
   weight: number | null;
   breastSize: number | null;
+  penisSize: number | null;
   type: string | null;
   figure: string | null;
   temperament: string | null;
@@ -66,6 +67,7 @@ interface EditableFields {
   height: number | null;
   weight: number | null;
   breastSize: number | null;
+  penisSize: number | null;
   type: string | null;
   figure: string | null;
   temperament: string | null;
@@ -83,6 +85,7 @@ function toEditable(l: AdminListingDetail): EditableFields {
     height: l.height,
     weight: l.weight,
     breastSize: l.breastSize,
+    penisSize: l.penisSize,
     type: l.type,
     figure: l.figure,
     temperament: l.temperament,
@@ -407,6 +410,14 @@ export default function AdminPerformerDetailPage() {
                 onChange={(v) => setForm((f) => (f ? { ...f, breastSize: v } : f))}
                 min={0}
                 max={10}
+              />
+            </Field>
+            <Field label="Член, см">
+              <NumberStepper
+                value={form.penisSize}
+                onChange={(v) => setForm((f) => (f ? { ...f, penisSize: v } : f))}
+                min={5}
+                max={30}
               />
             </Field>
             <Field label="Волосы">

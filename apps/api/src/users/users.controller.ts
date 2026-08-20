@@ -116,6 +116,21 @@ export class AdminUsersController {
     return this.usersService.findPublicById(id);
   }
 
+  @Patch(':id/reset-password')
+  @ApiOperation({
+    summary: 'Сбросить пароль пользователя на новый временный — все его сессии завершаются',
+  })
+  async resetPassword(@Param('id') id: string, @Request() req: any) {
+    if (id === req.user.userId) {
+      throw new BadRequestException('Нельзя сбросить пароль своего аккаунта');
+    }
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Пользователь не найден');
+
+    const temporaryPassword = await this.usersService.resetPasswordToTemporary(id);
+    return { temporaryPassword };
+  }
+
   @Patch(':id/telegram-unlink')
   @ApiOperation({ summary: 'Принудительно отвязать Telegram-аккаунт от профиля пользователя' })
   async unlinkTelegram(@Param('id') id: string) {

@@ -17,3 +17,10 @@ export function generateRecoveryCode(): string {
 export function normalizeRecoveryCode(code: string): string {
   return code.trim().toUpperCase();
 }
+
+const TEMP_PASSWORD_LENGTH = 12;
+
+/** Generates a human-typeable temporary password, e.g. "A7K9XQ2RBC3D". */
+export function generateTemporaryPassword(): string {
+  return Array.from({ length: TEMP_PASSWORD_LENGTH }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
+}

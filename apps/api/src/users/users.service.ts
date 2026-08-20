@@ -2,7 +2,7 @@ import { Injectable, Inject, ConflictException } from '@nestjs/common';
 import { desc, eq, sql } from 'drizzle-orm';
 import { users, type User } from '@transescort/db';
 import * as bcrypt from 'bcrypt';
-import { generateRecoveryCode, normalizeRecoveryCode } from './recovery-code.util';
+import { generateRecoveryCode, generateTemporaryPassword, normalizeRecoveryCode } from './recovery-code.util';
 
 export type PublicUser = Omit<User, 'passwordHash'>;
 
@@ -118,6 +118,17 @@ export class UsersService {
   async updatePassword(id: string, password: string): Promise<void> {
     const passwordHash = await bcrypt.hash(password, 10);
     await this.db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+  }
+
+  /** Admin-triggered reset: generates a fresh temporary password, stores its hash, and invalidates existing sessions — returns the plaintext, only ever available this once. */
+  async resetPasswordToTemporary(id: string): Promise<string> {
+    const password = generateTemporaryPassword();
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.db
+      .update(users)
+      .set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1`, updatedAt: new Date() })
+      .where(eq(users.id, id));
+    return password;
   }
 
   /** Generates and stores a fresh backup code, returning the plaintext — only ever available this once. */
