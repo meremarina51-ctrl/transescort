@@ -14,7 +14,7 @@ export function HomeCtaButtons() {
         </Link>
       )}
       <Link href="/catalog" className="btn-secondary">
-        Исполнители
+        Перейти в каталог
       </Link>
     </div>
   );
