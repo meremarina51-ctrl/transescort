@@ -10,6 +10,7 @@ import { SortablePhotoTile } from '@/components/SortablePhotoTile';
 import { PHOTO_REVIEW_STATUS_CLASS, PHOTO_REVIEW_STATUS_LABEL, type PhotoReview } from '@/components/PhotoReviewPanel';
 import { authFetch } from '@/lib/auth-fetch';
 import { parseBody } from '@/lib/parse-body';
+import { ROUTES } from '@/lib/routes';
 
 const MIN_PHOTOS_FOR_REVIEW = 3;
 
@@ -197,7 +198,7 @@ export default function PhotosPage() {
         <p className="max-w-sm font-body text-sm text-white/35">
           Сначала создайте анкету — после этого можно будет добавить фото и видео.
         </p>
-        <Link href="/cabinet/listing" className="btn-primary mt-2">
+        <Link href={ROUTES.CABINET_LISTING} className="btn-primary mt-2">
           Создать анкету
         </Link>
       </div>

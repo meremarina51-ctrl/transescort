@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Flag, Loader2, X } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { ROUTES } from '@/lib/routes';
 
 type ReportTargetType = 'listing' | 'review' | 'message' | 'user';
 
@@ -105,7 +106,7 @@ export function ReportButton({ targetType, targetId, className, label = 'Пож�
 
                 {!user ? (
                   <p className="font-body text-sm text-white/50">
-                    <Link href="/login" className="text-accent hover:underline">
+                    <Link href={ROUTES.LOGIN} className="text-accent hover:underline">
                       Войдите
                     </Link>
                     , чтобы отправить жалобу

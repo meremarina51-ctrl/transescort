@@ -3,22 +3,23 @@
 import Link from 'next/link';
 import { ShieldCheck, Users, UserCog, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { ROUTES } from '@/lib/routes';
 
 const OVERVIEW_TILES: { href: string; icon: LucideIcon; title: string; description: string }[] = [
   {
-    href: '/admin/moderation',
+    href: ROUTES.ADMIN_MODERATION,
     icon: ShieldCheck,
     title: 'Модерация',
     description: 'Анкеты, фото, отзывы и жалобы на рассмотрении',
   },
   {
-    href: '/admin/performers',
+    href: ROUTES.ADMIN_PERFORMERS,
     icon: Users,
     title: 'Исполнители',
     description: 'Список анкет и их статусы',
   },
   {
-    href: '/admin/users',
+    href: ROUTES.ADMIN_USERS,
     icon: UserCog,
     title: 'Пользователи',
     description: 'Аккаунты, доступ и Telegram-бот',

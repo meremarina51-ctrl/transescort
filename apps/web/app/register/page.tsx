@@ -11,6 +11,7 @@ import { Select } from '@/components/Select';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
 import { type RegistrableRole, CONTACT_METHOD_OPTIONS } from './register.constants';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 
 function RequiredMark() {
   return <span className="text-red-400"> *</span>;
@@ -81,7 +82,7 @@ export default function RegisterPage() {
   const finishRegistration = () => {
     if (!pendingAuth) return;
     authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
-    router.push('/cabinet');
+    router.push(ROUTES.CABINET);
   };
 
   return (
@@ -185,7 +186,7 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center font-body text-sm text-white/40">
             Уже есть аккаунт?{' '}
-            <Link href="/login" className="font-medium text-accent hover:underline">
+            <Link href={ROUTES.LOGIN} className="font-medium text-accent hover:underline">
               Войти
             </Link>
           </p>

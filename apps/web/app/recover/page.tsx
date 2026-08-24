@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
+import { ROUTES } from '@/lib/routes';
 
 export default function RecoverPage() {
   const { login: authLogin } = useAuth();
@@ -60,7 +61,7 @@ export default function RecoverPage() {
   const finish = () => {
     if (!pendingAuth) return;
     authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
-    router.push('/cabinet');
+    router.push(ROUTES.CABINET);
   };
 
   return (
@@ -122,7 +123,7 @@ export default function RecoverPage() {
 
           <p className="mt-6 text-center font-body text-sm text-white/40">
             Вспомнили пароль?{' '}
-            <Link href="/login" className="font-medium text-accent hover:underline">
+            <Link href={ROUTES.LOGIN} className="font-medium text-accent hover:underline">
               Войти
             </Link>
           </p>

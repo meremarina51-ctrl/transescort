@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { LogOut, ChevronLeft, ChevronRight, Globe, Menu, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import Logo from '@/components/Logo';
+import { ROUTES } from '@/lib/routes';
 
 export interface NavItem {
   href: string;
@@ -52,7 +53,7 @@ function SidebarNav({
       </nav>
       <div className="space-y-2">
         {hideSiteLink ? null : (
-          <Link href="/" className={linkClass(false)} onClick={onNavigate}>
+          <Link href={ROUTES.HOME} className={linkClass(false)} onClick={onNavigate}>
             <Globe className="h-5 w-5 flex-shrink-0" />
             На сайт
           </Link>
@@ -120,7 +121,7 @@ export function SidebarShell({
             collapsed ? 'w-0 px-0' : 'w-60 px-4'
           }`}
         >
-          <Link href="/" className="mb-8 block whitespace-nowrap text-lg">
+          <Link href={ROUTES.HOME} className="mb-8 block whitespace-nowrap text-lg">
             <Logo />
           </Link>
           <SidebarNav
@@ -205,7 +206,7 @@ export function SidebarShell({
           }`}
         >
           <div className="mb-8 flex items-center justify-between">
-            <Link href="/" className="block text-lg" onClick={() => setMobileOpen(false)}>
+            <Link href={ROUTES.HOME} className="block text-lg" onClick={() => setMobileOpen(false)}>
               <Logo />
             </Link>
             <button

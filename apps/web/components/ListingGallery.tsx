@@ -10,6 +10,7 @@ import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 import type { ListingReviewsSummary } from '@/lib/listing.types';
 
 async function parseBody(res: Response) {
@@ -132,7 +133,7 @@ export function ListingGallery({
   const startPlatformChat = async () => {
     trackContact('platform');
     if (!user) {
-      router.push('/login');
+      router.push(ROUTES.LOGIN);
       return;
     }
     if (!ownerLogin) return;
@@ -146,7 +147,7 @@ export function ListingGallery({
       });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось начать чат');
-      const chatsHref = user?.role === Role.Performer ? '/cabinet/chats' : '/cabinet/messages';
+      const chatsHref = user?.role === Role.Performer ? ROUTES.CABINET_CHATS : ROUTES.CABINET_MESSAGES;
       router.push(`${chatsHref}?c=${data.id}`);
     } catch (err: any) {
       setStartChatError(err.message || 'Не удалось начать чат');
@@ -244,7 +245,7 @@ export function ListingGallery({
           {preview ? null : <FavoriteButton listingId={id} positionClassName="" />}
           <button
             type="button"
-            onClick={() => (onClose ? onClose() : router.push('/catalog'))}
+            onClick={() => (onClose ? onClose() : router.push(ROUTES.CATALOG))}
             aria-label="Закрыть просмотр анкеты"
             title="Закрыть просмотр анкеты"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
@@ -412,7 +413,7 @@ export function ListingGallery({
 
                 {!user ? (
                   <p className="mb-4 font-body text-xs text-white/35">
-                    <Link href="/login" className="text-accent hover:underline">
+                    <Link href={ROUTES.LOGIN} className="text-accent hover:underline">
                       Войдите
                     </Link>{' '}
                     как клиент, чтобы оставить отзыв

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { Role } from '@/lib/enums';
+import { ROUTES, loginWithRedirect } from '@/lib/routes';
 
 export function ProtectedRoute({
   children,
@@ -22,13 +23,13 @@ export function ProtectedRoute({
     if (loading) return;
     if (isRedirecting.current) return;
 
-    if (!user && pathname !== '/login') {
+    if (!user && pathname !== ROUTES.LOGIN) {
       isRedirecting.current = true;
-      router.replace(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
+      router.replace(loginWithRedirect(pathname || ROUTES.HOME));
     }
   }, [user, loading, pathname, router]);
 
-  if (loading || (!user && pathname !== '/login')) {
+  if (loading || (!user && pathname !== ROUTES.LOGIN)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="text-center">
@@ -45,7 +46,7 @@ export function ProtectedRoute({
         <div className="card max-w-sm p-8 text-center">
           <h2 className="mb-2 font-display text-xl font-bold">Доступ запрещён</h2>
           <p className="mb-6 font-body text-sm text-white/40">У вас нет прав для просмотра этой страницы.</p>
-          <Link href="/cabinet" className="btn-primary">
+          <Link href={ROUTES.CABINET} className="btn-primary">
             В личный кабинет
           </Link>
         </div>

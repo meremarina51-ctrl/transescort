@@ -1,6 +1,6 @@
+import { AuthProvider } from '@/components/AuthProvider';
 import type { Metadata } from 'next';
 import './globals.css';
-import { AuthProvider } from '@/components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'Платформа проверенных анкет',

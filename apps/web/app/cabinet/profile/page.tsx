@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Send } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { ROUTES } from '@/lib/routes';
 
 interface TelegramStatus {
   linked: boolean;
@@ -147,7 +148,7 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
-          <Link href="/cabinet/settings" className="font-body text-xs font-medium text-accent hover:underline">
+          <Link href={ROUTES.CABINET_SETTINGS} className="font-body text-xs font-medium text-accent hover:underline">
             Перейти в настройки
           </Link>
         </div>

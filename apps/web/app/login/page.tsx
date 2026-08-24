@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
+import { ROUTES } from '@/lib/routes';
 
 export default function LoginPage() {
   const { login: authLogin } = useAuth();
@@ -37,7 +38,7 @@ export default function LoginPage() {
 
       const data = await response.json();
       authLogin(data.accessToken, data.refreshToken, data.user);
-      router.push('/cabinet');
+      router.push(ROUTES.CABINET);
     } catch (err: any) {
       setError(err.message || 'Не удалось войти');
     } finally {
@@ -67,7 +68,7 @@ export default function LoginPage() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="block font-body text-xs uppercase tracking-wide text-white/40">Пароль</label>
-                <Link href="/recover" className="font-body text-xs text-accent hover:underline">
+                <Link href={ROUTES.RECOVER} className="font-body text-xs text-accent hover:underline">
                   Забыли пароль?
                 </Link>
               </div>
@@ -90,7 +91,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center font-body text-sm text-white/40">
             Нет аккаунта?{' '}
-            <Link href="/register" className="font-medium text-accent hover:underline">
+            <Link href={ROUTES.REGISTER} className="font-medium text-accent hover:underline">
               Зарегистрироваться
             </Link>
           </p>

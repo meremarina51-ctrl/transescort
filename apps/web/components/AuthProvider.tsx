@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/auth-fetch';
 import { disconnectChatSocket } from '@/lib/chat-socket';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 
 interface User {
   id: string;
@@ -36,7 +37,7 @@ const guestAuthValue: AuthContextType = {
   login: () => {},
   logout: () => {},
   refreshUser: async () => {},
-  privateAreaHref: '/login',
+  privateAreaHref: ROUTES.LOGIN,
   privateAreaLabel: 'Войти',
 };
 
@@ -105,10 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
-    router.push('/login');
+    router.push(ROUTES.LOGIN);
   }, [router]);
 
-  const privateAreaHref = user ? '/cabinet' : '/login';
+  const privateAreaHref = user ? ROUTES.CABINET : ROUTES.LOGIN;
   const privateAreaLabel = user ? 'Личный кабинет' : 'Войти';
 
   return (

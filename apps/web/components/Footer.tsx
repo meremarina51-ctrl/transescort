@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Logo from './Logo';
+import { ROUTES } from '@/lib/routes';
 
 const LEGAL_DOCS = [
   { file: 'Оферта LuxEscortia.pdf', label: 'Публичная оферта' },
@@ -13,7 +14,7 @@ export function Footer() {
       <div className="mx-auto max-w-[1400px] px-6 md:px-10">
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           <div className="text-center md:text-left">
-            <Link href="/">
+            <Link href={ROUTES.HOME}>
               <Logo className="text-xl" />
             </Link>
             <p className="mt-1 font-body text-xs text-white/30">Платформа проверенных анкет</p>

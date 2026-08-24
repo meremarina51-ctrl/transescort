@@ -8,6 +8,7 @@ import Logo from './Logo';
 import { useAuthOrGuest } from './AuthProvider';
 import { NAV_LINKS } from './Header.constants';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 
 export function Header() {
   const { user, privateAreaHref, privateAreaLabel } = useAuthOrGuest();
@@ -22,7 +23,7 @@ export function Header() {
   }, [open]);
 
   const scrollToAnchor = (href: string) => {
-    if (pathname !== '/') return;
+    if (pathname !== ROUTES.HOME) return;
     const id = href.replace('/#', '');
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -30,7 +31,7 @@ export function Header() {
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
     setOpen(false);
-    if (href.startsWith('/#') && pathname === '/') {
+    if (href.startsWith('/#') && pathname === ROUTES.HOME) {
       e.preventDefault();
       scrollToAnchor(href);
     }
@@ -40,7 +41,7 @@ export function Header() {
     <>
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl">
       <div className="mx-auto grid h-16 max-w-[1400px] grid-cols-[1fr_auto_1fr] items-center px-6 md:px-10">
-        <Link href="/" className="col-start-1 text-xl justify-self-start">
+        <Link href={ROUTES.HOME} className="col-start-1 text-xl justify-self-start">
           <Logo />
         </Link>
 
@@ -64,13 +65,13 @@ export function Header() {
                 {privateAreaLabel}
               </Link>
               {user.role === Role.Admin ? (
-                <Link href="/admin" className="btn-primary !px-6 !py-2.5">
+                <Link href={ROUTES.ADMIN} className="btn-primary !px-6 !py-2.5">
                   Панель
                 </Link>
               ) : null}
             </>
           ) : (
-            <Link href="/login" className="btn-primary !px-6 !py-2.5">
+            <Link href={ROUTES.LOGIN} className="btn-primary !px-6 !py-2.5">
               Войти
             </Link>
           )}
@@ -106,13 +107,13 @@ export function Header() {
                 {privateAreaLabel}
               </Link>
               {user.role === Role.Admin ? (
-                <Link href="/admin" className="btn-primary" onClick={() => setOpen(false)}>
+                <Link href={ROUTES.ADMIN} className="btn-primary" onClick={() => setOpen(false)}>
                   Панель
                 </Link>
               ) : null}
             </>
           ) : (
-            <Link href="/login" className="btn-primary mt-4" onClick={() => setOpen(false)}>
+            <Link href={ROUTES.LOGIN} className="btn-primary mt-4" onClick={() => setOpen(false)}>
               Войти
             </Link>
           )}

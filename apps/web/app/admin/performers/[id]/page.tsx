@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/auth-fetch';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
 import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
+import { ROUTES } from '@/lib/routes';
 import {
   HAIR_COLOR_OPTIONS,
   EYE_COLOR_OPTIONS,
@@ -282,7 +283,7 @@ export default function AdminPerformerDetailPage() {
       const res = await authFetch(`/admin/listings/${id}`, { method: 'DELETE' });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось удалить анкету');
-      router.push('/admin/performers');
+      router.push(ROUTES.ADMIN_PERFORMERS);
     } catch (err: any) {
       setDeleteError(err.message || 'Не удалось удалить анкету');
       setDeleting(false);
@@ -291,7 +292,7 @@ export default function AdminPerformerDetailPage() {
 
   const backLink = (
     <Link
-      href="/admin/performers"
+      href={ROUTES.ADMIN_PERFORMERS}
       className="mb-4 inline-flex items-center gap-2 font-body text-sm text-white/50 transition-colors hover:text-white"
     >
       <ArrowLeft className="h-4 w-4" /> К списку

@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/auth-fetch';
 import { getChatSocket } from '@/lib/chat-socket';
 import { ReportButton } from '@/components/ReportButton';
 import { Role } from '@/lib/enums';
+import { catalogListing } from '@/lib/routes';
 
 interface ConversationParticipant {
   id: string;
@@ -114,7 +115,7 @@ function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
   if (user.listing) {
     return (
       <Link
-        href={`/catalog/${user.listing.slug}`}
+        href={catalogListing(user.listing.slug)}
         title="Открыть анкету"
         className="group flex min-w-0 flex-1 items-center gap-3"
       >

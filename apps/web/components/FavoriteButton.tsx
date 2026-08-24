@@ -5,6 +5,7 @@ import { Heart } from 'lucide-react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 
 /** Heart toggle. By default absolutely positioned top-right, expects a `relative` parent — pass `positionClassName` to override. */
 export function FavoriteButton({
@@ -29,7 +30,7 @@ export function FavoriteButton({
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      router.push('/login');
+      router.push(ROUTES.LOGIN);
       return;
     }
     await toggle(listingId);

@@ -43,6 +43,7 @@ import {
 } from '@/lib/listing-options';
 import type { ListingAttributes } from '@/lib/listing.types';
 import { parseBody } from '@/lib/parse-body';
+import { ROUTES } from '@/lib/routes';
 
 /** Form state — unlike the read-only ListingAttributes shape, name/bio are always controlled strings, never null. */
 interface ListingParams extends Omit<ListingAttributes, 'name'> {
@@ -449,7 +450,7 @@ export default function ListingPage() {
         )}
         {status !== null ? (
           <Link
-            href="/preview"
+            href={ROUTES.PREVIEW}
             target="_blank"
             rel="noopener noreferrer"
             className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-semibold text-white/70 transition-colors hover:border-accent hover:text-white"

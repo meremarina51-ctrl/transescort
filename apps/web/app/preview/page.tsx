@@ -8,6 +8,7 @@ import { ListingGallery } from '@/components/ListingGallery';
 import { authFetch } from '@/lib/auth-fetch';
 import { parseBody } from '@/lib/parse-body';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 import type { ListingAttributes, ListingReviewsSummary } from '@/lib/listing.types';
 
 interface PreviewListing extends ListingAttributes {
@@ -76,7 +77,7 @@ function PreviewContent() {
         <p className="max-w-sm font-body text-sm text-white/40">
           Сначала создайте анкету — после этого здесь появится предпросмотр.
         </p>
-        <Link href="/cabinet/listing" className="btn-primary mt-2">
+        <Link href={ROUTES.CABINET_LISTING} className="btn-primary mt-2">
           Создать анкету
         </Link>
       </div>
@@ -116,7 +117,7 @@ function PreviewContent() {
         initialReviews={reviews}
         photosVerified={listing.photosVerified}
         preview
-        onClose={() => router.push('/cabinet/listing')}
+        onClose={() => router.push(ROUTES.CABINET_LISTING)}
       />
     </div>
   );

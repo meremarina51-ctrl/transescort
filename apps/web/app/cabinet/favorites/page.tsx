@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart, ImageOff } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { authFetch } from '@/lib/auth-fetch';
+import { ROUTES, catalogListing } from '@/lib/routes';
 
 interface FavoriteListing {
   id: string;
@@ -55,7 +56,7 @@ export default function FavoritesPage() {
           <p className="max-w-sm font-body text-sm text-white/35">
             Нажмите на сердечко на анкете в каталоге, чтобы добавить её сюда.
           </p>
-          <Link href="/catalog" className="btn-primary mt-2">
+          <Link href={ROUTES.CATALOG} className="btn-primary mt-2">
             Перейти в каталог
           </Link>
         </div>
@@ -64,7 +65,7 @@ export default function FavoritesPage() {
           {listings.map((listing) => (
             <Link
               key={listing.id}
-              href={`/catalog/${listing.slug ?? listing.id}`}
+              href={catalogListing(listing.slug ?? listing.id)}
               className="card group relative overflow-hidden"
             >
               <FavoriteButton

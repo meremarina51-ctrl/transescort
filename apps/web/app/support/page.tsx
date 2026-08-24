@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { Role } from '@/lib/enums';
+import { ROUTES } from '@/lib/routes';
 
 const SUPPORT_EMAIL = 'escortia@yandex.ru';
 
@@ -14,7 +15,7 @@ const PERFORMER_SECTION = {
   body: (
     <>
       Анкета редактируется в разделе{' '}
-      <Link href="/cabinet/listing" className="text-accent underline-offset-2 hover:underline">
+      <Link href={ROUTES.CABINET_LISTING} className="text-accent underline-offset-2 hover:underline">
         Моя анкета
       </Link>
       . Чтобы анкета попала в каталог, нужно заполнить профиль и загрузить минимум 3 фото, затем нажать «Отправить на
@@ -27,7 +28,7 @@ const PERFORMER_SECTION = {
 
 export default function SupportPage() {
   const { user } = useAuth();
-  const chatsHref = user?.role === Role.Performer ? '/cabinet/chats' : '/cabinet/messages';
+  const chatsHref = user?.role === Role.Performer ? ROUTES.CABINET_CHATS : ROUTES.CABINET_MESSAGES;
 
   const commonSections = [
     {
@@ -35,7 +36,7 @@ export default function SupportPage() {
       body: (
         <>
           Все опубликованные анкеты доступны в{' '}
-          <Link href="/catalog" className="text-accent underline-offset-2 hover:underline">
+          <Link href={ROUTES.CATALOG} className="text-accent underline-offset-2 hover:underline">
             каталоге
           </Link>{' '}
           — там можно фильтровать по городу, типажу и другим параметрам. В каталог попадают только анкеты, прошедшие
@@ -48,7 +49,7 @@ export default function SupportPage() {
       body: user ? (
         <>
           Профиль, чаты и остальные разделы доступны в{' '}
-          <Link href="/cabinet" className="text-accent underline-offset-2 hover:underline">
+          <Link href={ROUTES.CABINET} className="text-accent underline-offset-2 hover:underline">
             личном кабинете
           </Link>
           .
@@ -56,7 +57,7 @@ export default function SupportPage() {
       ) : (
         <>
           Вход и регистрация — на странице{' '}
-          <Link href="/login" className="text-accent underline-offset-2 hover:underline">
+          <Link href={ROUTES.LOGIN} className="text-accent underline-offset-2 hover:underline">
             входа
           </Link>
           . После входа профиль, чаты и остальные разделы доступны в личном кабинете.

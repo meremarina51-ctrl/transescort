@@ -19,6 +19,7 @@ import {
   YAxis,
 } from 'recharts';
 import { authFetch } from '@/lib/auth-fetch';
+import { ROUTES } from '@/lib/routes';
 
 interface ViewStats {
   totalViews: number;
@@ -143,7 +144,7 @@ export default function StatsPage() {
           <p className="max-w-sm font-body text-sm text-white/35">
             Статистика появится, как только вы создадите анкету.
           </p>
-          <Link href="/cabinet/listing" className="btn-primary mt-2">
+          <Link href={ROUTES.CABINET_LISTING} className="btn-primary mt-2">
             Создать анкету
           </Link>
         </div>

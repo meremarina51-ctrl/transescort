@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
 import { ReportButton } from '@/components/ReportButton';
+import { catalogListing } from '@/lib/routes';
 import type { PublicReview } from '@/lib/listing.types';
 
 type ReviewStatus = 'pending' | 'published' | 'rejected' | 'hidden';
@@ -112,7 +113,7 @@ function ClientReviews() {
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               {review.listingSlug ? (
-                <Link href={`/catalog/${review.listingSlug}`} className="font-body text-sm font-semibold text-white hover:text-accent">
+                <Link href={catalogListing(review.listingSlug)} className="font-body text-sm font-semibold text-white hover:text-accent">
                   {review.listingName || 'Анкета'}
                 </Link>
               ) : (
