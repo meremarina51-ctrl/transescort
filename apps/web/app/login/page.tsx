@@ -14,8 +14,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [login, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isError, setError] = useState('');
+  const [isLoading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,10 +82,10 @@ export default function LoginPage() {
               />
             </div>
 
-            {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
+            {isError ? <p className="font-body text-sm text-red-400">{isError}</p> : null}
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
-              {loading ? 'Входим…' : 'Войти'}
+            <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-50">
+              {isLoading ? 'Входим…' : 'Войти'}
             </button>
           </form>
 

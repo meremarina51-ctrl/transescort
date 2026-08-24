@@ -3,19 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
-import { apiUrl } from '@/lib/api-url';
-import { Select } from '@/components/Select';
+import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
-import { type RegistrableRole, CONTACT_METHOD_OPTIONS } from './register.constants';
+import { ContactFields } from '@/components/register/ContactFields';
+import { RequiredMark } from '@/components/register/RequiredMark';
+import { RoleSelector } from '@/components/register/RoleSelector';
+import { apiUrl } from '@/lib/api-url';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
-
-function RequiredMark() {
-  return <span className="text-red-400"> *</span>;
-}
+import { PendingAuth, RegistrableRole } from '@/components/register/types';
 
 export default function RegisterPage() {
   const { login: authLogin } = useAuth();
@@ -27,12 +25,7 @@ export default function RegisterPage() {
   const [contactValue, setContactValue] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingAuth, setPendingAuth] = useState<{
-    accessToken: string;
-    refreshToken: string;
-    user: any;
-    recoveryCode: string;
-  } | null>(null);
+  const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +40,7 @@ export default function RegisterPage() {
 
     try {
       const payload: Record<string, unknown> = { login, password, role };
+      
       if (role !== Role.Client) {
         payload.contactMethod = contactMethod;
         payload.contactValue = contactValue.trim();
@@ -66,6 +60,7 @@ export default function RegisterPage() {
       }
 
       const data = await response.json();
+
       setPendingAuth({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
@@ -79,8 +74,9 @@ export default function RegisterPage() {
     }
   };
 
-  const finishRegistration = () => {
+  const onConfirm = () => {
     if (!pendingAuth) return;
+
     authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
     router.push(ROUTES.CABINET);
   };
@@ -93,32 +89,7 @@ export default function RegisterPage() {
           <h1 className="mb-6 text-center font-display text-2xl font-bold">Регистрация</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-2 block font-body text-xs uppercase tracking-wide text-white/40">
-                Я регистрируюсь как
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    [Role.Client, 'Клиент'],
-                    [Role.Performer, 'Исполнитель'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setRole(value)}
-                    className={`rounded-lg border py-2.5 font-body text-sm font-medium transition-colors ${
-                      role === value
-                        ? 'border-accent/40 bg-accent/10 text-accent'
-                        : 'border-white/10 text-white/40 hover:text-white/70'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <RoleSelector value={role} onChange={setRole} />
 
             <div>
               <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
@@ -152,29 +123,12 @@ export default function RegisterPage() {
             </div>
 
             {role === Role.Performer ? (
-              <>
-                <div>
-                  <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
-                    Способ связи
-                    <RequiredMark />
-                  </label>
-                  <Select value={contactMethod} onChange={setContactMethod} options={CONTACT_METHOD_OPTIONS} />
-                </div>
-                <div>
-                  <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
-                    Контакт
-                    <RequiredMark />
-                  </label>
-                  <input
-                    type="text"
-                    value={contactValue}
-                    onChange={(e) => setContactValue(e.target.value)}
-                    required
-                    placeholder="@username, номер или email"
-                    className="input"
-                  />
-                </div>
-              </>
+              <ContactFields
+                contactMethod={contactMethod}
+                onContactMethodChange={setContactMethod}
+                contactValue={contactValue}
+                onContactValueChange={setContactValue}
+              />
             ) : null}
 
             {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
@@ -198,7 +152,7 @@ export default function RegisterPage() {
         <RecoveryCodeModal
           code={pendingAuth.recoveryCode}
           confirmLabel="Я сохранил(а) код — перейти в кабинет"
-          onConfirm={finishRegistration}
+          onConfirm={onConfirm}
         />
       ) : null}
     </div>

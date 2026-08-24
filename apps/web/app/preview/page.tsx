@@ -36,21 +36,24 @@ function PreviewContent() {
   const router = useRouter();
   const [listing, setListing] = useState<PreviewListing | null>(null);
   const [reviews, setReviews] = useState<ListingReviewsSummary>(EMPTY_REVIEWS);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [isLoading, setLoading] = useState(true);
+  const [isError, setError] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
         const res = await authFetch('/listings/me');
         const data = res.ok ? await parseBody(res) : null;
+        
         if (!data) {
           setError('no-listing');
           return;
         }
+
         setListing(data);
 
         const reviewsRes = await authFetch(`/reviews/listing/${data.id}`);
+        
         if (reviewsRes.ok) {
           setReviews((await parseBody(reviewsRes)) ?? EMPTY_REVIEWS);
         }
@@ -62,7 +65,7 @@ function PreviewContent() {
     })();
   }, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <p className="font-body text-sm text-white/40">Загрузка…</p>
@@ -70,7 +73,7 @@ function PreviewContent() {
     );
   }
 
-  if (error === 'no-listing') {
+  if (isError === 'no-listing') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#0a0a0a] p-6 text-center text-white">
         <h1 className="font-display text-xl font-bold">Анкета ещё не создана</h1>
@@ -84,10 +87,10 @@ function PreviewContent() {
     );
   }
 
-  if (error || !listing) {
+  if (isError || !listing) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] p-6 text-center">
-        <p className="font-body text-sm text-red-400">{error || 'Не удалось загрузить анкету'}</p>
+        <p className="font-body text-sm text-red-400">{isError || 'Не удалось загрузить анкету'}</p>
       </div>
     );
   }

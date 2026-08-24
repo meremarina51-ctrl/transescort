@@ -1,6 +1,4 @@
-import { Role } from '@/lib/enums';
-
-export type RegistrableRole = Role.Client | Role.Performer;
+import { Role } from "@/lib/enums";
 
 export const CONTACT_METHOD_OPTIONS = [
   { value: 'telegram', label: 'Telegram' },
@@ -8,3 +6,8 @@ export const CONTACT_METHOD_OPTIONS = [
   { value: 'phone', label: 'Телефон' },
   { value: 'whatsapp', label: 'WhatsApp' },
 ];
+
+export const OPTIONS = [
+  [Role.Client, 'Клиент'],
+  [Role.Performer, 'Исполнитель'],
+] as const;

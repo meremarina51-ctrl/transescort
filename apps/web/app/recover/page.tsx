@@ -16,8 +16,8 @@ export default function RecoverPage() {
   const [login, setLoginValue] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isError, setError] = useState('');
+  const [isLoading, setLoading] = useState(false);
   const [pendingAuth, setPendingAuth] = useState<{
     accessToken: string;
     refreshToken: string;
@@ -58,7 +58,7 @@ export default function RecoverPage() {
     }
   };
 
-  const finish = () => {
+  const onConfirm = () => {
     if (!pendingAuth) return;
     authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
     router.push(ROUTES.CABINET);
@@ -114,10 +114,10 @@ export default function RecoverPage() {
               />
             </div>
 
-            {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
+            {isError ? <p className="font-body text-sm text-red-400">{isError}</p> : null}
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
-              {loading ? 'Восстанавливаем…' : 'Восстановить доступ'}
+            <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-50">
+              {isLoading ? 'Восстанавливаем…' : 'Восстановить доступ'}
             </button>
           </form>
 
@@ -137,7 +137,7 @@ export default function RecoverPage() {
           title="Новый код восстановления"
           description="Старый код больше не действует. Сохраните этот новый код — он понадобится при следующей потере пароля."
           confirmLabel="Я сохранил(а) код — перейти в кабинет"
-          onConfirm={finish}
+          onConfirm={onConfirm}
         />
       ) : null}
     </div>

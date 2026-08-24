@@ -9,9 +9,9 @@ export default function ContactsPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isError, setError] = useState('');
+  const [isSuccess, setSuccess] = useState(false);
+  const [isLoading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +54,7 @@ export default function ContactsPage() {
             Оставьте сообщение — мы передадим его администратору. Ответ придёт на указанный вами email.
           </p>
 
-          {success ? (
+          {isSuccess ? (
             <p className="mb-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 font-body text-sm text-emerald-400" role="status">
               Сообщение отправлено. Спасибо!
             </p>
@@ -112,10 +112,10 @@ export default function ContactsPage() {
               />
             </div>
 
-            {error ? <p className="font-body text-sm text-red-400">{error}</p> : null}
+            {isError ? <p className="font-body text-sm text-red-400">{isError}</p> : null}
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
-              {loading ? 'Отправка…' : 'Отправить'}
+            <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-50">
+              {isLoading ? 'Отправка…' : 'Отправить'}
             </button>
           </form>
         </div>
