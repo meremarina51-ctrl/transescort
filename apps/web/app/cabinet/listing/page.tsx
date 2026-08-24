@@ -22,6 +22,7 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
 import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
 import { SortablePhotoTile } from '@/components/SortablePhotoTile';
@@ -135,7 +136,7 @@ export default function ListingPage() {
   const [videoError, setVideoError] = useState('');
 
   useEffect(() => {
-    if (user && user.role !== 'performer') {
+    if (user && user.role !== Role.Performer) {
       setLoading(false);
       return;
     }
@@ -405,7 +406,7 @@ export default function ListingPage() {
     }
   };
 
-  if (user && user.role !== 'performer') {
+  if (user && user.role !== Role.Performer) {
     return (
       <>
         <h1 className="mb-6 font-display text-2xl font-bold">Моя анкета</h1>

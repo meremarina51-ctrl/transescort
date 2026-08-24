@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
 import { useAuthOrGuest } from './AuthProvider';
 import { NAV_LINKS } from './Header.constants';
+import { Role } from '@/lib/enums';
 
 export function Header() {
   const { user, privateAreaHref, privateAreaLabel } = useAuthOrGuest();
@@ -62,7 +63,7 @@ export function Header() {
               <Link href={privateAreaHref} className="btn-secondary !px-6 !py-2.5">
                 {privateAreaLabel}
               </Link>
-              {user.role === 'admin' ? (
+              {user.role === Role.Admin ? (
                 <Link href="/admin" className="btn-primary !px-6 !py-2.5">
                   Панель
                 </Link>
@@ -104,7 +105,7 @@ export function Header() {
               <Link href={privateAreaHref} className="btn-secondary mt-4" onClick={() => setOpen(false)}>
                 {privateAreaLabel}
               </Link>
-              {user.role === 'admin' ? (
+              {user.role === Role.Admin ? (
                 <Link href="/admin" className="btn-primary" onClick={() => setOpen(false)}>
                   Панель
                 </Link>

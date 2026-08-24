@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { useFavorites } from '@/hooks/useFavorites';
+import { Role } from '@/lib/enums';
 
 /** Heart toggle. By default absolutely positioned top-right, expects a `relative` parent — pass `positionClassName` to override. */
 export function FavoriteButton({
@@ -20,7 +21,7 @@ export function FavoriteButton({
   const { user } = useAuthOrGuest();
   const { isFavorite, toggle } = useFavorites();
 
-  if (user && user.role !== 'client') return null;
+  if (user && user.role !== Role.Client) return null;
 
   const active = user ? isFavorite(listingId) : false;
 

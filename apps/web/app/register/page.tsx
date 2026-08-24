@@ -9,7 +9,8 @@ import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { Select } from '@/components/Select';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
-import { type Role, CONTACT_METHOD_OPTIONS } from './register.constants';
+import { type RegistrableRole, CONTACT_METHOD_OPTIONS } from './register.constants';
+import { Role } from '@/lib/enums';
 
 function RequiredMark() {
   return <span className="text-red-400"> *</span>;
@@ -18,7 +19,7 @@ function RequiredMark() {
 export default function RegisterPage() {
   const { login: authLogin } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<Role>('client');
+  const [role, setRole] = useState<RegistrableRole>(Role.Client);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [contactMethod, setContactMethod] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    if (role === 'performer' && (!contactMethod || !contactValue.trim())) {
+    if (role === Role.Performer && (!contactMethod || !contactValue.trim())) {
       setError('Укажите способ связи и контакт');
       return;
     }
@@ -45,7 +46,7 @@ export default function RegisterPage() {
 
     try {
       const payload: Record<string, unknown> = { login, password, role };
-      if (role !== 'client') {
+      if (role !== Role.Client) {
         payload.contactMethod = contactMethod;
         payload.contactValue = contactValue.trim();
       }
@@ -96,10 +97,12 @@ export default function RegisterPage() {
                 Я регистрируюсь как
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {([
-                  ['client', 'Клиент'],
-                  ['performer', 'Исполнитель'],
-                ] as const).map(([value, label]) => (
+                {(
+                  [
+                    [Role.Client, 'Клиент'],
+                    [Role.Performer, 'Исполнитель'],
+                  ] as const
+                ).map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
@@ -147,7 +150,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {role === 'performer' ? (
+            {role === Role.Performer ? (
               <>
                 <div>
                   <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">

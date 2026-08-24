@@ -9,9 +9,6 @@ import { NumberStepper } from '@/components/NumberStepper';
 import { Select } from '@/components/Select';
 import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
 import {
-  TYPE_OPTIONS,
-  FIGURE_OPTIONS,
-  TEMPERAMENT_OPTIONS,
   HAIR_COLOR_OPTIONS,
   EYE_COLOR_OPTIONS,
   COUNTRY_OPTIONS,

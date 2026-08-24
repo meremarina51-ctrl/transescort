@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ListingGallery } from '@/components/ListingGallery';
 import { authFetch } from '@/lib/auth-fetch';
 import { parseBody } from '@/lib/parse-body';
+import { Role } from '@/lib/enums';
 import type { ListingAttributes, ListingReviewsSummary } from '@/lib/listing.types';
 
 interface PreviewListing extends ListingAttributes {
@@ -123,7 +124,7 @@ function PreviewContent() {
 
 export default function PreviewPage() {
   return (
-    <ProtectedRoute requiredRoles={['performer']}>
+    <ProtectedRoute requiredRoles={[Role.Performer]}>
       <PreviewContent />
     </ProtectedRoute>
   );

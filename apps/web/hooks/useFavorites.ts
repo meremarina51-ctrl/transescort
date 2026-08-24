@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
 
 /** Client-only favorites state, shared by the catalog cards and the "Избранное" cabinet page. */
 export function useFavorites() {
   const { user } = useAuthOrGuest();
-  const isClient = user?.role === 'client';
+  const isClient = user?.role === Role.Client;
   const [ids, setIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {

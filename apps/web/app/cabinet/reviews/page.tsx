@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Star, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
 import { ReportButton } from '@/components/ReportButton';
 import type { PublicReview } from '@/lib/listing.types';
 
@@ -221,7 +222,7 @@ function PerformerReviews() {
 
 export default function ReviewsPage() {
   const { user } = useAuth();
-  const isPerformer = user?.role === 'performer';
+  const isPerformer = user?.role === Role.Performer;
 
   return (
     <>

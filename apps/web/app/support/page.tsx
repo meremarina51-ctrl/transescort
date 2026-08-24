@@ -5,6 +5,7 @@ import { Mail } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
+import { Role } from '@/lib/enums';
 
 const SUPPORT_EMAIL = 'escortia@yandex.ru';
 
@@ -26,7 +27,7 @@ const PERFORMER_SECTION = {
 
 export default function SupportPage() {
   const { user } = useAuth();
-  const chatsHref = user?.role === 'performer' ? '/cabinet/chats' : '/cabinet/messages';
+  const chatsHref = user?.role === Role.Performer ? '/cabinet/chats' : '/cabinet/messages';
 
   const commonSections = [
     {
@@ -86,7 +87,7 @@ export default function SupportPage() {
     },
   ];
 
-  const sections = user?.role === 'performer' ? [PERFORMER_SECTION, ...commonSections] : commonSections;
+  const sections = user?.role === Role.Performer ? [PERFORMER_SECTION, ...commonSections] : commonSections;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">

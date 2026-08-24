@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { PERFORMER_OVERVIEW_TILES, CLIENT_OVERVIEW_TILES, DEFAULT_OVERVIEW_TILES } from './cabinet.constants';
+import { Role } from '@/lib/enums';
 
 export default function CabinetOverviewPage() {
   const { user } = useAuth();
   const tiles =
-    user?.role === 'performer' ? PERFORMER_OVERVIEW_TILES : user?.role === 'client' ? CLIENT_OVERVIEW_TILES : DEFAULT_OVERVIEW_TILES;
+    user?.role === Role.Performer ? PERFORMER_OVERVIEW_TILES : user?.role === Role.Client ? CLIENT_OVERVIEW_TILES : DEFAULT_OVERVIEW_TILES;
 
   return (
     <div>

@@ -9,6 +9,7 @@ import { ReportButton } from '@/components/ReportButton';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
 import type { ListingReviewsSummary } from '@/lib/listing.types';
 
 async function parseBody(res: Response) {
@@ -145,7 +146,7 @@ export function ListingGallery({
       });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось начать чат');
-      const chatsHref = user?.role === 'performer' ? '/cabinet/chats' : '/cabinet/messages';
+      const chatsHref = user?.role === Role.Performer ? '/cabinet/chats' : '/cabinet/messages';
       router.push(`${chatsHref}?c=${data.id}`);
     } catch (err: any) {
       setStartChatError(err.message || 'Не удалось начать чат');
@@ -394,7 +395,7 @@ export function ListingGallery({
                       <p className="font-body text-sm text-white/30">Отзывов пока нет</p>
                     )}
                   </div>
-                  {user && user.role === 'client' ? (
+                  {user && user.role === Role.Client ? (
                     <button
                       type="button"
                       onClick={() => {

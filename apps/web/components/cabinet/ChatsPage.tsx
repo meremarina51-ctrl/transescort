@@ -7,12 +7,13 @@ import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { getChatSocket } from '@/lib/chat-socket';
 import { ReportButton } from '@/components/ReportButton';
+import { Role } from '@/lib/enums';
 
 interface ConversationParticipant {
   id: string;
   login: string;
   fullName: string | null;
-  role: 'client' | 'performer' | 'admin';
+  role: Role;
   listing: { slug: string; photo: string | null } | null;
 }
 
@@ -32,7 +33,11 @@ interface ChatMessage {
   createdAt: string;
 }
 
-const ROLE_LABELS: Record<string, string> = { client: 'Клиент', performer: 'Исполнитель', admin: 'Админ' };
+const ROLE_LABELS: Record<Role, string> = {
+  [Role.Client]: 'Клиент',
+  [Role.Performer]: 'Исполнитель',
+  [Role.Admin]: 'Админ',
+};
 
 function initial(name: string): string {
   return name.slice(0, 1).toUpperCase();

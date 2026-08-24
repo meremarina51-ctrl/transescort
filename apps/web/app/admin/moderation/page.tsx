@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
+import { Role } from '@/lib/enums';
 
 interface ModerationListing {
   id: string;
@@ -107,7 +108,7 @@ const REPORT_CATEGORY_LABEL: Record<string, string> = {
 interface TelegramBotReportItem {
   id: string;
   threadId: string;
-  reporterRole: 'client' | 'performer';
+  reporterRole: Role.Client | Role.Performer;
   category: string;
   status: 'pending' | 'resolved' | 'dismissed';
   adminNote: string | null;
@@ -1191,7 +1192,7 @@ export default function AdminModerationPage() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/50">
-                          {report.reporterRole === 'performer' ? 'Исполнитель' : 'Клиент'}
+                          {report.reporterRole === Role.Performer ? 'Исполнитель' : 'Клиент'}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 font-body text-xs text-white/50">
                           {report.performerName || report.performerLogin || '—'}

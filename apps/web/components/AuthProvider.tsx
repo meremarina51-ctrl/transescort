@@ -8,12 +8,13 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/auth-fetch';
 import { disconnectChatSocket } from '@/lib/chat-socket';
+import { Role } from '@/lib/enums';
 
 interface User {
   id: string;
   login: string;
   fullName: string | null;
-  role: 'client' | 'performer' | 'admin';
+  role: Role;
   messagingRestricted: boolean;
 }
 

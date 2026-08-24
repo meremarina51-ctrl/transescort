@@ -4,13 +4,14 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
+import { Role } from '@/lib/enums';
 
 export function ProtectedRoute({
   children,
   requiredRoles,
 }: {
   children: React.ReactNode;
-  requiredRoles?: Array<'client' | 'performer' | 'admin'>;
+  requiredRoles?: Role[];
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();

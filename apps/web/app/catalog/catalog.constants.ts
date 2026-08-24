@@ -1,7 +1,4 @@
 import {
-  TYPE_OPTIONS,
-  FIGURE_OPTIONS,
-  TEMPERAMENT_OPTIONS,
   HAIR_COLOR_OPTIONS,
   EYE_COLOR_OPTIONS,
 } from '@/lib/listing-options';

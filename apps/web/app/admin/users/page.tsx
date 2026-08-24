@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
 
 const PAGE_SIZE = 20;
 
@@ -30,7 +31,7 @@ interface AdminUser {
   id: string;
   login: string;
   fullName: string | null;
-  role: 'client' | 'performer' | 'admin';
+  role: Role;
   status: 'active' | 'suspended';
   email: string | null;
   phone: string | null;
@@ -52,9 +53,9 @@ interface TelegramBotClient {
 }
 
 const ROLE_LABELS: Record<AdminUser['role'], string> = {
-  client: 'Клиент',
-  performer: 'Исполнитель',
-  admin: 'Админ',
+  [Role.Client]: 'Клиент',
+  [Role.Performer]: 'Исполнитель',
+  [Role.Admin]: 'Админ',
 };
 
 async function parseBody(res: Response) {

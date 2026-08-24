@@ -14,15 +14,16 @@ import {
   DEFAULT_NAV,
   TAIL_NAV,
 } from './cabinet.constants';
+import { Role } from '@/lib/enums';
 
 const CHAT_HREFS = new Set(['/cabinet/chats', '/cabinet/messages']);
 
 function CabinetShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const isClient = user?.role === 'client';
+  const isClient = user?.role === Role.Client;
   const unreadChats = useUnreadChatsCount();
 
-  const baseNav = user?.role === 'performer' ? PERFORMER_NAV : isClient ? CLIENT_NAV : DEFAULT_NAV;
+  const baseNav = user?.role === Role.Performer ? PERFORMER_NAV : isClient ? CLIENT_NAV : DEFAULT_NAV;
   const nav: NavItem[] = [
     ...BASE_NAV,
     ...baseNav.map((item) => (CHAT_HREFS.has(item.href) ? { ...item, badge: unreadChats } : item)),
