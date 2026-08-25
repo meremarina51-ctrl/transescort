@@ -12,11 +12,7 @@ import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
 import type { ListingReviewsSummary } from '@/lib/listing.types';
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
+import { parseBody } from '@/lib/parse-body';
 
 type Media = { type: 'photo' | 'video'; url: string };
 

@@ -5,15 +5,11 @@ import { AlertTriangle, KeyRound, Loader2, MonitorX, Send, UserX } from 'lucide-
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { RecoveryCodeModal } from '@/components/RecoveryCodeModal';
+import { parseBody } from '@/lib/parse-body';
 
 interface TelegramStatus {
   linked: boolean;
   username: string | null;
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 export default function SettingsPage() {

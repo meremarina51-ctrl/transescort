@@ -16,6 +16,7 @@ import {
   CITY_OPTIONS,
   toSelectOptions,
 } from '@/lib/listing-options';
+import { parseBody } from '@/lib/parse-body';
 
 type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
 
@@ -92,11 +93,6 @@ function toEditable(l: AdminListingDetail): EditableFields {
     country: l.country,
     city: l.city,
   };
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

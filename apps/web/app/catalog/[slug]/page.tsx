@@ -1,55 +1,9 @@
 import { notFound } from 'next/navigation';
+import { getListing, getReviews, getTelegramBotUsername } from '@/api';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ListingGallery } from '@/components/ListingGallery';
-import { apiUrl } from '@/lib/api-url';
-import type { ListingAttributes, ListingReviewsSummary } from '@/lib/listing.types';
-
-interface ListingDetail extends ListingAttributes {
-  id: string;
-  bio: string | null;
-  photos: string[];
-  videoUrl: string | null;
-  ownerLogin: string | null;
-  ownerTelegramLinked: boolean;
-  photosVerified: boolean;
-  contactPhone: string | null;
-  contactTelegram: string | null;
-  contactWhatsapp: string | null;
-}
-
-const EMPTY_REVIEWS: ListingReviewsSummary = { items: [], count: 0, averageRating: 0 };
-
-async function getListing(slug: string): Promise<ListingDetail | null> {
-  try {
-    const res = await fetch(apiUrl(`/catalog/${slug}`), { cache: 'no-store' });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-async function getTelegramBotUsername(): Promise<string | null> {
-  try {
-    const res = await fetch(apiUrl('/telegram/bot-info'), { cache: 'no-store' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.username ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function getReviews(listingId: string): Promise<ListingReviewsSummary> {
-  try {
-    const res = await fetch(apiUrl(`/reviews/listing/${listingId}`), { cache: 'no-store' });
-    if (!res.ok) return EMPTY_REVIEWS;
-    return res.json();
-  } catch {
-    return EMPTY_REVIEWS;
-  }
-}
+import { ListingDetail } from '@/lib/listing.types';
 
 const VITALS: { key: keyof ListingDetail; label: string; suffix?: string }[] = [
   { key: 'age', label: 'Возраст' },

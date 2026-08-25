@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, X } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
+import { parseBody } from '@/lib/parse-body';
 
 export type PhotoReviewStatus = 'pending' | 'confirmed' | 'rejected';
 
@@ -26,11 +27,6 @@ export const PHOTO_REVIEW_STATUS_CLASS: Record<PhotoReviewStatus, string> = {
 };
 
 type RejectTarget = { mode: 'single'; url: string } | { mode: 'bulk' };
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
 
 function reviewFor(reviews: PhotoReview[], url: string): PhotoReview {
   return reviews.find((r) => r.url === url) ?? { url, status: 'pending', note: null };

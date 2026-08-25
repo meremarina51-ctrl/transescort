@@ -18,6 +18,7 @@ import {
 import { authFetch } from '@/lib/auth-fetch';
 import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
 import { Role } from '@/lib/enums';
+import { parseBody } from '@/lib/parse-body';
 
 interface ModerationListing {
   id: string;
@@ -143,11 +144,6 @@ interface AdminConversationView {
   participants: AdminConversationParticipant[];
   messages: AdminConversationMessage[];
   reportedMessageId: string;
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 function ColumnHeader({ title, count }: { title: string; count: number }) {

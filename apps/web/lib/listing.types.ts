@@ -31,3 +31,17 @@ export interface ListingReviewsSummary {
   count: number;
   averageRating: number;
 }
+
+export interface ListingDetail extends ListingAttributes {
+  id: string;
+  bio: string | null;
+  photos: string[];
+  videoUrl: string | null;
+  ownerLogin: string | null;
+  ownerTelegramLinked: boolean;
+  photosVerified: boolean;
+  contactPhone: string | null;
+  contactTelegram: string | null;
+  contactWhatsapp: string | null;
+}
+

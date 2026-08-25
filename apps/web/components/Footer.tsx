@@ -1,12 +1,7 @@
 import Link from 'next/link';
-import Logo from './Logo';
 import { ROUTES } from '@/lib/routes';
-
-const LEGAL_DOCS = [
-  { file: 'Оферта LuxEscortia.pdf', label: 'Публичная оферта' },
-  { file: 'Политика конфиденциальности LuxEscortia.pdf', label: 'Политика обработки персональных данных' },
-  { file: 'Персональные данные LuxEscortia.pdf', label: 'Согласие на обработку персональных данных' },
-] as const;
+import { LEGAL_DOCS } from './constants';
+import Logo from './Logo';
 
 export function Footer() {
   return (

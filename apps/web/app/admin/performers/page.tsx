@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Eye, EyeOff, ImageOff, Loader2, Pencil, Search, Send, Trash2, Users } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
+import { parseBody } from '@/lib/parse-body';
 
 type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
 
@@ -20,11 +21,6 @@ interface AdminListing {
   ownerFullName: string | null;
   ownerTelegramUsername: string | null;
   ownerTelegramLinked: boolean;
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 const STATUS_BADGES: Record<ListingStatus, { label: string; className: string }> = {

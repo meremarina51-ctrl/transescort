@@ -9,6 +9,7 @@ import { getChatSocket } from '@/lib/chat-socket';
 import { ReportButton } from '@/components/ReportButton';
 import { Role } from '@/lib/enums';
 import { catalogListing } from '@/lib/routes';
+import { parseBody } from '@/lib/parse-body';
 
 interface ConversationParticipant {
   id: string;
@@ -124,11 +125,6 @@ function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
     );
   }
   return <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>;
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 const LIST_COLLAPSED_KEY = 'cabinet-chats-list-collapsed';

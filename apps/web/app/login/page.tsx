@@ -3,23 +3,24 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { ROUTES } from '@/lib/routes';
+import { AuthCard } from '@/components/auth/AuthCard';
+import { FormError } from '@/components/auth/FormError';
+import { SubmitButton } from '@/components/auth/SubmitButton';
 
 export default function LoginPage() {
   const { login: authLogin } = useAuth();
   const router = useRouter();
   const [login, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
-  const [isError, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrorMessage('');
     setLoading(true);
 
     try {
@@ -40,64 +41,54 @@ export default function LoginPage() {
       authLogin(data.accessToken, data.refreshToken, data.user);
       router.push(ROUTES.CABINET);
     } catch (err: any) {
-      setError(err.message || 'Не удалось войти');
+      setErrorMessage(err.message || 'Не удалось войти');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">
-      <Header />
-      <main className="flex flex-1 items-center justify-center p-4 py-16">
-        <div className="card w-full max-w-md p-8">
-          <h1 className="mb-6 text-center font-display text-2xl font-bold">Вход</h1>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Логин</label>
-              <input
-                type="text"
-                value={login}
-                onChange={(e) => setLoginValue(e.target.value)}
-                required
-                placeholder="ivan_petrov"
-                className="input"
-              />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <label className="block font-body text-xs uppercase tracking-wide text-white/40">Пароль</label>
-                <Link href={ROUTES.RECOVER} className="font-body text-xs text-accent hover:underline">
-                  Забыли пароль?
-                </Link>
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="input"
-              />
-            </div>
-
-            {isError ? <p className="font-body text-sm text-red-400">{isError}</p> : null}
-
-            <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-50">
-              {isLoading ? 'Входим…' : 'Войти'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center font-body text-sm text-white/40">
-            Нет аккаунта?{' '}
-            <Link href={ROUTES.REGISTER} className="font-medium text-accent hover:underline">
-              Зарегистрироваться
-            </Link>
-          </p>
+    <AuthCard title="Вход">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">Логин</label>
+          <input
+            type="text"
+            value={login}
+            onChange={(e) => setLoginValue(e.target.value)}
+            required
+            placeholder="ivan_petrov"
+            className="input"
+          />
         </div>
-      </main>
-      <Footer />
-    </div>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block font-body text-xs uppercase tracking-wide text-white/40">Пароль</label>
+            <Link href={ROUTES.RECOVER} className="font-body text-xs text-accent hover:underline">
+              Забыли пароль?
+            </Link>
+          </div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="••••••••"
+            className="input"
+          />
+        </div>
+
+        <FormError error={errorMessage} />
+
+        <SubmitButton isLoading={isLoading} loadingText="Входим…" text="Войти" />
+      </form>
+
+      <p className="mt-6 text-center font-body text-sm text-white/40">
+        Нет аккаунта?{' '}
+        <Link href={ROUTES.REGISTER} className="font-medium text-accent hover:underline">
+          Зарегистрироваться
+        </Link>
+      </p>
+    </AuthCard>
   );
 }

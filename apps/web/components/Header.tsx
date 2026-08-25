@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
-import Logo from './Logo';
-import { useAuthOrGuest } from './AuthProvider';
-import { NAV_LINKS } from './Header.constants';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
+import { useAuthOrGuest } from './AuthProvider';
+import { NAV_LINKS } from './constants';
+import Logo from './Logo';
 
 export function Header() {
   const { user, privateAreaHref, privateAreaLabel } = useAuthOrGuest();

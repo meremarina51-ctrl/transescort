@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
+import { parseBody } from '@/lib/parse-body';
 
 const PAGE_SIZE = 20;
 
@@ -57,11 +58,6 @@ const ROLE_LABELS: Record<AdminUser['role'], string> = {
   [Role.Performer]: 'Исполнитель',
   [Role.Admin]: 'Админ',
 };
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
 
 function StatusBadge({ status }: { status: AdminUser['status'] }) {
   return status === 'active' ? (

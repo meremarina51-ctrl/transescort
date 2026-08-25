@@ -7,6 +7,7 @@ import { Flag, Loader2, X } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { ROUTES } from '@/lib/routes';
+import { parseBody } from '@/lib/parse-body';
 
 type ReportTargetType = 'listing' | 'review' | 'message' | 'user';
 
@@ -24,11 +25,6 @@ interface Props {
   /** Overrides the default icon+text trigger styling — pass a full className to restyle it (e.g. icon-only in a toolbar). */
   className?: string;
   label?: string;
-}
-
-async function parseBody(res: Response) {
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 export function ReportButton({ targetType, targetId, className, label = 'Пожаловаться' }: Props) {
