@@ -1,5 +1,5 @@
 import { getReviews } from "./review";
 import { getTelegramBotUsername } from "./telegram";
-import { getLatestListings, getListing } from "./catalog";
+import { getLatestListings, getListing, getListings } from "./catalog";
 
-export { getReviews, getTelegramBotUsername, getLatestListings, getListing };
+export { getReviews, getTelegramBotUsername, getLatestListings, getListing, getListings };

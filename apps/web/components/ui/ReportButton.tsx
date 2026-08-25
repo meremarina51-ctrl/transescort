@@ -19,7 +19,7 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: 'other', label: 'Другое' },
 ];
 
-interface Props {
+interface IProps {
   targetType: ReportTargetType;
   targetId: string;
   /** Overrides the default icon+text trigger styling — pass a full className to restyle it (e.g. icon-only in a toolbar). */
@@ -27,7 +27,7 @@ interface Props {
   label?: string;
 }
 
-export function ReportButton({ targetType, targetId, className, label = 'Пожаловаться' }: Props) {
+export function ReportButton({ targetType, targetId, className, label = 'Пожаловаться' }: IProps) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);

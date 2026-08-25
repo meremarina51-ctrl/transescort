@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { HomeCtaButtons } from "../HomeCtaButtons";
+import { CtaButtons } from "./CtaButtons";
 
 export const Cta: FC = () => (
     <section className="border-t border-white/[0.04] py-20 md:py-28">
@@ -8,7 +8,7 @@ export const Cta: FC = () => (
             <p className="mx-auto mt-4 max-w-md font-body text-white/40">
                 Создайте аккаунт за 30 секунд и получите доступ к платформе
             </p>
-            <HomeCtaButtons />
+            <CtaButtons />
         </div>
     </section>
 );

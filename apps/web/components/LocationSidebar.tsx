@@ -8,7 +8,7 @@ export interface GeoCountry {
   cities: string[];
 }
 
-interface LocationSidebarProps {
+interface IProps {
   selectedCountry: string;
   selectedCity: string;
   onSelect: (country: string, city: string) => void;
@@ -23,7 +23,7 @@ function SidebarContent({
   onSelect,
   onMobileClose,
   geoData,
-}: Omit<LocationSidebarProps, 'mobileOpen'>) {
+}: Omit<IProps, 'mobileOpen'>) {
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(geoData.length > 0 ? [geoData[0].country] : []),
   );
@@ -125,7 +125,7 @@ export function LocationSidebar({
   mobileOpen,
   onMobileClose,
   geoData,
-}: LocationSidebarProps) {
+}: IProps) {
   return (
     <>
       {/* Desktop sidebar */}

@@ -4,14 +4,14 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Star, X } from 'lucide-react';
 
-interface SortablePhotoTileProps {
+interface IProps {
   url: string;
   isMain: boolean;
   onRemove: () => void;
   onSetMain: () => void;
 }
 
-export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: SortablePhotoTileProps) {
+export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: IProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url });
 
   const style = {

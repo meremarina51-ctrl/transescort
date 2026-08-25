@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Check, Copy, KeyRound } from 'lucide-react';
 
-interface RecoveryCodeModalProps {
+interface IProps {
   code: string;
   title?: string;
   description?: string;
@@ -18,7 +18,7 @@ export function RecoveryCodeModal({
   description = 'Сохраните этот код в надёжном месте — он понадобится, если вы забудете пароль. Он показывается только один раз.',
   confirmLabel = 'Я сохранил(а) код',
   onConfirm,
-}: RecoveryCodeModalProps) {
+}: IProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 

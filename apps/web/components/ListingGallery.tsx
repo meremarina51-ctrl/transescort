@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BadgeCheck, Eye, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
-import { ReportButton } from '@/components/ReportButton';
+import { ReportButton } from '@/components/ui/ReportButton';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';

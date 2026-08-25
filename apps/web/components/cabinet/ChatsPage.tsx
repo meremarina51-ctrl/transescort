@@ -6,7 +6,7 @@ import { Check, CheckCheck, ChevronLeft, ChevronRight, Loader2, MessageSquare, P
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { getChatSocket } from '@/lib/chat-socket';
-import { ReportButton } from '@/components/ReportButton';
+import { ReportButton } from '@/components/ui/ReportButton';
 import { Role } from '@/lib/enums';
 import { catalogListing } from '@/lib/routes';
 import { parseBody } from '@/lib/parse-body';

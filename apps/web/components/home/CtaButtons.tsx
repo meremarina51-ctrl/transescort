@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuthOrGuest } from './AuthProvider';
+import { useAuthOrGuest } from '../AuthProvider';
 import { ROUTES } from '@/lib/routes';
 
-export function HomeCtaButtons() {
+export function CtaButtons() {
   const { user } = useAuthOrGuest();
 
   return (

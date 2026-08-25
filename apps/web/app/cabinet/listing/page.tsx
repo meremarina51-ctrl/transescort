@@ -23,8 +23,8 @@ import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortab
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
-import { NumberStepper } from '@/components/NumberStepper';
-import { Select } from '@/components/Select';
+import { NumberStepper } from '@/components/ui/NumberStepper';
+import { Select } from '@/components/ui/Select';
 import { SortablePhotoTile } from '@/components/SortablePhotoTile';
 import {
   PHOTO_REVIEW_STATUS_CLASS,

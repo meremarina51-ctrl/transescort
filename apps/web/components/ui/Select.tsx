@@ -9,7 +9,7 @@ interface Option {
   label: string;
 }
 
-interface Props {
+interface IProps {
   value: string | null;
   onChange: (value: string) => void;
   options: Option[];
@@ -18,7 +18,7 @@ interface Props {
 }
 
 /** Кастомный select — тот же паттерн/размер, что «Способ связи» на странице логина. */
-export function Select({ value, onChange, options, placeholder = '-', light = false }: Props) {
+export function Select({ value, onChange, options, placeholder = '-', light = false }: IProps) {
   const L = light;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

@@ -17,6 +17,7 @@ export function Header() {
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
+
     return () => {
       document.body.style.overflow = '';
     };
@@ -24,13 +25,16 @@ export function Header() {
 
   const scrollToAnchor = (href: string) => {
     if (pathname !== ROUTES.HOME) return;
+    
     const id = href.replace('/#', '');
     const el = document.getElementById(id);
+    
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
     setOpen(false);
+    
     if (href.startsWith('/#') && pathname === ROUTES.HOME) {
       e.preventDefault();
       scrollToAnchor(href);

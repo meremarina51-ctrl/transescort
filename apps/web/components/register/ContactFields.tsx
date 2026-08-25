@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { Select } from '@/components/Select';
+import { Select } from '@/components/ui/Select';
 import { RequiredMark } from './RequiredMark';
 import { CONTACT_METHOD_OPTIONS } from './constants';
 

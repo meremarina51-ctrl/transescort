@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BadgeCheck, ChevronLeft, ChevronRight, ImageOff, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
-import { Select } from '@/components/Select';
+import { Select } from '@/components/ui/Select';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';

@@ -27,3 +27,15 @@ export async function getLatestListings(): Promise<CatalogListing[]> {
     return [];
   }
 };
+
+export async function getListings(): Promise<CatalogListing[]> {
+  try {
+    const res = await fetch(apiUrl('/catalog'), { cache: 'no-store' });
+    
+    if (!res.ok) return [];
+    
+    return res.json();
+  } catch {
+    return [];
+  }
+};

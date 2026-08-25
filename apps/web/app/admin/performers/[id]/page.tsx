@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, BadgeCheck, Eye, EyeOff, Lock, Send, Trash2, Unlock } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
-import { NumberStepper } from '@/components/NumberStepper';
-import { Select } from '@/components/Select';
+import { NumberStepper } from '@/components/ui/NumberStepper';
+import { Select } from '@/components/ui/Select';
 import { PhotoReviewPanel, type PhotoReview } from '@/components/PhotoReviewPanel';
 import { ROUTES } from '@/lib/routes';
 import {

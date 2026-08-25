@@ -6,7 +6,7 @@ import { Star, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
-import { ReportButton } from '@/components/ReportButton';
+import { ReportButton } from '@/components/ui/ReportButton';
 import { catalogListing } from '@/lib/routes';
 import type { PublicReview } from '@/lib/listing.types';
 
