@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShieldCheck, Users, UserCog, type LucideIcon } from 'lucide-react';
+import { ShieldCheck, Users, UserCog, type LucideIcon, Settings } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { ROUTES } from '@/lib/routes';
 
@@ -23,6 +23,12 @@ const OVERVIEW_TILES: { href: string; icon: LucideIcon; title: string; descripti
     icon: UserCog,
     title: 'Пользователи',
     description: 'Аккаунты, доступ и Telegram-бот',
+  },
+  {
+    href: ROUTES.ADMIN_SETTINGS,
+    icon: Settings,
+    title: 'Настройки',
+    description: 'Режим CTA на лендинге и общие параметры платформы',
   },
 ];
 

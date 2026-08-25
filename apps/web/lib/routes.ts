@@ -29,6 +29,7 @@ export const ROUTES = {
   ADMIN_MODERATION: '/admin/moderation',
   ADMIN_PERFORMERS: '/admin/performers',
   ADMIN_USERS: '/admin/users',
+  ADMIN_SETTINGS: '/admin/settings',
 } as const;
 
 export const catalogListing = (slug: string) => `/catalog/${slug}`;

@@ -3,3 +3,8 @@ export enum Role {
   Performer = 'performer',
   Admin = 'admin',
 }
+
+export enum CtaMode {
+  Account = 'account',
+  Telegram = 'telegram',
+}

@@ -14,3 +14,4 @@ export * from './reviews';
 export * from './reports';
 export * from './listing-photo-reviews';
 export * from './listing-views';
+export * from './platform-settings';
