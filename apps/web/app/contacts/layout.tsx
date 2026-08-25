@@ -8,4 +8,4 @@ export const metadata: Metadata = {
 
 export default function ContactsLayout({ children }: { children: ReactNode }) {
   return children;
-}
+};

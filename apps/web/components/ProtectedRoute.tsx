@@ -6,14 +6,17 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { Role } from '@/lib/enums';
 import { ROUTES, loginWithRedirect } from '@/lib/routes';
+import { FullScreenState } from '@/components/ui/FullScreenState';
+
+interface IProps {
+  children: React.ReactNode;
+  requiredRoles?: Role[];
+}
 
 export function ProtectedRoute({
   children,
   requiredRoles,
-}: {
-  children: React.ReactNode;
-  requiredRoles?: Role[];
-}) {
+}: IProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -31,18 +34,18 @@ export function ProtectedRoute({
 
   if (loading || (!user && pathname !== ROUTES.LOGIN)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+      <FullScreenState>
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-accent" />
           <p className="font-body text-sm text-white/40">Загрузка…</p>
         </div>
-      </div>
+      </FullScreenState>
     );
   }
 
   if (user && requiredRoles && !requiredRoles.includes(user.role)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] p-6">
+      <FullScreenState className="p-6">
         <div className="card max-w-sm p-8 text-center">
           <h2 className="mb-2 font-display text-xl font-bold">Доступ запрещён</h2>
           <p className="mb-6 font-body text-sm text-white/40">У вас нет прав для просмотра этой страницы.</p>
@@ -50,7 +53,7 @@ export function ProtectedRoute({
             В личный кабинет
           </Link>
         </div>
-      </div>
+      </FullScreenState>
     );
   }
 

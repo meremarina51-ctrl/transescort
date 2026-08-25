@@ -19,11 +19,14 @@ import { SubmitButton } from '@/components/auth/SubmitButton';
 export default function RegisterPage() {
   const { login: authLogin } = useAuth();
   const router = useRouter();
+  
   const [role, setRole] = useState<RegistrableRole>(Role.Client);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  
   const [contactMethod, setContactMethod] = useState<string | null>(null);
   const [contactValue, setContactValue] = useState('');
+  
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setLoading] = useState(false);
   const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
@@ -151,4 +154,4 @@ export default function RegisterPage() {
       </p>
     </AuthCard>
   );
-}
+};

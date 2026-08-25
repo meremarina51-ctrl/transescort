@@ -40,19 +40,22 @@ function reviewFor(reviews: PhotoReview[], url: string): PhotoReview {
  * `onChanged` lets the parent sync its own copy of the anketa (e.g. the cached `photosVerified` badge)
  * after any successful action.
  */
+
+interface IProps {
+  listingId: string;
+  photos: string[];
+  initialReviews: PhotoReview[];
+  onPhotoClick?: (url: string) => void;
+  onChanged?: (reviews: PhotoReview[], listing: any) => void;
+}
+
 export function PhotoReviewPanel({
   listingId,
   photos,
   initialReviews,
   onPhotoClick,
   onChanged,
-}: {
-  listingId: string;
-  photos: string[];
-  initialReviews: PhotoReview[];
-  onPhotoClick?: (url: string) => void;
-  onChanged?: (reviews: PhotoReview[], listing: any) => void;
-}) {
+}: IProps) {
   const [reviews, setReviews] = useState<PhotoReview[]>(initialReviews);
   const [error, setError] = useState('');
 
@@ -72,21 +75,27 @@ export function PhotoReviewPanel({
   const reviewOne = async (url: string, decision: 'confirmed' | 'rejected', note?: string) => {
     setError('');
     setBusyUrl(url);
+
     try {
       const res = await authFetch(`/admin/listings/${listingId}/photos/review`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, decision, note }),
       });
+
       const data = await parseBody(res);
+      
       if (!res.ok) {
         const msgRaw = data?.message;
         throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
       }
+
       const nextReviews = [...reviews.filter((r) => r.url !== url), { url, status: decision, note: note?.trim() || null }];
+      
       setReviews(nextReviews);
       setRejectTarget(null);
       setRejectNote('');
+      
       onChanged?.(nextReviews, data);
     } catch (err: any) {
       setError(err.message || 'Не удалось сохранить решение');
@@ -98,25 +107,31 @@ export function PhotoReviewPanel({
   const reviewAll = async (decision: 'confirmed' | 'rejected', note?: string) => {
     setError('');
     setBulkBusy(true);
+
     try {
       const res = await authFetch(`/admin/listings/${listingId}/photos/review-all`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, note }),
       });
+      
       const data = await parseBody(res);
+      
       if (!res.ok) {
         const msgRaw = data?.message;
         throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
       }
+
       const nextReviews: PhotoReview[] = photos.map((url) => {
         const current = reviewFor(reviews, url);
         if (current.status === 'confirmed') return current;
         return { url, status: decision, note: note?.trim() || null };
       });
+
       setReviews(nextReviews);
       setRejectTarget(null);
       setRejectNote('');
+      
       onChanged?.(nextReviews, data);
     } catch (err: any) {
       setError(err.message || 'Не удалось сохранить решение');
@@ -127,6 +142,7 @@ export function PhotoReviewPanel({
 
   const submitReject = () => {
     if (!rejectNote.trim() || !rejectTarget) return;
+
     if (rejectTarget.mode === 'single') {
       reviewOne(rejectTarget.url, 'rejected', rejectNote);
     } else {
@@ -134,7 +150,7 @@ export function PhotoReviewPanel({
     }
   };
 
-  if (photos.length === 0) return null;
+  if (!photos.length) return null;
 
   // Already-confirmed photos are done — keep them out of the working list so admins only see what still needs a decision.
   const pendingPhotos = photos.filter((url) => reviewFor(reviews, url).status !== 'confirmed');
@@ -143,7 +159,7 @@ export function PhotoReviewPanel({
     <div className="space-y-3">
       {error ? <p className="font-body text-xs text-red-400">{error}</p> : null}
 
-      {pendingPhotos.length === 0 ? (
+      {!pendingPhotos.length ? (
         <p className="font-body text-xs text-white/35">Все фото подтверждены</p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">

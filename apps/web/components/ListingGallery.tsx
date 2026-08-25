@@ -21,7 +21,7 @@ interface Vital {
   value: string | number;
 }
 
-interface Props {
+interface IProps {
   id: string;
   name: string;
   photos: string[];
@@ -88,7 +88,7 @@ export function ListingGallery({
   contactWhatsapp,
   preview = false,
   onClose,
-}: Props) {
+}: IProps) {
   const router = useRouter();
   const { user } = useAuth();
   const media: Media[] = [

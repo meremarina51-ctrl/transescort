@@ -4,7 +4,11 @@ import { useState } from 'react';
 
 const SITE_NAME = 'LuxEscortia';
 
-export default function Logo({ className = '' }: { className?: string }) {
+interface IProps { 
+  className?: string 
+}
+
+export default function Logo({ className = '' }: IProps) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (

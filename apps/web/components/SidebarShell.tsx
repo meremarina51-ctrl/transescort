@@ -70,6 +70,14 @@ function SidebarNav({
   );
 }
 
+interface IProps {
+  nav: NavItem[];
+  rootHref: string;
+  storageKey: string;
+  headerLinks?: NavItem[];
+  children: ReactNode;
+}
+
 /** Sidebar shell (desktop rail + mobile overlay) shared by /cabinet and /admin. */
 export function SidebarShell({
   nav,
@@ -77,14 +85,7 @@ export function SidebarShell({
   storageKey,
   headerLinks,
   children,
-}: {
-  nav: NavItem[];
-  rootHref: string;
-  storageKey: string;
-  /** Rendered in the top header instead of the sidebar (e.g. quick links like "Каталог" / "На сайт"). */
-  headerLinks?: NavItem[];
-  children: ReactNode;
-}) {
+}: IProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);

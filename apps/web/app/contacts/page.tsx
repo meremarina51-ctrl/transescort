@@ -16,6 +16,7 @@ export default function ContactsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setErrorMessage('');
     setSuccess(false);
     setLoading(true);
@@ -31,7 +32,7 @@ export default function ContactsPage() {
         const errorData = await res.json().catch(() => ({} as { message?: string | string[] }));
         const msgRaw = errorData.message;
         const msg = Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось отправить сообщение';
-        
+
         throw new Error(msg);
       }
 
@@ -112,4 +113,4 @@ export default function ContactsPage() {
       </form>
     </AuthCard>
   );
-}
+};

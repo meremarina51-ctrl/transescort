@@ -62,6 +62,7 @@ export default function RecoverPage() {
 
   const onConfirm = () => {
     if (!pendingAuth) return;
+
     authLogin(pendingAuth.accessToken, pendingAuth.refreshToken, pendingAuth.user);
     router.push(ROUTES.CABINET);
   };
@@ -135,4 +136,4 @@ export default function RecoverPage() {
       </p>
     </AuthCard>
   );
-}
+};

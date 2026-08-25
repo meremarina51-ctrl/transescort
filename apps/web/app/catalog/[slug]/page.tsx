@@ -3,35 +3,25 @@ import { getListing, getReviews, getTelegramBotUsername } from '@/api';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ListingGallery } from '@/components/ListingGallery';
-import { ListingDetail } from '@/lib/listing.types';
+// import { ListingDetail } from '@/lib/listing.types';
+import { computeVitals } from '@/lib/listing-vitals';
 
-const VITALS: { key: keyof ListingDetail; label: string; suffix?: string }[] = [
-  { key: 'age', label: 'Возраст' },
-  { key: 'height', label: 'Рост', suffix: 'см' },
-  { key: 'weight', label: 'Вес', suffix: 'кг' },
-  { key: 'breastSize', label: 'Грудь' },
-  { key: 'penisSize', label: 'Член', suffix: 'см' },
-  { key: 'city', label: 'Город' },
-];
-
-const OTHER_PARAMS: { key: keyof ListingDetail; label: string }[] = [
-  { key: 'hairColor', label: 'Волосы' },
-  { key: 'eyeColor', label: 'Глаза' },
-  { key: 'country', label: 'Страна' },
-];
+// const OTHER_PARAMS: { key: keyof ListingDetail; label: string }[] = [
+//   { key: 'hairColor', label: 'Волосы' },
+//   { key: 'eyeColor', label: 'Глаза' },
+//   { key: 'country', label: 'Страна' },
+// ];
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const listing = await getListing(slug);
+  
   if (!listing) notFound();
 
   const [telegramBotUsername, reviews] = await Promise.all([getTelegramBotUsername(), getReviews(listing.id)]);
 
-  const vitals = VITALS.filter((row) => listing[row.key]).map((row) => ({
-    label: row.label,
-    value: `${listing[row.key]}${row.suffix ? ` ${row.suffix}` : ''}`,
-  }));
-  const otherParams = OTHER_PARAMS.filter((row) => listing[row.key]);
+  const vitals = computeVitals(listing);
+  // const otherParams = OTHER_PARAMS.filter((row) => listing[row.key]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">

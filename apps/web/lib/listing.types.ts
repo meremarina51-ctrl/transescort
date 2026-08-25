@@ -45,3 +45,6 @@ export interface ListingDetail extends ListingAttributes {
   contactWhatsapp: string | null;
 }
 
+/** Own-listing preview — same shape as ListingDetail, minus the owner fields the performer already knows they own. */
+export type PreviewListing = Omit<ListingDetail, 'ownerLogin' | 'ownerTelegramLinked'>;
+
