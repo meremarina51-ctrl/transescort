@@ -10,7 +10,8 @@ export class SettingsController {
 
     @Get('cta-mode')
     @ApiOperation({ summary: 'Get current CTA mode setting' })
-    getCtaMode() {
-        return this.settingsService.getCtaMode();
+    async getCtaMode() {
+        const value = await this.settingsService.getCtaMode();
+        return { value };
     }
 }

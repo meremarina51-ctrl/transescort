@@ -19,9 +19,11 @@ export default function AdminSettingsPage() {
             try {
                 const res = await authFetch('/settings/cta-mode');
                 const data = await parseBody(res);
+
                 setCtaMode(res.ok && data?.value ? data.value : CtaMode.Account);
-            } catch {
+            } catch (e) {
                 setCtaMode(CtaMode.Account);
+                console.error(e);
             } finally {
                 setLoading(false);
             }
