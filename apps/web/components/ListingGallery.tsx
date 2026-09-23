@@ -593,7 +593,7 @@ export function ListingGallery({
       {contactInfoOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setContactInfoOpen(false)} />
-          <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
+          <div className="relative w-full rounded-2xl rounded-b-none border border-white/[0.08] bg-surface p-6 sm:max-w-sm sm:rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold">Контакты {name}</h2>
