@@ -1,7 +1,10 @@
+'use client';
+
 import { FC } from "react";
 import Image from 'next/image';
 import Link from "next/link";
 import { ROUTES } from '@/lib/routes';
+import { reachGoal } from '@/lib/metrika';
 
 export const Hero: FC = () => (
     <section id="about" className="relative overflow-hidden py-20 sm:py-28 md:py-36 lg:py-44">
@@ -30,7 +33,7 @@ export const Hero: FC = () => (
                     Сервис по подбору моделей для досуга в Москве и Московской области
                 </p>
                 <div className="mt-10">
-                    <Link href={ROUTES.CATALOG} className="btn-primary">
+                    <Link href={ROUTES.CATALOG} className="btn-primary" onClick={() => reachGoal('cta_catalog_hero')}>
                         Перейти в каталог
                     </Link>
                 </div>

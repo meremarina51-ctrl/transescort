@@ -11,6 +11,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
+import { reachGoal } from '@/lib/metrika';
 import type { ListingReviewsSummary } from '@/lib/listing.types';
 import { parseBody } from '@/lib/parse-body';
 
@@ -122,12 +123,14 @@ export function ListingGallery({
   const startTelegramChat = () => {
     if (!telegramBotUsername) return;
     trackContact('telegram');
+    reachGoal('contact_telegram');
     window.open(`https://t.me/${telegramBotUsername}?start=c_${id}`, '_blank', 'noopener,noreferrer');
     setContactOpen(false);
   };
 
   const startPlatformChat = async () => {
     trackContact('platform');
+    reachGoal('contact_platform');
     if (!user) {
       router.push(ROUTES.LOGIN);
       return;
@@ -183,6 +186,7 @@ export function ListingGallery({
       });
       const data = await parseBody(res);
       if (!res.ok) throw new Error(data?.message || 'Не удалось отправить отзыв');
+      reachGoal('review_submitted');
       setReviewSubmitted(true);
       setReviewFormOpen(false);
       setReviewRating(0);
@@ -512,7 +516,10 @@ export function ListingGallery({
             )}
             <button
               type="button"
-              onClick={() => setContactInfoOpen(true)}
+              onClick={() => {
+                setContactInfoOpen(true);
+                reachGoal('contact_info_view');
+              }}
               className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
             >
               <Phone className="h-3.5 w-3.5" />

@@ -1,14 +1,13 @@
 import { AuthProvider } from '@/components/AuthProvider';
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { YANDEX_METRIKA_ID } from '@/lib/metrika';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Платформа проверенных анкет',
   description: 'Регистрация, каталог анкет и личный кабинет — приватно и с верификацией.',
 };
-
-const YANDEX_METRIKA_ID = 112110673;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

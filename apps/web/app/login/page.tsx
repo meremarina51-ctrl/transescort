@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { apiUrl } from '@/lib/api-url';
 import { ROUTES } from '@/lib/routes';
+import { reachGoal } from '@/lib/metrika';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { FormError } from '@/components/auth/FormError';
 import { SubmitButton } from '@/components/auth/SubmitButton';
@@ -38,10 +39,12 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
+      reachGoal('login_success');
       authLogin(data.accessToken, data.refreshToken, data.user);
       router.push(ROUTES.CABINET);
     } catch (err: any) {
       setErrorMessage(err.message || 'Не удалось войти');
+      reachGoal('login_failed');
     } finally {
       setLoading(false);
     }

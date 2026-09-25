@@ -6,6 +6,7 @@ import { useAuthOrGuest } from '@/components/AuthProvider';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
+import { reachGoal } from '@/lib/metrika';
 
 interface IProps {
   listingId: string;
@@ -36,6 +37,7 @@ export function FavoriteButton({
       return;
     }
 
+    if (!isActive) reachGoal('favorite_added');
     await toggle(listingId);
     onToggled?.(!isActive);
   };

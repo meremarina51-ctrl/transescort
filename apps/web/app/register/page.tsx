@@ -12,6 +12,7 @@ import { apiUrl } from '@/lib/api-url';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
 import { PendingAuth, RegistrableRole } from '@/components/register/types';
+import { reachGoal } from '@/lib/metrika';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { FormError } from '@/components/auth/FormError';
 import { SubmitButton } from '@/components/auth/SubmitButton';
@@ -65,6 +66,7 @@ export default function RegisterPage() {
 
       const data = await response.json();
 
+      reachGoal('registration_success', { role });
       setPendingAuth({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
@@ -73,6 +75,7 @@ export default function RegisterPage() {
       });
     } catch (err: any) {
       setErrorMessage(err.message || 'Не удалось зарегистрироваться');
+      reachGoal('registration_failed');
     } finally {
       setLoading(false);
     }
