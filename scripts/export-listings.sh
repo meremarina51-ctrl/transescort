@@ -5,9 +5,13 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-set -a
-source "$PROJECT_ROOT/.env"
-set +a
+# Извлекаем только DATABASE_URL, не исполняя весь .env как bash — он не обязан быть валидным shell-скриптом.
+DATABASE_URL="$(grep -m1 '^DATABASE_URL=' "$PROJECT_ROOT/.env" | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//")"
+
+if [ -z "$DATABASE_URL" ]; then
+  echo "DATABASE_URL не найден в $PROJECT_ROOT/.env" >&2
+  exit 1
+fi
 
 OUT="listings_export_$(date +%Y%m%d_%H%M%S).csv"
 
