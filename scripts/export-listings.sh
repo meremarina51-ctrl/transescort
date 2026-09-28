@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Запускать на VPS из корня проекта (там, где лежит .env с DATABASE_URL).
 # Выгружает все анкеты: ник, статус, телефон/телеграм/whatsapp.
+# Можно запускать из любой директории — .env ищется рядом с корнем проекта.
 set -euo pipefail
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 set -a
-source .env
+source "$PROJECT_ROOT/.env"
 set +a
 
 OUT="listings_export_$(date +%Y%m%d_%H%M%S).csv"
