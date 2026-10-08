@@ -1,13 +1,15 @@
 import { Role } from "@/lib/enums";
 
-export const CONTACT_METHOD_OPTIONS = [
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Телефон' },
-  { value: 'whatsapp', label: 'WhatsApp' },
+type Translate = (key: string) => string;
+
+export const getContactMethodOptions = (t: Translate) => [
+  { value: 'telegram', label: t('contactMethodTelegram') },
+  { value: 'email', label: t('contactMethodEmail') },
+  { value: 'phone', label: t('contactMethodPhone') },
+  { value: 'whatsapp', label: t('contactMethodWhatsapp') },
 ];
 
-export const OPTIONS = [
-  [Role.Client, 'Клиент'],
-  [Role.Performer, 'Исполнитель'],
+export const getRoleOptions = (t: Translate) => [
+  [Role.Client, t('roleClient')],
+  [Role.Performer, t('rolePerformer')],
 ] as const;

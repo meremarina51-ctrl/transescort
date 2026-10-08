@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { authFetch } from '@/lib/auth-fetch';
 import { parseBody } from '@/lib/parse-body';
 import type { ListingReviewsSummary, PreviewListing } from '@/lib/listing.types';
@@ -7,6 +8,7 @@ const EMPTY_REVIEWS: ListingReviewsSummary = { items: [], count: 0, averageRatin
 
 /** Loads the performer's own listing + its reviews for the /preview page. errorMessage is 'no-listing' when the performer hasn't created one yet. */
 export function usePreviewListing() {
+  const t = useTranslations('preview');
   const [listing, setListing] = useState<PreviewListing | null>(null);
   const [reviews, setReviews] = useState<ListingReviewsSummary>(EMPTY_REVIEWS);
   const [isLoading, setLoading] = useState(true);
@@ -30,11 +32,12 @@ export function usePreviewListing() {
           setReviews((await parseBody(reviewsRes)) ?? EMPTY_REVIEWS);
         }
       } catch {
-        setErrorMessage('Не удалось загрузить анкету');
+        setErrorMessage(t('errorDefault'));
       } finally {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { listing, reviews, isLoading, errorMessage };

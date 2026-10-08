@@ -6,16 +6,18 @@ interface VitalConfig {
   suffix?: string;
 }
 
-export const LISTING_VITALS: VitalConfig[] = [
-  { key: 'age', label: 'Возраст' },
-  { key: 'height', label: 'Рост', suffix: 'см' },
-  { key: 'weight', label: 'Вес', suffix: 'кг' },
-  { key: 'breastSize', label: 'Грудь' },
-  { key: 'penisSize', label: 'Член', suffix: 'см' },
-  { key: 'city', label: 'Город' },
+type Translate = (key: string) => string;
+
+export const getListingVitalsConfig = (t: Translate): VitalConfig[] => [
+  { key: 'age', label: t('ageLabel') },
+  { key: 'height', label: t('heightLabel'), suffix: t('heightSuffix') },
+  { key: 'weight', label: t('weightLabel'), suffix: t('weightSuffix') },
+  { key: 'breastSize', label: t('breastLabel') },
+  { key: 'penisSize', label: t('penisLabel'), suffix: t('penisSuffix') },
+  { key: 'city', label: t('cityLabel') },
 ];
 
-export function computeVitals<T extends ListingAttributes>(listing: T, config: VitalConfig[] = LISTING_VITALS) {
+export function computeVitals<T extends ListingAttributes>(listing: T, config: VitalConfig[]) {
   return config
     .filter((row) => listing[row.key])
     .map((row) => ({ label: row.label, value: `${listing[row.key]}${row.suffix ? ` ${row.suffix}` : ''}` }));

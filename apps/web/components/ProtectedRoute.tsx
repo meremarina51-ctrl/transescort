@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { useAuth } from './AuthProvider';
 import { Role } from '@/lib/enums';
 import { ROUTES, loginWithRedirect } from '@/lib/routes';
@@ -21,6 +21,7 @@ export function ProtectedRoute({
   const router = useRouter();
   const pathname = usePathname();
   const isRedirecting = useRef(false);
+  const t = useTranslations('protectedRoute');
 
   useEffect(() => {
     if (loading) return;
@@ -37,7 +38,7 @@ export function ProtectedRoute({
       <FullScreenState>
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-accent" />
-          <p className="font-body text-sm text-white/40">Загрузка…</p>
+          <p className="font-body text-sm text-white/40">{t('loading')}</p>
         </div>
       </FullScreenState>
     );
@@ -47,10 +48,10 @@ export function ProtectedRoute({
     return (
       <FullScreenState className="p-6">
         <div className="card max-w-sm p-8 text-center">
-          <h2 className="mb-2 font-display text-xl font-bold">Доступ запрещён</h2>
-          <p className="mb-6 font-body text-sm text-white/40">У вас нет прав для просмотра этой страницы.</p>
+          <h2 className="mb-2 font-display text-xl font-bold">{t('accessDeniedTitle')}</h2>
+          <p className="mb-6 font-body text-sm text-white/40">{t('accessDeniedDescription')}</p>
           <Link href={ROUTES.CABINET} className="btn-primary">
-            В личный кабинет
+            {t('goToCabinet')}
           </Link>
         </div>
       </FullScreenState>

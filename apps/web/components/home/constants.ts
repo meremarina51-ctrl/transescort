@@ -1,53 +1,37 @@
 import { BadgeCheck, Lock, Smartphone } from "lucide-react";
 
-export const FEATURES = [
+type Translate = (key: string) => string;
+
+export const getFeatures = (t: Translate) => [
     {
         Icon: Lock,
-        title: 'Приватность',
-        text: 'Полная анонимность и конфиденциальность всех взаимодействий',
+        title: t('privacyTitle'),
+        text: t('privacyText'),
     },
     {
         Icon: BadgeCheck,
-        title: 'Верификация',
-        text: 'Каждая модель проходит тщательную проверку подлинности и качества',
+        title: t('verificationTitle'),
+        text: t('verificationText'),
     },
     {
         Icon: Smartphone,
-        title: 'Удобная платформа',
-        text: 'Современный интерфейс с мгновенной связью',
+        title: t('platformTitle'),
+        text: t('platformText'),
     },
 ];
 
-export const MOCK_REVIEWS = [
-    {
-        id: '1',
-        name: 'Игорь',
-        date: '2026-06-02',
-        rating: 5,
-        text: 'Всё прошло чётко: анкета совпала с реальностью, общение через платформу — без лишних вопросов.',
-    },
-    {
-        id: '2',
-        name: 'Дмитрий',
-        date: '2026-05-18',
-        rating: 5,
-        text: 'Понравилась верификация анкет — сразу видно, что это не фейк. Буду пользоваться дальше.',
-    },
-    {
-        id: '3',
-        name: 'Сергей',
-        date: '2026-05-03',
-        rating: 4,
-        text: 'Удобный интерфейс, быстро нашёл подходящую анкету по фильтрам. Из минусов — хотелось бы больше городов.',
-    },
-    {
-        id: '4',
-        name: 'Александр',
-        date: '2026-04-20',
-        rating: 5,
-        text: 'Приватность на высоте: никаких лишних данных не спрашивают, оплата контакта прошла мгновенно.',
-    },
-];
+export const getMockReviews = (t: { raw: (key: string) => { name: string; text: string }[] }) => {
+    const items = t.raw('items');
+    const dates = ['2026-06-02', '2026-05-18', '2026-05-03', '2026-04-20'];
+    const ratings = [5, 5, 4, 5];
+    return items.map((item, i) => ({
+        id: String(i + 1),
+        name: item.name,
+        date: dates[i],
+        rating: ratings[i],
+        text: item.text,
+    }));
+};
 
 export const MOCK_TARIFFS = [
     {

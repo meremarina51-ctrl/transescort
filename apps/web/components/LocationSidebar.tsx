@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, MapPin, X } from 'lucide-react';
 
 export interface GeoCountry {
@@ -24,6 +25,7 @@ function SidebarContent({
   onMobileClose,
   geoData,
 }: Omit<IProps, 'mobileOpen'>) {
+  const t = useTranslations('locationSidebar');
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(geoData.length > 0 ? [geoData[0].country] : []),
   );
@@ -52,7 +54,7 @@ function SidebarContent({
         }`}
       >
         <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-        Все страны
+        {t('allCountries')}
       </button>
 
       <div className="mx-4 my-2 h-px bg-white/[0.06]" />
@@ -78,7 +80,7 @@ function SidebarContent({
                   type="button"
                   onClick={() => toggle(country)}
                   className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center text-white/25 transition-colors hover:text-white/55"
-                  aria-label={isOpen ? 'Свернуть' : 'Развернуть'}
+                  aria-label={isOpen ? t('collapse') : t('expand')}
                 >
                   <ChevronDown
                     className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -126,13 +128,14 @@ export function LocationSidebar({
   onMobileClose,
   geoData,
 }: IProps) {
+  const t = useTranslations('locationSidebar');
   return (
     <>
       {/* Desktop sidebar */}
       <aside className="sticky top-20 hidden h-[calc(100vh-6rem)] w-[200px] shrink-0 flex-col self-start overflow-y-auto overscroll-contain border-r border-white/[0.06] md:flex">
         <div className="px-4 pb-1 pt-4">
           <span className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-white/20">
-            Локация
+            {t('heading')}
           </span>
         </div>
 
@@ -161,12 +164,12 @@ export function LocationSidebar({
         }`}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-4">
-          <span className="font-display text-sm font-bold tracking-wide text-white">Локация</span>
+          <span className="font-display text-sm font-bold tracking-wide text-white">{t('heading')}</span>
           <button
             type="button"
             onClick={onMobileClose}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.1] text-white/40 transition-colors hover:border-white/20 hover:text-white/70"
-            aria-label="Закрыть"
+            aria-label={t('close')}
           >
             <X className="h-3.5 w-3.5" strokeWidth={2} />
           </button>

@@ -1,9 +1,14 @@
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { ROUTES } from '@/lib/routes';
-import { LEGAL_DOCS } from './constants';
+import { getLegalDocs } from './constants';
 import Logo from './Logo';
 
 export function Footer() {
+  const t = useTranslations('footer');
+  const tLegal = useTranslations('legal');
+  const LEGAL_DOCS = getLegalDocs(tLegal);
+
   return (
     <footer className="border-t border-white/[0.06] py-12">
       <div className="mx-auto max-w-[1400px] px-6 md:px-10">
@@ -12,7 +17,7 @@ export function Footer() {
             <Link href={ROUTES.HOME}>
               <Logo className="text-xl" />
             </Link>
-            <p className="mt-1 font-body text-xs text-white/30">Платформа проверенных анкет</p>
+            <p className="mt-1 font-body text-xs text-white/30">{t('tagline')}</p>
           </div>
 
           {/* <nav className="flex flex-wrap items-center justify-center gap-6 font-body text-xs text-white/40">

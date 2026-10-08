@@ -1,19 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, usePathname } from '@/i18n/navigation';
 import { Menu, X } from 'lucide-react';
 import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
 import { useAuthOrGuest } from './AuthProvider';
-import { NAV_LINKS } from './constants';
+import { getNavLinks } from './constants';
 import Logo from './Logo';
 
 export function Header() {
   const { user, privateAreaHref, privateAreaLabel } = useAuthOrGuest();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const tNav = useTranslations('nav');
+  const t = useTranslations('header');
+  const NAV_LINKS = getNavLinks(tNav);
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
@@ -70,13 +73,13 @@ export function Header() {
               </Link>
               {user.role === Role.Admin ? (
                 <Link href={ROUTES.ADMIN} className="btn-primary !px-6 !py-2.5">
-                  Панель
+                  {t('adminPanel')}
                 </Link>
               ) : null}
             </>
           ) : (
             <Link href={ROUTES.LOGIN} className="btn-primary !px-6 !py-2.5">
-              Войти
+              {t('login')}
             </Link>
           )}
         </div>
@@ -85,7 +88,7 @@ export function Header() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="col-start-3 hidden justify-self-end text-white/70 max-[975px]:block"
-          aria-label={open ? 'Закрыть меню' : 'Меню'}
+          aria-label={open ? t('menuClose') : t('menuOpen')}
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -112,13 +115,13 @@ export function Header() {
               </Link>
               {user.role === Role.Admin ? (
                 <Link href={ROUTES.ADMIN} className="btn-primary" onClick={() => setOpen(false)}>
-                  Панель
+                  {t('adminPanel')}
                 </Link>
               ) : null}
             </>
           ) : (
             <Link href={ROUTES.LOGIN} className="btn-primary mt-4" onClick={() => setOpen(false)}>
-              Войти
+              {t('login')}
             </Link>
           )}
         </nav>

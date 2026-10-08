@@ -1,45 +1,32 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { ROUTES } from '@/lib/routes';
 
 export const SUPPORT_EMAIL = 'escortia@yandex.ru';
 
-export const PERFORMER_SECTION = {
-  title: 'Анкета и фото',
-  body: (
-    <>
-      Анкета редактируется в разделе{' '}
-      <Link href={ROUTES.CABINET_LISTING} className="text-accent underline-offset-2 hover:underline">
-        Моя анкета
-      </Link>
-      . Чтобы анкета попала в каталог, нужно заполнить профиль и загрузить минимум 3 фото, затем нажать «Отправить на
-      проверку» — анкету рассмотрит администратор. Фото проверяются отдельно от остальной анкеты: у каждого фото свой
-      статус (Ожидает / Подтверждено / Отклонено), причина отклонения показывается прямо под фото. После отклонения нужно
-      нажать «Отправить фото на проверку» ещё раз — тогда отклонённые фото уходят на повторную проверку.
-    </>
-  ),
+type SupportT = {
+  (key: string): string;
+  rich: (key: string, values: Record<string, (chunks: React.ReactNode) => React.ReactNode>) => React.ReactNode;
 };
 
-export const CATALOG_SECTION = {
-  title: 'Каталог и поиск',
-  body: (
-    <>
-      Все опубликованные анкеты доступны в{' '}
-      <Link href={ROUTES.CATALOG} className="text-accent underline-offset-2 hover:underline">
-        каталоге
-      </Link>{' '}
-      — там можно фильтровать по городу, типажу и другим параметрам. В каталог попадают только анкеты, прошедшие
-      проверку администратором.
-    </>
+const linkTag = (href: string) => ({
+  link: (chunks: React.ReactNode) => (
+    <Link href={href} className="text-accent underline-offset-2 hover:underline">
+      {chunks}
+    </Link>
   ),
-};
+});
 
-export const REVIEWS_SECTION = {
-  title: 'Отзывы и жалобы',
-  body: (
-    <>
-      Клиенты могут оставить отзыв (оценка и текст) на странице анкеты — он публикуется после проверки модератором.
-      Если отзыв, сообщение, анкета или пользователь нарушают правила — на них можно пожаловаться кнопкой
-      «Пожаловаться», жалобу рассмотрит администратор.
-    </>
-  ),
-};
+export const getPerformerSection = (t: SupportT) => ({
+  title: t('performer.title'),
+  body: t.rich('performer.body', linkTag(ROUTES.CABINET_LISTING)),
+});
+
+export const getCatalogSection = (t: SupportT) => ({
+  title: t('catalog.title'),
+  body: t.rich('catalog.body', linkTag(ROUTES.CATALOG)),
+});
+
+export const getReviewsSection = (t: SupportT) => ({
+  title: t('reviews.title'),
+  body: t('reviews.body'),
+});

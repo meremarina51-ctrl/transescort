@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { Check, X } from 'lucide-react';
 import { authFetch } from '@/lib/auth-fetch';
 import { parseBody } from '@/lib/parse-body';
@@ -14,11 +15,13 @@ export interface PhotoReview {
   note: string | null;
 }
 
-export const PHOTO_REVIEW_STATUS_LABEL: Record<PhotoReviewStatus, string> = {
-  pending: 'Ожидает',
-  confirmed: 'Подтверждено',
-  rejected: 'Отклонено',
-};
+export function getPhotoReviewStatusLabels(t: (key: string) => string): Record<PhotoReviewStatus, string> {
+  return {
+    pending: t('statusPending'),
+    confirmed: t('statusConfirmed'),
+    rejected: t('statusRejected'),
+  };
+}
 
 export const PHOTO_REVIEW_STATUS_CLASS: Record<PhotoReviewStatus, string> = {
   pending: 'bg-white/10 text-white/60',
@@ -56,6 +59,8 @@ export function PhotoReviewPanel({
   onPhotoClick,
   onChanged,
 }: IProps) {
+  const t = useTranslations('photoReview');
+  const statusLabels = getPhotoReviewStatusLabels(t);
   const [reviews, setReviews] = useState<PhotoReview[]>(initialReviews);
   const [error, setError] = useState('');
 
@@ -87,18 +92,18 @@ export function PhotoReviewPanel({
       
       if (!res.ok) {
         const msgRaw = data?.message;
-        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
+        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || t('errorDefault'));
       }
 
       const nextReviews = [...reviews.filter((r) => r.url !== url), { url, status: decision, note: note?.trim() || null }];
-      
+
       setReviews(nextReviews);
       setRejectTarget(null);
       setRejectNote('');
-      
+
       onChanged?.(nextReviews, data);
     } catch (err: any) {
-      setError(err.message || 'Не удалось сохранить решение');
+      setError(err.message || t('errorDefault'));
     } finally {
       setBusyUrl(null);
     }
@@ -119,7 +124,7 @@ export function PhotoReviewPanel({
       
       if (!res.ok) {
         const msgRaw = data?.message;
-        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || 'Не удалось сохранить решение');
+        throw new Error(Array.isArray(msgRaw) ? msgRaw.join('; ') : msgRaw || t('errorDefault'));
       }
 
       const nextReviews: PhotoReview[] = photos.map((url) => {
@@ -131,10 +136,10 @@ export function PhotoReviewPanel({
       setReviews(nextReviews);
       setRejectTarget(null);
       setRejectNote('');
-      
+
       onChanged?.(nextReviews, data);
     } catch (err: any) {
-      setError(err.message || 'Не удалось сохранить решение');
+      setError(err.message || t('errorDefault'));
     } finally {
       setBulkBusy(false);
     }
@@ -160,7 +165,7 @@ export function PhotoReviewPanel({
       {error ? <p className="font-body text-xs text-red-400">{error}</p> : null}
 
       {!pendingPhotos.length ? (
-        <p className="font-body text-xs text-white/35">Все фото подтверждены</p>
+        <p className="font-body text-xs text-white/35">{t('allConfirmed')}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -169,7 +174,7 @@ export function PhotoReviewPanel({
             disabled={bulkBusy}
             className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
           >
-            <Check className="h-3.5 w-3.5" /> {bulkBusy ? 'Сохраняем…' : 'Подтвердить всё'}
+            <Check className="h-3.5 w-3.5" /> {bulkBusy ? t('saving') : t('confirmAll')}
           </button>
           <button
             type="button"
@@ -177,7 +182,7 @@ export function PhotoReviewPanel({
             disabled={bulkBusy}
             className="inline-flex items-center gap-1.5 rounded-full border border-red-400/30 px-3.5 py-1.5 font-body text-xs font-medium text-red-300 transition-colors hover:bg-red-400/10 disabled:opacity-50"
           >
-            <X className="h-3.5 w-3.5" /> Отклонить всё
+            <X className="h-3.5 w-3.5" /> {t('rejectAll')}
           </button>
         </div>
       )}
@@ -199,7 +204,7 @@ export function PhotoReviewPanel({
                 <span
                   className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 font-body text-[9px] font-semibold ${PHOTO_REVIEW_STATUS_CLASS[review.status]}`}
                 >
-                  {PHOTO_REVIEW_STATUS_LABEL[review.status]}
+                  {statusLabels[review.status]}
                 </span>
               </div>
 
@@ -208,7 +213,7 @@ export function PhotoReviewPanel({
                   type="button"
                   onClick={() => reviewOne(url, 'confirmed')}
                   disabled={busy}
-                  title="Подтвердить фото"
+                  title={t('confirmPhoto')}
                   className="flex flex-1 items-center justify-center rounded-md border border-white/10 py-1 text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
                 >
                   <Check className="h-3.5 w-3.5" />
@@ -217,7 +222,7 @@ export function PhotoReviewPanel({
                   type="button"
                   onClick={() => openRejectModal({ mode: 'single', url })}
                   disabled={busy}
-                  title="Отклонить фото"
+                  title={t('rejectPhoto')}
                   className="flex flex-1 items-center justify-center rounded-md border border-white/10 py-1 text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -238,9 +243,9 @@ export function PhotoReviewPanel({
               <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
                 <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
                 <h3 className="mb-1 font-display text-base font-bold text-white">
-                  {rejectTarget.mode === 'bulk' ? 'Отклонить все фото' : 'Отклонить фото'}
+                  {rejectTarget.mode === 'bulk' ? t('rejectAllTitle') : t('rejectOneTitle')}
                 </h3>
-                <p className="mb-3 font-body text-xs text-white/40">Причина обязательна — покажем исполнителю</p>
+                <p className="mb-3 font-body text-xs text-white/40">{t('reasonRequired')}</p>
 
                 {rejectTarget.mode === 'single' ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -250,7 +255,7 @@ export function PhotoReviewPanel({
                 <textarea
                   value={rejectNote}
                   onChange={(e) => setRejectNote(e.target.value)}
-                  placeholder="Например: фото низкого качества, лицо не видно"
+                  placeholder={t('reasonPlaceholder')}
                   rows={3}
                   maxLength={1000}
                   autoFocus
@@ -264,7 +269,7 @@ export function PhotoReviewPanel({
                     disabled={rejectBusy}
                     className="btn-secondary !px-4 !py-1.5 text-xs disabled:opacity-50"
                   >
-                    Отмена
+                    {t('cancel')}
                   </button>
                   <button
                     type="button"
@@ -272,7 +277,7 @@ export function PhotoReviewPanel({
                     disabled={rejectBusy || !rejectNote.trim()}
                     className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-1.5 font-body text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
                   >
-                    {rejectBusy ? 'Сохраняем…' : 'Отклонить'}
+                    {rejectBusy ? t('saving') : t('reject')}
                   </button>
                 </div>
               </div>

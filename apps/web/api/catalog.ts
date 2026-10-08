@@ -1,4 +1,4 @@
-import { CatalogListing } from "@/app/catalog/catalog.types";
+import { CatalogListing } from "@/app/[locale]/catalog/catalog.types";
 import { apiUrl } from "@/lib/api-url";
 import { ListingDetail } from "@/lib/listing.types";
 

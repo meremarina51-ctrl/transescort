@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import { Heart } from 'lucide-react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -21,6 +22,7 @@ export function FavoriteButton({
   positionClassName = 'absolute right-3 top-3 z-10',
 }: IProps) {
   const router = useRouter();
+  const t = useTranslations('favorite');
   const { user } = useAuthOrGuest();
   const { isFavorite, toggle } = useFavorites();
 
@@ -46,8 +48,8 @@ export function FavoriteButton({
     <button
       type="button"
       onClick={handleClick}
-      aria-label={isActive ? 'Убрать из избранного' : 'Добавить в избранное'}
-      title={isActive ? 'Убрать из избранного' : 'Добавить в избранное'}
+      aria-label={isActive ? t('remove') : t('add')}
+      title={isActive ? t('remove') : t('add')}
       className={`flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-colors hover:bg-black/60 ${positionClassName}`}
     >
       <Heart className={`h-5 w-5 transition-colors ${isActive ? 'fill-accent text-accent' : 'text-white/85'}`} strokeWidth={1.8} />

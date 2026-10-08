@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Star, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface IProps {
   url: string;
@@ -12,6 +13,7 @@ interface IProps {
 }
 
 export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: IProps) {
+  const t = useTranslations('photoTile');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url });
 
   const style = {
@@ -33,13 +35,13 @@ export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: IProps) 
       {isMain ? (
         <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 font-body text-[10px] font-semibold text-white">
           <Star className="h-2.5 w-2.5 fill-current" strokeWidth={0} />
-          Главное
+          {t('main')}
         </span>
       ) : (
         <button
           type="button"
           onClick={onSetMain}
-          title="Сделать главным фото"
+          title={t('setMain')}
           className="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
         >
           <Star className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -49,7 +51,7 @@ export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: IProps) 
       <button
         type="button"
         onClick={onRemove}
-        aria-label="Удалить фото"
+        aria-label={t('remove')}
         className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
       >
         <X className="h-3.5 w-3.5" />
@@ -58,7 +60,7 @@ export function SortablePhotoTile({ url, isMain, onRemove, onSetMain }: IProps) 
       <div
         {...attributes}
         {...listeners}
-        title="Перетащите, чтобы изменить порядок"
+        title={t('reorder')}
         className="absolute bottom-1 right-1 flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-black/60 text-white/80 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
       >
         <GripVertical className="h-3.5 w-3.5" />

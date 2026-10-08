@@ -1,0 +1,915 @@
+'use client';
+
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
+import {
+  AlertCircle,
+  BookOpen,
+  Check,
+  Contact,
+  Eye,
+  EyeOff,
+  Image as ImageIcon,
+  Plus,
+  SlidersHorizontal,
+  Video as VideoIcon,
+  Wallet,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { useAuth } from '@/components/AuthProvider';
+import { authFetch } from '@/lib/auth-fetch';
+import { Role } from '@/lib/enums';
+import { NumberStepper } from '@/components/ui/NumberStepper';
+import { Select } from '@/components/ui/Select';
+import { SortablePhotoTile } from '@/components/SortablePhotoTile';
+import {
+  PHOTO_REVIEW_STATUS_CLASS,
+  getPhotoReviewStatusLabels,
+  type PhotoReview,
+} from '@/components/PhotoReviewPanel';
+import {
+  TYPE_OPTIONS,
+  FIGURE_OPTIONS,
+  TEMPERAMENT_OPTIONS,
+  HAIR_COLOR_OPTIONS,
+  EYE_COLOR_OPTIONS,
+  COUNTRY_OPTIONS,
+  CITY_OPTIONS,
+  toSelectOptions,
+} from '@/lib/listing-options';
+import type { ListingAttributes } from '@/lib/listing.types';
+import { parseBody } from '@/lib/parse-body';
+import { ROUTES } from '@/lib/routes';
+
+/** Form state — unlike the read-only ListingAttributes shape, name/bio are always controlled strings, never null. */
+interface ListingParams extends Omit<ListingAttributes, 'name'> {
+  bio: string;
+  name: string;
+  contactPhone: string;
+  contactTelegram: string;
+  contactWhatsapp: string;
+}
+
+function getEmptyParams(defaultName: string): ListingParams {
+  return {
+    bio: '',
+    name: defaultName,
+    age: 25,
+    height: 165,
+    weight: 55,
+    breastSize: 2,
+    penisSize: 15,
+    type: TYPE_OPTIONS[0],
+    figure: FIGURE_OPTIONS[0],
+    temperament: TEMPERAMENT_OPTIONS[0],
+    hairColor: HAIR_COLOR_OPTIONS[0],
+    eyeColor: EYE_COLOR_OPTIONS[0],
+    country: COUNTRY_OPTIONS[0],
+    city: CITY_OPTIONS[0],
+    priceHour: null,
+    priceNight: null,
+    contactPhone: '',
+    contactTelegram: '',
+    contactWhatsapp: '',
+  };
+}
+
+function TileHeader({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+        <Icon className="h-5 w-5" strokeWidth={1.6} />
+      </div>
+      <div>
+        <h2 className="font-body text-sm uppercase tracking-wide text-white/35">{title}</h2>
+        <p className="mt-0.5 font-body text-xs text-white/30">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1 block font-body text-xs uppercase tracking-wide text-white/40">
+        {label}
+        {required ? <span className="text-red-400"> *</span> : null}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+type ListingStatus = 'draft' | 'pending' | 'changes_requested' | 'published' | 'hidden' | 'blocked';
+
+const MIN_PHOTOS_FOR_REVIEW = 3;
+
+export default function ListingPage() {
+  const { user } = useAuth();
+  const t = useTranslations('cabinet.listing');
+  const tPhotos = useTranslations('cabinet.photos');
+  const tReview = useTranslations('photoReview');
+  const tStatus = useTranslations('listingStatus');
+  const statusLabels = getPhotoReviewStatusLabels(tReview);
+  const EMPTY_PARAMS = getEmptyParams(t('defaultName'));
+
+  const [loading, setLoading] = useState(true);
+  const [params, setParams] = useState<ListingParams>(EMPTY_PARAMS);
+  const [initialParams, setInitialParams] = useState<ListingParams>(EMPTY_PARAMS);
+  const [status, setStatus] = useState<ListingStatus | null>(null);
+  const [verificationNote, setVerificationNote] = useState<string | null>(null);
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
+
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [photosError, setPhotosError] = useState('');
+  const [photosSubmittedAt, setPhotosSubmittedAt] = useState<string | null>(null);
+  const [submittingPhotos, setSubmittingPhotos] = useState(false);
+  const [photosSubmitError, setPhotosSubmitError] = useState('');
+  const [photoReviews, setPhotoReviews] = useState<PhotoReview[]>([]);
+  const [rejectionsModalOpen, setRejectionsModalOpen] = useState(false);
+
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoError, setVideoError] = useState('');
+
+  useEffect(() => {
+    if (user && user.role !== Role.Performer) {
+      setLoading(false);
+      return;
+    }
+
+    (async () => {
+      if (!localStorage.getItem('accessToken')) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await authFetch('/listings/me');
+        if (res.ok) {
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : null;
+          if (data) {
+            const loaded: ListingParams = {
+              bio: data.bio ?? '',
+              name: data.name ?? EMPTY_PARAMS.name,
+              age: data.age ?? EMPTY_PARAMS.age,
+              height: data.height ?? EMPTY_PARAMS.height,
+              weight: data.weight ?? EMPTY_PARAMS.weight,
+              breastSize: data.breastSize ?? EMPTY_PARAMS.breastSize,
+              penisSize: data.penisSize ?? EMPTY_PARAMS.penisSize,
+              type: data.type ?? EMPTY_PARAMS.type,
+              figure: data.figure ?? EMPTY_PARAMS.figure,
+              temperament: data.temperament ?? EMPTY_PARAMS.temperament,
+              hairColor: data.hairColor ?? EMPTY_PARAMS.hairColor,
+              eyeColor: data.eyeColor ?? EMPTY_PARAMS.eyeColor,
+              country: data.country ?? EMPTY_PARAMS.country,
+              city: data.city ?? EMPTY_PARAMS.city,
+              priceHour: data.priceHour ?? null,
+              priceNight: data.priceNight ?? null,
+              contactPhone: data.contactPhone ?? '',
+              contactTelegram: data.contactTelegram ?? '',
+              contactWhatsapp: data.contactWhatsapp ?? '',
+            };
+            setParams(loaded);
+            setInitialParams(loaded);
+            setStatus(data.status ?? 'draft');
+            setVerificationNote(data.verificationNote ?? null);
+            setPhotos(data.photos ?? []);
+            setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
+            setVideoUrl(data.videoUrl ?? null);
+
+            if ((data.photos ?? []).length > 0) {
+              const reviewsRes = await authFetch('/listings/me/photo-reviews');
+              if (reviewsRes.ok) {
+                const reviewsText = await reviewsRes.text();
+                setPhotoReviews(reviewsText ? JSON.parse(reviewsText) : []);
+              }
+            }
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    })();
+  }, [user]);
+
+  const patchListing = async (payload: Record<string, unknown>) => {
+    await authFetch('/listings/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const payload: Record<string, unknown> = { bio: params.bio, name: params.name };
+      if (params.age !== null) payload.age = params.age;
+      if (params.height !== null) payload.height = params.height;
+      if (params.weight !== null) payload.weight = params.weight;
+      if (params.breastSize !== null) payload.breastSize = params.breastSize;
+      if (params.penisSize !== null) payload.penisSize = params.penisSize;
+      if (params.type) payload.type = params.type;
+      if (params.figure) payload.figure = params.figure;
+      if (params.temperament) payload.temperament = params.temperament;
+      if (params.hairColor) payload.hairColor = params.hairColor;
+      if (params.eyeColor) payload.eyeColor = params.eyeColor;
+      if (params.country) payload.country = params.country;
+      if (params.city) payload.city = params.city;
+      if (params.priceHour !== null) payload.priceHour = params.priceHour;
+      if (params.priceNight !== null) payload.priceNight = params.priceNight;
+      payload.contactPhone = params.contactPhone;
+      payload.contactTelegram = params.contactTelegram;
+      payload.contactWhatsapp = params.contactWhatsapp;
+      await patchListing(payload);
+      setInitialParams(params);
+      setStatus((prev) => prev ?? 'draft');
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isDirty = JSON.stringify(params) !== JSON.stringify(initialParams);
+
+  const submitForReview = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await authFetch('/listings/me/submit', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || t('errorSubmit'));
+      setStatus(data.status);
+      setVerificationNote(data.verificationNote ?? null);
+    } catch (err: any) {
+      setSubmitError(err.message || t('errorSubmit'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const hideListing = async () => {
+    setVisibilityBusy(true);
+    setVisibilityError('');
+    try {
+      const res = await authFetch('/listings/me/hide', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || t('errorHide'));
+      setStatus(data.status);
+    } catch (err: any) {
+      setVisibilityError(err.message || t('errorHide'));
+    } finally {
+      setVisibilityBusy(false);
+    }
+  };
+
+  const unhideListing = async () => {
+    setVisibilityBusy(true);
+    setVisibilityError('');
+    try {
+      const res = await authFetch('/listings/me/unhide', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || t('errorUnhide'));
+      setStatus(data.status);
+    } catch (err: any) {
+      setVisibilityError(err.message || t('errorUnhide'));
+    } finally {
+      setVisibilityBusy(false);
+    }
+  };
+
+  const handlePhotosSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!files.length) return;
+
+    setPhotosError('');
+    setUploadingPhotos(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file));
+      const res = await authFetch('/listings/me/photos', { method: 'POST', body: formData });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorUploadPhotos'));
+      setPhotos(data.photos ?? []);
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
+    } catch (err: any) {
+      setPhotosError(err.message || tPhotos('errorUploadPhotos'));
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
+  const removePhoto = async (url: string) => {
+    setPhotosError('');
+    try {
+      const res = await authFetch('/listings/me/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorRemovePhoto'));
+      setPhotos(data.photos ?? []);
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
+    } catch (err: any) {
+      setPhotosError(err.message || tPhotos('errorRemovePhoto'));
+    }
+  };
+
+  const submitPhotos = async () => {
+    setSubmittingPhotos(true);
+    setPhotosSubmitError('');
+    try {
+      const res = await authFetch('/listings/me/photos/submit', { method: 'POST' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorSubmitPhotos'));
+      setPhotosSubmittedAt(data.photosSubmittedAt ?? null);
+    } catch (err: any) {
+      setPhotosSubmitError(err.message || tPhotos('errorSubmitPhotos'));
+    } finally {
+      setSubmittingPhotos(false);
+    }
+  };
+
+  const photoSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  /** Persists a new photo order — reordering (and choosing a main photo) doesn't touch the anketa's status. */
+  const reorderPhotos = async (newOrder: string[]) => {
+    const previous = photos;
+    setPhotos(newOrder);
+    setPhotosError('');
+    try {
+      const res = await authFetch('/listings/me/photos/order', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: newOrder }),
+      });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorReorderPhotos'));
+      setPhotos(data.photos ?? newOrder);
+    } catch (err: any) {
+      setPhotos(previous);
+      setPhotosError(err.message || tPhotos('errorReorderPhotos'));
+    }
+  };
+
+  const handlePhotoDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = photos.indexOf(active.id as string);
+    const newIndex = photos.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    reorderPhotos(arrayMove(photos, oldIndex, newIndex));
+  };
+
+  const setMainPhoto = (url: string) => {
+    if (photos[0] === url) return;
+    reorderPhotos([url, ...photos.filter((p) => p !== url)]);
+  };
+
+  const handleVideoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setVideoError('');
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await authFetch('/listings/me/video', { method: 'POST', body: formData });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorUploadVideo'));
+      setVideoUrl(data.videoUrl ?? null);
+    } catch (err: any) {
+      setVideoError(err.message || tPhotos('errorUploadVideo'));
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const removeVideo = async () => {
+    setVideoError('');
+    try {
+      const res = await authFetch('/listings/me/video', { method: 'DELETE' });
+      const data = await parseBody(res);
+      if (!res.ok) throw new Error(data?.message || tPhotos('errorRemoveVideo'));
+      setVideoUrl(data.videoUrl ?? null);
+    } catch (err: any) {
+      setVideoError(err.message || tPhotos('errorRemoveVideo'));
+    }
+  };
+
+  if (user && user.role !== Role.Performer) {
+    return (
+      <>
+        <h1 className="mb-6 font-display text-2xl font-bold">{t('title')}</h1>
+        <div className="card p-6">
+          <p className="font-body text-sm text-white/40">{t('performerOnly')}</p>
+        </div>
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <>
+        <h1 className="mb-6 font-display text-2xl font-bold">{t('title')}</h1>
+        <p className="font-body text-sm text-white/40">{t('loading')}</p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className={`flex flex-wrap items-center gap-3 ${
+          (status === 'changes_requested' || status === 'blocked') && verificationNote ? 'mb-2' : 'mb-6'
+        }`}
+      >
+        <h1 className="font-display text-2xl font-bold">{t('title')}</h1>
+        {status === null ? null : status === 'published' ? (
+          <span className="badge badge-accent">{tStatus('published')}</span>
+        ) : status === 'pending' ? (
+          <span className="badge border border-accent/25 bg-accent/10 text-accent">{tStatus('pending')}</span>
+        ) : status === 'changes_requested' ? (
+          <span className="badge border border-orange-400/25 bg-orange-400/10 text-orange-300">{tStatus('changesRequested')}</span>
+        ) : status === 'hidden' ? (
+          <span className="badge border border-white/15 bg-white/[0.08] text-white/50">{tStatus('hidden')}</span>
+        ) : status === 'blocked' ? (
+          <span className="badge border border-red-500/25 bg-red-500/10 text-red-400">{tStatus('blocked')}</span>
+        ) : (
+          <span className="badge border border-white/10 bg-white/[0.06] text-white/40">{tStatus('draft')}</span>
+        )}
+        {status !== null ? (
+          <Link
+            href={ROUTES.PREVIEW}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 font-body text-xs font-semibold text-white/70 transition-colors hover:border-accent hover:text-white"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            {t('preview')}
+          </Link>
+        ) : null}
+      </div>
+      {(status === 'changes_requested' || status === 'blocked') && verificationNote ? (
+        <p className={`mb-6 font-body text-sm ${status === 'blocked' ? 'text-red-400' : 'text-orange-300'}`}>
+          {status === 'blocked' ? t('blockedReasonPrefix') : t('adminCommentPrefix')}
+          {verificationNote}
+        </p>
+      ) : null}
+
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="card p-6">
+            <TileHeader icon={ImageIcon} title={t('photosHeading')} description={t('photosDescription')} />
+
+            {status === null ? (
+              <p className="mt-5 font-body text-sm text-white/30">
+                {t('createFirstForPhotos')}
+              </p>
+            ) : (
+              <>
+                <DndContext sensors={photoSensors} collisionDetection={closestCenter} onDragEnd={handlePhotoDragEnd}>
+                  <SortableContext items={photos} strategy={rectSortingStrategy}>
+                    <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                      {photos.map((url, index) => {
+                        const review = photoReviews.find((r) => r.url === url);
+                        return (
+                          <div key={url} className="space-y-1">
+                            <div className="relative">
+                              <SortablePhotoTile
+                                url={url}
+                                isMain={index === 0}
+                                onRemove={() => removePhoto(url)}
+                                onSetMain={() => setMainPhoto(url)}
+                              />
+                              {review && review.status !== 'pending' ? (
+                                <span
+                                  className={`pointer-events-none absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 font-body text-[9px] font-semibold ${PHOTO_REVIEW_STATUS_CLASS[review.status]}`}
+                                >
+                                  {statusLabels[review.status]}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <label
+                        className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
+                          uploadingPhotos ? 'pointer-events-none opacity-50' : ''
+                        }`}
+                      >
+                        <Plus className="h-5 w-5" />
+                        <span className="font-body text-[11px]">{uploadingPhotos ? tPhotos('uploading') : t('add')}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handlePhotosSelected}
+                          disabled={uploadingPhotos}
+                        />
+                      </label>
+                    </div>
+                  </SortableContext>
+                </DndContext>
+                {photos.length > 1 ? (
+                  <p className="mt-3 font-body text-xs text-white/30">
+                    {tPhotos('dragHint')}
+                  </p>
+                ) : null}
+                {photosError ? (
+                  <p className="mt-3 font-body text-xs text-red-400">{photosError}</p>
+                ) : photos.length < MIN_PHOTOS_FOR_REVIEW ? (
+                  <p className="mt-3 font-body text-xs text-white/30">
+                    {tPhotos('minPhotosHint', { count: MIN_PHOTOS_FOR_REVIEW - photos.length })}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={submitPhotos}
+                    disabled={
+                      submittingPhotos || uploadingPhotos || photos.length < MIN_PHOTOS_FOR_REVIEW || Boolean(photosSubmittedAt)
+                    }
+                    title={
+                      photos.length < MIN_PHOTOS_FOR_REVIEW
+                        ? tPhotos('minPhotosTitle', { count: MIN_PHOTOS_FOR_REVIEW })
+                        : photosSubmittedAt
+                          ? tPhotos('alreadySubmittedTitle')
+                          : undefined
+                    }
+                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submittingPhotos ? tPhotos('submitting') : tPhotos('submitForReview')}
+                  </button>
+                  {photosSubmitError ? (
+                    <span className="font-body text-xs text-red-400">{photosSubmitError}</span>
+                  ) : photosSubmittedAt ? (
+                    <span className="inline-flex items-center gap-1.5 font-body text-xs text-emerald-400">
+                      <Check className="h-3.5 w-3.5" /> {tPhotos('submittedBadge')}
+                    </span>
+                  ) : null}
+
+                  {photoReviews.some((r) => r.status === 'rejected' && r.note && photos.includes(r.url)) ? (
+                    <button
+                      type="button"
+                      onClick={() => setRejectionsModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 font-body text-xs text-red-400 hover:text-red-300"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" /> {tPhotos('rejectionReasonsLink')}
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="card p-6">
+            <TileHeader icon={VideoIcon} title={t('videoHeading')} description={t('videoDescription')} />
+            {status === null ? (
+              <p className="mt-5 font-body text-sm text-white/30">
+                {t('createFirstForVideo')}
+              </p>
+            ) : videoUrl ? (
+              <div className="relative mt-5">
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video src={videoUrl} controls className="w-full rounded-lg border border-white/[0.08]" />
+                <button
+                  type="button"
+                  onClick={removeVideo}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                  aria-label={t('removeVideo')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label
+                className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 py-10 text-white/30 transition-colors hover:border-accent/40 hover:text-accent ${
+                  uploadingVideo ? 'pointer-events-none opacity-50' : ''
+                }`}
+              >
+                <Plus className="h-5 w-5" />
+                <span className="font-body text-sm">{uploadingVideo ? tPhotos('uploading') : t('uploadVideo')}</span>
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleVideoSelected}
+                  disabled={uploadingVideo}
+                />
+              </label>
+            )}
+            {videoError ? <p className="mt-3 font-body text-xs text-red-400">{videoError}</p> : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="card p-6">
+            <TileHeader icon={BookOpen} title={t('bioHeading')} description={t('bioDescription')} />
+            <div className="mt-5">
+              <Field label={t('nameLabel')}>
+                <input
+                  type="text"
+                  value={params.name}
+                  onChange={(e) => setParams((p) => ({ ...p, name: e.target.value }))}
+                  maxLength={100}
+                  placeholder={t('namePlaceholder')}
+                  className="w-full rounded-lg border border-white/[0.06] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-accent"
+                />
+              </Field>
+            </div>
+            <textarea
+              value={params.bio}
+              onChange={(e) => setParams((p) => ({ ...p, bio: e.target.value }))}
+              maxLength={3000}
+              rows={6}
+              placeholder={t('bioPlaceholder')}
+              className="input mt-5 resize-none"
+            />
+            <div className="mt-2 flex justify-end">
+              <span className="font-body text-xs text-white/25">{params.bio.length}/3000</span>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <TileHeader icon={SlidersHorizontal} title={t('paramsHeading')} description={t('paramsDescription')} />
+            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Field label={t('ageLabel')}>
+                <NumberStepper
+                  value={params.age}
+                  onChange={(v) => setParams((p) => ({ ...p, age: v }))}
+                  min={18}
+                  max={80}
+                  placeholder={t('agePlaceholder')}
+                />
+              </Field>
+              <Field label={t('heightLabel')}>
+                <NumberStepper
+                  value={params.height}
+                  onChange={(v) => setParams((p) => ({ ...p, height: v }))}
+                  min={130}
+                  max={220}
+                  placeholder={t('heightPlaceholder')}
+                />
+              </Field>
+              <Field label={t('weightLabel')}>
+                <NumberStepper
+                  value={params.weight}
+                  onChange={(v) => setParams((p) => ({ ...p, weight: v }))}
+                  min={30}
+                  max={200}
+                  placeholder={t('weightPlaceholder')}
+                />
+              </Field>
+              <Field label={t('breastLabel')}>
+                <NumberStepper
+                  value={params.breastSize}
+                  onChange={(v) => setParams((p) => ({ ...p, breastSize: v }))}
+                  min={0}
+                  max={10}
+                  placeholder={t('breastPlaceholder')}
+                />
+              </Field>
+              <Field label={t('penisLabel')}>
+                <NumberStepper
+                  value={params.penisSize}
+                  onChange={(v) => setParams((p) => ({ ...p, penisSize: v }))}
+                  min={5}
+                  max={30}
+                  placeholder={t('cmPlaceholder')}
+                />
+              </Field>
+              <Field label={t('hairLabel')}>
+                <Select
+                  value={params.hairColor}
+                  onChange={(v) => setParams((p) => ({ ...p, hairColor: v }))}
+                  options={toSelectOptions(HAIR_COLOR_OPTIONS)}
+                />
+              </Field>
+              <Field label={t('eyeLabel')}>
+                <Select
+                  value={params.eyeColor}
+                  onChange={(v) => setParams((p) => ({ ...p, eyeColor: v }))}
+                  options={toSelectOptions(EYE_COLOR_OPTIONS)}
+                />
+              </Field>
+              <Field label={t('countryLabel')}>
+                <Select
+                  value={params.country}
+                  onChange={(v) => setParams((p) => ({ ...p, country: v }))}
+                  options={toSelectOptions(COUNTRY_OPTIONS)}
+                />
+              </Field>
+              <Field label={t('cityLabel')}>
+                <Select
+                  value={params.city}
+                  onChange={(v) => setParams((p) => ({ ...p, city: v }))}
+                  options={toSelectOptions(CITY_OPTIONS)}
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="card p-6">
+            <TileHeader icon={Wallet} title={t('pricingHeading')} description={t('pricingDescription')} />
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <Field label={t('priceHourLabel')}>
+                <NumberStepper
+                  value={params.priceHour}
+                  onChange={(v) => setParams((p) => ({ ...p, priceHour: v }))}
+                  min={0}
+                  max={100000}
+                  step={500}
+                  placeholder={t('rubPlaceholder')}
+                />
+              </Field>
+              <Field label={t('priceNightLabel')}>
+                <NumberStepper
+                  value={params.priceNight}
+                  onChange={(v) => setParams((p) => ({ ...p, priceNight: v }))}
+                  min={0}
+                  max={500000}
+                  step={1000}
+                  placeholder={t('rubPlaceholder')}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <TileHeader icon={Contact} title={t('contactsHeading')} description={t('contactsDescription')} />
+            <div className="mt-5 space-y-4">
+              <Field label={t('phoneLabel')}>
+                <input
+                  type="tel"
+                  value={params.contactPhone}
+                  onChange={(e) => setParams((p) => ({ ...p, contactPhone: e.target.value }))}
+                  maxLength={32}
+                  placeholder="+7 999 123-45-67"
+                  className="input"
+                />
+              </Field>
+              <Field label={t('telegramLabel')}>
+                <input
+                  type="text"
+                  value={params.contactTelegram}
+                  onChange={(e) => setParams((p) => ({ ...p, contactTelegram: e.target.value }))}
+                  maxLength={100}
+                  placeholder="@username"
+                  className="input"
+                />
+              </Field>
+              <Field label={t('whatsappLabel')}>
+                <input
+                  type="tel"
+                  value={params.contactWhatsapp}
+                  onChange={(e) => setParams((p) => ({ ...p, contactWhatsapp: e.target.value }))}
+                  maxLength={32}
+                  placeholder="+7 999 123-45-67"
+                  className="input"
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {saved ? <span className="font-body text-sm text-emerald-400">{t('saved')}</span> : null}
+          {submitError ? <span className="font-body text-sm text-red-400">{submitError}</span> : null}
+          {visibilityError ? <span className="font-body text-sm text-red-400">{visibilityError}</span> : null}
+
+          {status === null ? (
+            <button
+              type="button"
+              onClick={() => save()}
+              disabled={saving}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? t('creating') : t('create')}
+            </button>
+          ) : (
+            <>
+                  {status === 'pending' ? (
+                <span className="font-body text-sm text-white/40">{t('pendingNotice')}</span>
+              ) : status === 'blocked' ? (
+                <span className="font-body text-sm text-red-400">{t('blockedNotice')}</span>
+              ) : status === 'published' ? (
+                <>
+                  <span className="font-body text-sm text-white/40">{t('publishedNotice')}</span>
+                  <button
+                    type="button"
+                    onClick={hideListing}
+                    disabled={visibilityBusy}
+                    className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <EyeOff className="h-4 w-4" />
+                    {visibilityBusy ? t('hiding') : t('hideListing')}
+                  </button>
+                </>
+              ) : status === 'hidden' ? (
+                <>
+                  <span className="font-body text-sm text-white/40">{t('hiddenNotice')}</span>
+                  <button
+                    type="button"
+                    onClick={unhideListing}
+                    disabled={visibilityBusy}
+                    className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {visibilityBusy ? t('publishing') : t('unhideListing')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submitForReview}
+                  disabled={submitting || saving || isDirty || photos.length < MIN_PHOTOS_FOR_REVIEW}
+                  title={
+                    photos.length < MIN_PHOTOS_FOR_REVIEW
+                      ? tPhotos('minPhotosTitle', { count: MIN_PHOTOS_FOR_REVIEW })
+                      : isDirty
+                        ? t('submitDirtyTitle')
+                        : undefined
+                  }
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? t('submitting') : t('submitForReview')}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => save()}
+                disabled={saving || !isDirty}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? t('saving') : t('save')}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {rejectionsModalOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+              <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setRejectionsModalOpen(false)} />
+              <div className="card relative flex max-h-[85vh] w-full flex-col p-6 !rounded-b-none sm:max-w-lg sm:!rounded-2xl">
+                <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+                <div className="mb-4 flex flex-shrink-0 items-center justify-between">
+                  <h2 className="font-display text-lg font-bold">{tPhotos('rejectionReasonsTitle')}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setRejectionsModalOpen(false)}
+                    className="text-white/40 hover:text-white"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
+                  {photoReviews
+                    .filter((r) => r.status === 'rejected' && r.note && photos.includes(r.url))
+                    .map((r) => (
+                      <div key={r.url} className="flex gap-3 rounded-xl bg-white/[0.04] p-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.url} alt="" className="h-16 w-16 flex-shrink-0 rounded-lg object-cover" />
+                        <p className="min-w-0 flex-1 whitespace-pre-line break-words font-body text-sm text-white/70">
+                          {r.note}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}

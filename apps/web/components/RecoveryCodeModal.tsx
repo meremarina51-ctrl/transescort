@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, Copy, KeyRound } from 'lucide-react';
 
 interface IProps {
@@ -14,11 +15,15 @@ interface IProps {
 /** Shown once after a backup code is (re)generated — the plaintext is never retrievable again. */
 export function RecoveryCodeModal({
   code,
-  title = 'Ваш код восстановления',
-  description = 'Сохраните этот код в надёжном месте — он понадобится, если вы забудете пароль. Он показывается только один раз.',
-  confirmLabel = 'Я сохранил(а) код',
+  title,
+  description,
+  confirmLabel,
   onConfirm,
 }: IProps) {
+  const t = useTranslations('auth.recoveryModal');
+  const resolvedTitle = title ?? t('defaultTitle');
+  const resolvedDescription = description ?? t('defaultDescription');
+  const resolvedConfirmLabel = confirmLabel ?? t('confirmLabel');
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -40,15 +45,15 @@ export function RecoveryCodeModal({
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
           <KeyRound className="h-6 w-6 text-accent" strokeWidth={1.6} />
         </div>
-        <h2 className="mb-2 font-display text-lg font-bold">{title}</h2>
-        <p className="font-body text-sm text-white/40">{description}</p>
+        <h2 className="mb-2 font-display text-lg font-bold">{resolvedTitle}</h2>
+        <p className="font-body text-sm text-white/40">{resolvedDescription}</p>
 
         <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
           <code className="break-all font-mono text-sm tracking-wide text-white">{code}</code>
           <button
             type="button"
             onClick={copyCode}
-            title="Скопировать"
+            title={t('copyTooltip')}
             className="flex-shrink-0 rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
@@ -72,12 +77,12 @@ export function RecoveryCodeModal({
               strokeWidth={3}
             />
           </span>
-          Я сохранил(а) код в надёжном месте
+          {t('savedCheckbox')}
         </label>
 
         <div className="mt-6 flex justify-center">
           <button type="button" onClick={onConfirm} disabled={!saved} className="btn-primary w-full disabled:opacity-40">
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>

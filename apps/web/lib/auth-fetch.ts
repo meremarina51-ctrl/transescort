@@ -29,7 +29,10 @@ function clearSessionAndRedirect() {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
   if (typeof window !== 'undefined') {
-    window.location.href = '/login';
+    // Raw navigation outside Next's router — locale isn't auto-prepended here,
+    // so pull it from the current URL (always present: localePrefix is 'always').
+    const locale = window.location.pathname.split('/')[1] || 'ru';
+    window.location.href = `/${locale}/login`;
   }
 }
 

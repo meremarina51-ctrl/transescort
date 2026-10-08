@@ -1,6 +1,7 @@
 const { existsSync } = require('fs');
 const { resolve } = require('path');
 const dotenv = require('dotenv');
+const createNextIntlPlugin = require('next-intl/plugin');
 
 // Next.js only loads .env files from this app's own directory — walk up to the
 // monorepo root .env (shared with the API) so NEXT_PUBLIC_API_URL etc. resolve here too.
@@ -25,4 +26,6 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+
+module.exports = withNextIntl(nextConfig);

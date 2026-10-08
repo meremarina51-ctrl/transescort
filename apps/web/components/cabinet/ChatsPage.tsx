@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Check, CheckCheck, ChevronLeft, ChevronRight, Loader2, MessageSquare, Plus, Search, Send, X } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
@@ -35,11 +36,13 @@ interface ChatMessage {
   createdAt: string;
 }
 
-const ROLE_LABELS: Record<Role, string> = {
-  [Role.Client]: 'Клиент',
-  [Role.Performer]: 'Исполнитель',
-  [Role.Admin]: 'Админ',
-};
+function getRoleLabels(t: (key: string) => string): Record<Role, string> {
+  return {
+    [Role.Client]: t('client'),
+    [Role.Performer]: t('performer'),
+    [Role.Admin]: t('admin'),
+  };
+}
 
 function initial(name: string): string {
   return name.slice(0, 1).toUpperCase();
@@ -61,44 +64,44 @@ function ParticipantAvatar({ user, className }: { user: ConversationParticipant;
   );
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Date + time shown on every message bubble — not just the once-per-day separator, so it's unambiguous even at a glance. */
-function formatMessageStamp(iso: string): string {
+function formatMessageStamp(iso: string, locale: string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-  return `${date}, ${formatTime(iso)}`;
+  const date = d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
+  return `${date}, ${formatTime(iso, locale)}`;
 }
 
-function formatListTime(iso: string): string {
+function formatListTime(iso: string, locale: string): string {
   const d = new Date(iso);
   const now = new Date();
   return d.toDateString() === now.toDateString()
-    ? formatTime(iso)
-    : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    ? formatTime(iso, locale)
+    : d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
 }
 
 function isSameDay(isoA: string, isoB: string): boolean {
   return new Date(isoA).toDateString() === new Date(isoB).toDateString();
 }
 
-function formatDateSeparator(iso: string): string {
+function formatDateSeparator(iso: string, locale: string, todayLabel: string, yesterdayLabel: string): string {
   const d = new Date(iso);
   const now = new Date();
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === now.toDateString()) return 'Сегодня';
-  if (d.toDateString() === yesterday.toDateString()) return 'Вчера';
-  return d.toLocaleDateString('ru-RU', {
+  if (d.toDateString() === now.toDateString()) return todayLabel;
+  if (d.toDateString() === yesterday.toDateString()) return yesterdayLabel;
+  return d.toLocaleDateString(locale, {
     day: '2-digit',
     month: 'long',
     year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
   });
 }
 
-function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
+function ParticipantHeaderInfo({ user, roleLabels, openListingLabel }: { user: ConversationParticipant; roleLabels: Record<Role, string>; openListingLabel: string }) {
   const content = (
     <>
       <ParticipantAvatar user={user} className="h-9 w-9 text-sm" />
@@ -107,7 +110,7 @@ function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
           {user.fullName || user.login}
         </p>
         <p className="font-body text-xs text-white/35">
-          @{user.login} · {ROLE_LABELS[user.role] ?? user.role}
+          @{user.login} · {roleLabels[user.role] ?? user.role}
         </p>
       </div>
     </>
@@ -117,7 +120,7 @@ function ParticipantHeaderInfo({ user }: { user: ConversationParticipant }) {
     return (
       <Link
         href={catalogListing(user.listing.slug)}
-        title="Открыть анкету"
+        title={openListingLabel}
         className="group flex min-w-0 flex-1 items-center gap-3"
       >
         {content}
@@ -132,6 +135,10 @@ const LIST_COLLAPSED_KEY = 'cabinet-chats-list-collapsed';
 /** Shared by /cabinet/chats (performer nav) and /cabinet/messages (client nav) — same feature, two labels. */
 export function ChatsPage() {
   const { user } = useAuth();
+  const t = useTranslations('cabinet.chats');
+  const tRoles = useTranslations('roles');
+  const locale = useLocale();
+  const roleLabels = getRoleLabels(tRoles);
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -302,12 +309,12 @@ export function ChatsPage() {
         body: JSON.stringify({ login }),
       });
       const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось начать чат');
+      if (!res.ok) throw new Error(data?.message || t('errorStartChat'));
       setConversations((prev) => (prev.some((c) => c.id === data.id) ? prev.map((c) => (c.id === data.id ? data : c)) : [data, ...prev]));
       setStartOpen(false);
       openConversation(data.id);
     } catch (err: any) {
-      setStartError(err.message || 'Не удалось начать чат');
+      setStartError(err.message || t('errorStartChat'));
     }
   };
 
@@ -315,7 +322,7 @@ export function ChatsPage() {
 
   return (
     <>
-      <h1 className="mb-6 font-display text-2xl font-bold">Чаты</h1>
+      <h1 className="mb-6 font-display text-2xl font-bold">{t('title')}</h1>
 
       <div className="relative flex h-[calc(100vh-11rem)] overflow-hidden rounded-2xl border border-white/[0.08]">
         <div
@@ -324,12 +331,12 @@ export function ChatsPage() {
           } ${listCollapsed ? 'sm:w-0 sm:border-r-0' : 'sm:flex sm:w-80'}`}
         >
           <div className="flex w-full flex-shrink-0 items-center justify-between border-b border-white/[0.06] p-4 sm:w-80">
-            <h2 className="font-body text-sm font-semibold uppercase tracking-wide text-white/50">Диалоги</h2>
+            <h2 className="font-body text-sm font-semibold uppercase tracking-wide text-white/50">{t('dialogs')}</h2>
             <button
               type="button"
               onClick={openStart}
-              aria-label="Новый чат"
-              title="Новый чат"
+              aria-label={t('newChat')}
+              title={t('newChat')}
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white transition-all hover:shadow-lg hover:shadow-accent/30"
             >
               <Plus className="h-4 w-4" />
@@ -338,11 +345,11 @@ export function ChatsPage() {
 
           <div className="w-full flex-1 overflow-y-auto sm:w-80">
             {loadingConversations ? (
-              <p className="p-4 font-body text-sm text-white/40">Загрузка…</p>
+              <p className="p-4 font-body text-sm text-white/40">{t('loading')}</p>
             ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center gap-2 p-8 text-center">
                 <MessageSquare className="h-6 w-6 text-white/20" strokeWidth={1.4} />
-                <p className="font-body text-xs text-white/35">Пока нет диалогов — начните новый через «+»</p>
+                <p className="font-body text-xs text-white/35">{t('noDialogs')}</p>
               </div>
             ) : (
               conversations.map((c) => (
@@ -362,13 +369,13 @@ export function ChatsPage() {
                       </p>
                       {c.lastMessage ? (
                         <span className="flex-shrink-0 font-body text-[11px] text-white/30">
-                          {formatListTime(c.lastMessage.createdAt)}
+                          {formatListTime(c.lastMessage.createdAt, locale)}
                         </span>
                       ) : null}
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate font-body text-xs text-white/40">
-                        {c.lastMessage ? c.lastMessage.body : 'Нет сообщений'}
+                        {c.lastMessage ? c.lastMessage.body : t('noMessages')}
                       </p>
                       {c.unreadCount > 0 ? (
                         <span className="flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-accent px-1.5 font-body text-[10px] font-bold text-white">
@@ -386,8 +393,8 @@ export function ChatsPage() {
         <button
           type="button"
           onClick={toggleListCollapsed}
-          aria-label={listCollapsed ? 'Показать список диалогов' : 'Скрыть список диалогов'}
-          title={listCollapsed ? 'Показать список диалогов' : 'Скрыть список диалогов'}
+          aria-label={listCollapsed ? t('showList') : t('hideList')}
+          title={listCollapsed ? t('showList') : t('hideList')}
           className={`absolute top-1/2 z-10 hidden h-16 w-5 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-[#141414] text-white/40 transition-[left] duration-200 hover:text-white sm:flex ${
             listCollapsed ? 'left-0' : 'left-80'
           }`}
@@ -399,7 +406,7 @@ export function ChatsPage() {
           {!activeConversation ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
               <MessageSquare className="h-8 w-8 text-white/15" strokeWidth={1.2} />
-              <p className="font-body text-sm text-white/30">Выберите диалог слева или начните новый</p>
+              <p className="font-body text-sm text-white/30">{t('selectOrStart')}</p>
             </div>
           ) : (
             <>
@@ -408,11 +415,11 @@ export function ChatsPage() {
                   type="button"
                   onClick={() => setActiveId(null)}
                   className="font-body text-lg text-white/50 hover:text-white sm:hidden"
-                  aria-label="Назад к списку"
+                  aria-label={t('back')}
                 >
                   ‹
                 </button>
-                <ParticipantHeaderInfo user={activeConversation.otherUser} />
+                <ParticipantHeaderInfo user={activeConversation.otherUser} roleLabels={roleLabels} openListingLabel={t('openListing')} />
                 <ReportButton
                   targetType="user"
                   targetId={activeConversation.otherUser.id}
@@ -423,9 +430,9 @@ export function ChatsPage() {
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
                 {loadingMessages ? (
-                  <p className="font-body text-sm text-white/40">Загрузка…</p>
+                  <p className="font-body text-sm text-white/40">{t('loading')}</p>
                 ) : messages.length === 0 ? (
-                  <p className="font-body text-sm text-white/30">Сообщений пока нет — напишите первым</p>
+                  <p className="font-body text-sm text-white/30">{t('noMessagesYet')}</p>
                 ) : (
                   messages.map((m, i) => {
                     const own = m.senderId === user?.id;
@@ -436,7 +443,7 @@ export function ChatsPage() {
                         {showDateSeparator ? (
                           <div className="mb-3 flex justify-center">
                             <span className="rounded-full bg-white/[0.06] px-3 py-1 font-body text-[11px] text-white/40">
-                              {formatDateSeparator(m.createdAt)}
+                              {formatDateSeparator(m.createdAt, locale, t('today'), t('yesterday'))}
                             </span>
                           </div>
                         ) : null}
@@ -450,12 +457,12 @@ export function ChatsPage() {
                             <p
                               className={`mt-1 flex items-center justify-end gap-1 text-right text-[10px] ${own ? 'text-white/70' : 'text-white/30'}`}
                             >
-                              {formatMessageStamp(m.createdAt)}
+                              {formatMessageStamp(m.createdAt, locale)}
                               {own ? (
                                 otherUserReadAt && new Date(m.createdAt) <= new Date(otherUserReadAt) ? (
-                                  <CheckCheck className="h-3 w-3 flex-shrink-0" aria-label="Прочитано" />
+                                  <CheckCheck className="h-3 w-3 flex-shrink-0" aria-label={t('read')} />
                                 ) : (
-                                  <Check className="h-3 w-3 flex-shrink-0" aria-label="Не прочитано" />
+                                  <Check className="h-3 w-3 flex-shrink-0" aria-label={t('unread')} />
                                 )
                               ) : null}
                             </p>
@@ -478,7 +485,7 @@ export function ChatsPage() {
 
               {user?.messagingRestricted ? (
                 <p className="flex-shrink-0 border-t border-white/[0.06] p-4 font-body text-sm text-orange-400">
-                  Отправка сообщений ограничена администрацией.
+                  {t('messagingRestricted')}
                 </p>
               ) : (
                 <form
@@ -492,7 +499,7 @@ export function ChatsPage() {
                     type="text"
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Написать сообщение..."
+                    placeholder={t('messagePlaceholder')}
                     maxLength={4000}
                     className="input flex-1"
                   />
@@ -500,7 +507,7 @@ export function ChatsPage() {
                     type="submit"
                     disabled={sending || !draft.trim()}
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white transition-all hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
-                    aria-label="Отправить"
+                    aria-label={t('send')}
                   >
                     {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
@@ -518,7 +525,7 @@ export function ChatsPage() {
           <div className="card relative flex max-h-[80vh] w-full flex-col p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Новый чат</h2>
+              <h2 className="font-display text-lg font-bold">{t('newChat')}</h2>
               <button type="button" onClick={() => setStartOpen(false)} className="text-white/40 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
@@ -530,7 +537,7 @@ export function ChatsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск по логину..."
+                placeholder={t('searchPlaceholder')}
                 autoFocus
                 className="input !pl-10"
               />
@@ -540,9 +547,9 @@ export function ChatsPage() {
 
             <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
               {searching ? (
-                <p className="p-2 font-body text-xs text-white/35">Поиск…</p>
+                <p className="p-2 font-body text-xs text-white/35">{t('searching')}</p>
               ) : searchQuery.trim() && searchResults.length === 0 ? (
-                <p className="p-2 font-body text-xs text-white/35">Никого не нашли по этому логину</p>
+                <p className="p-2 font-body text-xs text-white/35">{t('noSearchResults')}</p>
               ) : (
                 searchResults.map((u) => (
                   <button
@@ -557,7 +564,7 @@ export function ChatsPage() {
                     <div className="min-w-0">
                       <p className="truncate font-body text-sm font-medium text-white">{u.fullName || u.login}</p>
                       <p className="font-body text-xs text-white/35">
-                        @{u.login} · {ROLE_LABELS[u.role] ?? u.role}
+                        @{u.login} · {roleLabels[u.role] ?? u.role}
                       </p>
                     </div>
                   </button>

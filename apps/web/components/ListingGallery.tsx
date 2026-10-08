@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link, useRouter } from '@/i18n/navigation';
 import { BadgeCheck, Eye, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { ReportButton } from '@/components/ui/ReportButton';
@@ -56,8 +56,8 @@ function whatsappHref(value: string): string {
   return `https://wa.me/${value.replace(/[^\d]/g, '')}`;
 }
 
-function formatReviewDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+function formatReviewDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 function StarRow({ rating, className = 'h-3.5 w-3.5' }: { rating: number; className?: string }) {
@@ -92,6 +92,9 @@ export function ListingGallery({
 }: IProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const t = useTranslations('listingGallery');
+  const tCatalog = useTranslations('catalog');
+  const locale = useLocale();
   const media: Media[] = [
     ...photos.map((url): Media => ({ type: 'photo', url })),
     ...(videoUrl ? [{ type: 'video', url: videoUrl } as Media] : []),
@@ -145,11 +148,11 @@ export function ListingGallery({
         body: JSON.stringify({ login: ownerLogin }),
       });
       const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось начать чат');
+      if (!res.ok) throw new Error(data?.message || t('errorStartChat'));
       const chatsHref = user?.role === Role.Performer ? ROUTES.CABINET_CHATS : ROUTES.CABINET_MESSAGES;
       router.push(`${chatsHref}?c=${data.id}`);
     } catch (err: any) {
-      setStartChatError(err.message || 'Не удалось начать чат');
+      setStartChatError(err.message || t('errorStartChat'));
       setStartingChat(false);
     }
   };
@@ -169,11 +172,11 @@ export function ListingGallery({
 
   const submitReview = async () => {
     if (reviewRating < 1) {
-      setReviewError('Поставьте оценку');
+      setReviewError(t('errorRating'));
       return;
     }
     if (!reviewText.trim()) {
-      setReviewError('Напишите текст отзыва');
+      setReviewError(t('errorReviewText'));
       return;
     }
     setReviewSubmitting(true);
@@ -185,14 +188,14 @@ export function ListingGallery({
         body: JSON.stringify({ listingId: id, rating: reviewRating, text: reviewText.trim() }),
       });
       const data = await parseBody(res);
-      if (!res.ok) throw new Error(data?.message || 'Не удалось отправить отзыв');
+      if (!res.ok) throw new Error(data?.message || t('errorSubmitReview'));
       reachGoal('review_submitted');
       setReviewSubmitted(true);
       setReviewFormOpen(false);
       setReviewRating(0);
       setReviewText('');
     } catch (err: any) {
-      setReviewError(err.message || 'Не удалось отправить отзыв');
+      setReviewError(err.message || t('errorSubmitReview'));
     } finally {
       setReviewSubmitting(false);
     }
@@ -220,7 +223,7 @@ export function ListingGallery({
             <button
               type="button"
               onClick={() => setActive((p) => (p - 1 + total) % total)}
-              aria-label="Предыдущее"
+              aria-label={t('prevSlide')}
               className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-lg text-white/70 transition-colors hover:bg-black/80 hover:text-white"
             >
               ‹
@@ -228,7 +231,7 @@ export function ListingGallery({
             <button
               type="button"
               onClick={() => setActive((p) => (p + 1) % total)}
-              aria-label="Следующее"
+              aria-label={t('nextSlide')}
               className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-lg text-white/70 transition-colors hover:bg-black/80 hover:text-white"
             >
               ›
@@ -246,8 +249,8 @@ export function ListingGallery({
           <button
             type="button"
             onClick={() => (onClose ? onClose() : router.push(ROUTES.CATALOG))}
-            aria-label="Закрыть просмотр анкеты"
-            title="Закрыть просмотр анкеты"
+            aria-label={t('closePreview')}
+            title={t('closePreview')}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
           >
             <X className="h-5 w-5" />
@@ -260,16 +263,16 @@ export function ListingGallery({
             {preview ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-accent/90 px-2.5 py-1 font-body text-xs font-medium text-white backdrop-blur-sm">
                 <Eye className="h-3.5 w-3.5" />
-                Предпросмотр
+                {t('previewBadge')}
               </span>
             ) : null}
             {photosVerified ? (
               <span
-                title="Фото подтверждены модератором"
+                title={tCatalog('photosVerifiedTitle')}
                 className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 font-body text-xs font-medium text-white backdrop-blur-sm"
               >
                 <BadgeCheck className="h-3.5 w-3.5 text-accent" />
-                Фото подтверждены
+                {tCatalog('photosVerifiedBadge')}
               </span>
             ) : null}
           </div>
@@ -277,12 +280,12 @@ export function ListingGallery({
             <div className="mb-2 flex flex-wrap gap-2">
               {priceHour ? (
                 <span className="badge bg-accent text-white shadow-md shadow-black/40">
-                  {formatPrice(priceHour)} / час
+                  {formatPrice(priceHour)} / {tCatalog('priceHourSuffix')}
                 </span>
               ) : null}
               {priceNight ? (
                 <span className="badge bg-accent text-white shadow-md shadow-black/40">
-                  {formatPrice(priceNight)} / ночь
+                  {formatPrice(priceNight)} / {t('priceNightSuffix')}
                 </span>
               ) : null}
             </div>
@@ -313,8 +316,8 @@ export function ListingGallery({
               <div className="min-w-0">
                 <div className="truncate font-display text-sm font-bold text-white">{name}</div>
                 <div className="font-body text-[11px] text-white/35">
-                  {photos.length > 0 ? `${photos.length} фото` : 'Фото'}
-                  {videoUrl ? ', 1 видео' : ''}
+                  {photos.length > 0 ? `${photos.length} ${t('photosUnit')}` : t('photosWord')}
+                  {videoUrl ? t('videoSuffix') : ''}
                 </div>
               </div>
             </div>
@@ -328,7 +331,7 @@ export function ListingGallery({
                 activeTab === 'gallery' ? 'bg-white/[0.06] text-white' : 'text-white/40 hover:text-white/70'
               }`}
             >
-              Галерея
+              {t('galleryTab')}
             </button>
             <button
               type="button"
@@ -337,7 +340,7 @@ export function ListingGallery({
                 activeTab === 'reviews' ? 'bg-white/[0.06] text-white' : 'text-white/40 hover:text-white/70'
               }`}
             >
-              Отзывы{reviews.count > 0 ? ` (${reviews.count})` : ''}
+              {t('reviewsTab')}{reviews.count > 0 ? ` (${reviews.count})` : ''}
             </button>
           </div>
 
@@ -393,7 +396,7 @@ export function ListingGallery({
                         </span>
                       </div>
                     ) : (
-                      <p className="font-body text-sm text-white/30">Отзывов пока нет</p>
+                      <p className="font-body text-sm text-white/30">{t('noReviewsYet')}</p>
                     )}
                   </div>
                   {user && user.role === Role.Client ? (
@@ -406,7 +409,7 @@ export function ListingGallery({
                       }}
                       className="flex-shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 font-body text-xs font-semibold text-accent transition-colors hover:bg-accent/15"
                     >
-                      Оставить отзыв
+                      {t('leaveReview')}
                     </button>
                   ) : null}
                 </div>
@@ -414,15 +417,15 @@ export function ListingGallery({
                 {!user ? (
                   <p className="mb-4 font-body text-xs text-white/35">
                     <Link href={ROUTES.LOGIN} className="text-accent hover:underline">
-                      Войдите
-                    </Link>{' '}
-                    как клиент, чтобы оставить отзыв
+                      {t('loginPrompt')}
+                    </Link>
+                    {t('loginAsClientSuffix')}
                   </p>
                 ) : null}
 
                 {reviewSubmitted ? (
                   <p className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 font-body text-xs text-emerald-400">
-                    Спасибо! Отзыв отправлен на модерацию и появится здесь после проверки.
+                    {t('reviewThanks')}
                   </p>
                 ) : null}
 
@@ -438,7 +441,7 @@ export function ListingGallery({
                           type="button"
                           onMouseEnter={() => setReviewHoverRating(n)}
                           onClick={() => setReviewRating(n)}
-                          aria-label={`${n} из 5`}
+                          aria-label={t('ratingAriaLabel', { n })}
                           className="p-0.5"
                         >
                           <Star
@@ -453,7 +456,7 @@ export function ListingGallery({
                     <textarea
                       value={reviewText}
                       onChange={(e) => setReviewText(e.target.value)}
-                      placeholder="Расскажите о своём опыте..."
+                      placeholder={t('reviewPlaceholder')}
                       maxLength={2000}
                       rows={3}
                       className="input resize-none text-sm"
@@ -466,7 +469,7 @@ export function ListingGallery({
                         disabled={reviewSubmitting}
                         className="rounded-full px-3 py-1.5 font-body text-xs font-medium text-white/50 hover:text-white disabled:opacity-50"
                       >
-                        Отмена
+                        {t('cancel')}
                       </button>
                       <button
                         type="button"
@@ -475,7 +478,7 @@ export function ListingGallery({
                         className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30 disabled:opacity-50"
                       >
                         {reviewSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                        {reviewSubmitting ? 'Отправляем…' : 'Отправить'}
+                        {reviewSubmitting ? t('sending') : t('send')}
                       </button>
                     </div>
                   </div>
@@ -488,7 +491,7 @@ export function ListingGallery({
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-body text-sm font-semibold text-white">{review.authorName}</p>
                           <span className="flex-shrink-0 font-body text-[11px] text-white/30">
-                            {formatReviewDate(review.createdAt)}
+                            {formatReviewDate(review.createdAt, locale)}
                           </span>
                         </div>
                         <div className="mt-1">
@@ -511,7 +514,7 @@ export function ListingGallery({
                 className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-2 py-2 font-body text-xs font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                Связаться
+                {t('contactButton')}
               </button>
             )}
             <button
@@ -523,7 +526,7 @@ export function ListingGallery({
               className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
             >
               <Phone className="h-3.5 w-3.5" />
-              Контакты
+              {t('contactsButton')}
             </button>
             <button
               type="button"
@@ -535,13 +538,13 @@ export function ListingGallery({
               }`}
             >
               <Star className="h-3.5 w-3.5" />
-              Отзывы
+              {t('reviewsTab')}
             </button>
           </div>
 
           {preview ? null : (
             <div className="flex flex-shrink-0 justify-center border-t border-white/[0.06] py-2">
-              <ReportButton targetType="listing" targetId={id} label="Пожаловаться на анкету" />
+              <ReportButton targetType="listing" targetId={id} label={t('reportListing')} />
             </div>
           )}
         </div>
@@ -553,7 +556,7 @@ export function ListingGallery({
           <div className="card relative w-full p-6 !rounded-b-none sm:max-w-sm sm:!rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Связаться с {name}</h2>
+              <h2 className="font-display text-lg font-bold">{t('contactModalTitle', { name })}</h2>
               <button type="button" onClick={() => setContactOpen(false)} className="text-white/40 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
@@ -570,8 +573,8 @@ export function ListingGallery({
                     <Send className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-body text-sm font-medium text-white">Написать в Telegram</p>
-                    <p className="font-body text-xs text-white/40">Без регистрации на сайте</p>
+                    <p className="font-body text-sm font-medium text-white">{t('telegramOptionTitle')}</p>
+                    <p className="font-body text-xs text-white/40">{t('telegramOptionSubtitle')}</p>
                   </div>
                 </button>
               ) : null}
@@ -586,8 +589,8 @@ export function ListingGallery({
                   {startingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-body text-sm font-medium text-white">Написать на платформе</p>
-                  <p className="font-body text-xs text-white/40">Откроется чат в личном кабинете</p>
+                  <p className="font-body text-sm font-medium text-white">{t('platformOptionTitle')}</p>
+                  <p className="font-body text-xs text-white/40">{t('platformOptionSubtitle')}</p>
                 </div>
               </button>
             </div>
@@ -603,7 +606,7 @@ export function ListingGallery({
           <div className="relative w-full rounded-2xl rounded-b-none border border-white/[0.08] bg-surface p-6 sm:max-w-sm sm:rounded-2xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Контакты {name}</h2>
+              <h2 className="font-display text-lg font-bold">{t('contactsModalTitle', { name })}</h2>
               <button type="button" onClick={() => setContactInfoOpen(false)} className="text-white/40 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
@@ -620,7 +623,7 @@ export function ListingGallery({
                       <Phone className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-body text-sm font-medium text-white">Телефон</p>
+                      <p className="font-body text-sm font-medium text-white">{t('phoneLabel')}</p>
                       <p className="truncate font-body text-xs text-white/40">{contactPhone}</p>
                     </div>
                   </a>
@@ -654,14 +657,14 @@ export function ListingGallery({
                       <MessageCircle className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-body text-sm font-medium text-white">WhatsApp</p>
+                      <p className="font-body text-sm font-medium text-white">{t('whatsappLabel')}</p>
                       <p className="truncate font-body text-xs text-white/40">{contactWhatsapp}</p>
                     </div>
                   </a>
                 ) : null}
               </div>
             ) : (
-              <p className="font-body text-sm text-white/40">Исполнитель пока не указал контакты для прямой связи.</p>
+              <p className="font-body text-sm text-white/40">{t('noContacts')}</p>
             )}
           </div>
         </div>

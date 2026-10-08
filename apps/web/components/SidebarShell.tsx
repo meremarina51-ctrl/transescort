@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, usePathname } from '@/i18n/navigation';
 import { LogOut, ChevronLeft, ChevronRight, Globe, Menu, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import Logo from '@/components/Logo';
@@ -33,6 +33,8 @@ function SidebarNav({
   hideSiteLink?: boolean;
   onNavigate?: () => void;
 }) {
+  const t = useTranslations('sidebar');
+
   return (
     <>
       <nav className="flex-1 space-y-1">
@@ -55,7 +57,7 @@ function SidebarNav({
         {hideSiteLink ? null : (
           <Link href={ROUTES.HOME} className={linkClass(false)} onClick={onNavigate}>
             <Globe className="h-5 w-5 flex-shrink-0" />
-            На сайт
+            {t('siteLink')}
           </Link>
         )}
         <button
@@ -63,7 +65,7 @@ function SidebarNav({
           className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 py-3 font-body text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-accent/30"
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
-          Выйти
+          {t('logout')}
         </button>
       </div>
     </>
@@ -88,6 +90,7 @@ export function SidebarShell({
 }: IProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const t = useTranslations('sidebar');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -137,7 +140,7 @@ export function SidebarShell({
 
         <button
           onClick={toggleCollapsed}
-          aria-label={collapsed ? 'Показать сайдбар' : 'Скрыть сайдбар'}
+          aria-label={collapsed ? t('toggleShow') : t('toggleHide')}
           className="absolute -right-4 top-6 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#0a0a0a] text-white/50 transition-colors hover:text-white"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
@@ -149,7 +152,7 @@ export function SidebarShell({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
-              aria-label="Открыть меню"
+              aria-label={t('openMenu')}
               className="text-white/60 transition-colors hover:text-white"
             >
               <Menu className="h-6 w-6" />
@@ -169,7 +172,7 @@ export function SidebarShell({
               </Link>
             ))}
             <button onClick={logout} className="ml-2 font-body text-sm text-white/50">
-              Выйти
+              {t('logout')}
             </button>
           </div>
         </header>
@@ -212,7 +215,7 @@ export function SidebarShell({
             </Link>
             <button
               onClick={() => setMobileOpen(false)}
-              aria-label="Закрыть меню"
+              aria-label={t('closeMenu')}
               className="text-white/50 transition-colors hover:text-white"
             >
               <X className="h-5 w-5" />

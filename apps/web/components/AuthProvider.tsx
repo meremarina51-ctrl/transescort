@@ -5,7 +5,8 @@
  * Source of truth in the browser is localStorage (accessToken, refreshToken, user JSON).
  */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import { authFetch } from '@/lib/auth-fetch';
 import { disconnectChatSocket } from '@/lib/chat-socket';
 import { Role } from '@/lib/enums';
@@ -31,20 +32,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const guestAuthValue: AuthContextType = {
-  user: null,
-  loading: false,
-  login: () => {},
-  logout: () => {},
-  refreshUser: async () => {},
-  privateAreaHref: ROUTES.LOGIN,
-  privateAreaLabel: 'Войти',
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const t = useTranslations('authNav');
   const initAttempted = useRef(false);
 
   const refreshUser = useCallback(async () => {
@@ -110,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const privateAreaHref = user ? ROUTES.CABINET : ROUTES.LOGIN;
-  const privateAreaLabel = user ? 'Личный кабинет' : 'Войти';
+  const privateAreaLabel = user ? t('cabinet') : t('login');
 
   return (
     <AuthContext.Provider
@@ -130,5 +122,17 @@ export const useAuth = () => {
 };
 
 export function useAuthOrGuest(): AuthContextType {
-  return useContext(AuthContext) ?? guestAuthValue;
+  const context = useContext(AuthContext);
+  const t = useTranslations('authNav');
+  return (
+    context ?? {
+      user: null,
+      loading: false,
+      login: () => {},
+      logout: () => {},
+      refreshUser: async () => {},
+      privateAreaHref: ROUTES.LOGIN,
+      privateAreaLabel: t('login'),
+    }
+  );
 }

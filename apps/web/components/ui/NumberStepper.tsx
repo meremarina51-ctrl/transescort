@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Minus, Plus } from 'lucide-react';
 
 interface IProps {
@@ -14,6 +15,7 @@ interface IProps {
 
 /** Числовой инпут без нативных стрелок браузера — вместо них компактные кнопки −/+. */
 export function NumberStepper({ value, onChange, min = 0, max = 99, step = 1, placeholder, light = false }: IProps) {
+  const t = useTranslations('numberStepper');
   const L = light;
   const current = value ?? 0;
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
@@ -30,7 +32,7 @@ export function NumberStepper({ value, onChange, min = 0, max = 99, step = 1, pl
         className={`flex shrink-0 items-center justify-center px-2 py-2 transition-colors ${
           L ? 'text-[#646970] hover:bg-[#f6f7f7] hover:text-[#1d2327]' : 'text-white/40 hover:bg-white/[0.06] hover:text-white'
         }`}
-        aria-label="Уменьшить"
+        aria-label={t('decrease')}
       >
         <Minus className="h-3 w-3" />
       </button>
@@ -49,7 +51,7 @@ export function NumberStepper({ value, onChange, min = 0, max = 99, step = 1, pl
         className={`flex shrink-0 items-center justify-center px-2 py-2 transition-colors ${
           L ? 'text-[#646970] hover:bg-[#f6f7f7] hover:text-[#1d2327]' : 'text-white/40 hover:bg-white/[0.06] hover:text-white'
         }`}
-        aria-label="Увеличить"
+        aria-label={t('increase')}
       >
         <Plus className="h-3 w-3" />
       </button>

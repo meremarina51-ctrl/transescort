@@ -1,19 +1,21 @@
+import { useTranslations } from 'next-intl';
 import { ROUTES } from "@/lib/routes";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { computeVitals } from "@/lib/listing-vitals";
+import { Link, useRouter } from '@/i18n/navigation';
+import { computeVitals, getListingVitalsConfig } from "@/lib/listing-vitals";
 import { usePreviewListing } from "@/hooks/usePreviewListing";
 import { FullScreenState } from "@/components/ui/FullScreenState";
 import { ListingGallery } from "@/components/ListingGallery";
 
 export const PreviewContent = () => {
   const router = useRouter();
+  const t = useTranslations('preview');
+  const tVitals = useTranslations('vitals');
   const { listing, reviews, isLoading, errorMessage } = usePreviewListing();
 
   if (isLoading) {
     return (
       <FullScreenState>
-        <p className="font-body text-sm text-white/40">Загрузка…</p>
+        <p className="font-body text-sm text-white/40">{t('loading')}</p>
       </FullScreenState>
     );
   }
@@ -21,12 +23,12 @@ export const PreviewContent = () => {
   if (errorMessage === 'no-listing') {
     return (
       <FullScreenState className="flex-col gap-3 p-6 text-center text-white">
-        <h1 className="font-display text-xl font-bold">Анкета ещё не создана</h1>
+        <h1 className="font-display text-xl font-bold">{t('noListingTitle')}</h1>
         <p className="max-w-sm font-body text-sm text-white/40">
-          Сначала создайте анкету — после этого здесь появится предпросмотр.
+          {t('noListingDescription')}
         </p>
         <Link href={ROUTES.CABINET_LISTING} className="btn-primary mt-2">
-          Создать анкету
+          {t('createListing')}
         </Link>
       </FullScreenState>
     );
@@ -35,18 +37,18 @@ export const PreviewContent = () => {
   if (errorMessage || !listing) {
     return (
       <FullScreenState className="p-6 text-center">
-        <p className="font-body text-sm text-red-400">{errorMessage || 'Не удалось загрузить анкету'}</p>
+        <p className="font-body text-sm text-red-400">{errorMessage || t('errorDefault')}</p>
       </FullScreenState>
     );
   }
 
-  const vitals = computeVitals(listing);
+  const vitals = computeVitals(listing, getListingVitalsConfig(tVitals));
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <ListingGallery
         id={listing.id}
-        name={listing.name || 'Без имени'}
+        name={listing.name || t('unnamed')}
         photos={listing.photos}
         videoUrl={listing.videoUrl}
         vitals={vitals}
