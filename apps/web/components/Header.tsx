@@ -8,6 +8,7 @@ import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
 import { useAuthOrGuest } from './AuthProvider';
 import { getNavLinks } from './constants';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import Logo from './Logo';
 
 export function Header() {
@@ -66,6 +67,7 @@ export function Header() {
         </nav>
 
         <div className="col-start-3 flex items-center gap-4 justify-self-end max-[975px]:hidden">
+          <LanguageSwitcher />
           {user ? (
             <>
               <Link href={privateAreaHref} className="btn-secondary !px-6 !py-2.5">
@@ -124,6 +126,7 @@ export function Header() {
               {t('login')}
             </Link>
           )}
+          <LanguageSwitcher className="mt-4 text-sm" />
         </nav>
       </div>
     )}
