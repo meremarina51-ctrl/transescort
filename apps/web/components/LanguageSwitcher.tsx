@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -11,13 +12,8 @@ interface IProps {
   className?: string;
 }
 
-/** Segmented pill toggle — keeps the current page and query string, swaps only the locale. */
-export function LanguageSwitcher({ className = '' }: IProps) {
+function SwitcherPill({ href, className = '' }: { href: string; className?: string }) {
   const locale = useLocale();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const qs = searchParams.toString();
-  const href = qs ? `${pathname}?${qs}` : pathname;
   const activeIndex = Math.max(0, routing.locales.indexOf(locale as (typeof routing.locales)[number]));
 
   return (
@@ -46,5 +42,26 @@ export function LanguageSwitcher({ className = '' }: IProps) {
         </Link>
       ))}
     </div>
+  );
+}
+
+/** useSearchParams forces a Suspense boundary during static rendering — isolated here so it doesn't bail out every page that renders the header. */
+function SwitcherPillWithQuery({ className }: IProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const qs = searchParams.toString();
+  const href = qs ? `${pathname}?${qs}` : pathname;
+
+  return <SwitcherPill href={href} className={className} />;
+}
+
+/** Segmented pill toggle — keeps the current page and query string, swaps only the locale. */
+export function LanguageSwitcher({ className }: IProps) {
+  const pathname = usePathname();
+
+  return (
+    <Suspense fallback={<SwitcherPill href={pathname} className={className} />}>
+      <SwitcherPillWithQuery className={className} />
+    </Suspense>
   );
 }
