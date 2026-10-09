@@ -6,7 +6,7 @@ export const FIGURE_OPTIONS = ['Стройная', 'Спортивная', 'Ху
 export const TEMPERAMENT_OPTIONS = ['Нежная', 'Страстная', 'Доминантная', 'Игривая', 'Спокойная'] as const;
 export const HAIR_COLOR_OPTIONS = ['Блондинка', 'Брюнетка', 'Шатенка', 'Рыжая', 'Другой'] as const;
 export const EYE_COLOR_OPTIONS = ['Голубые', 'Зелёные', 'Карие', 'Серые', 'Чёрные'] as const;
-export const COUNTRY_OPTIONS = ['Россия', 'Беларусь', 'Украина', 'Казахстан', 'Другая'] as const;
+export const COUNTRY_OPTIONS = ['Россия', 'Беларусь', 'Украина', 'Казахстан', 'ОАЭ', 'Другая'] as const;
 export const CITY_OPTIONS = [
   'Москва',
   'Балашиха',
@@ -15,6 +15,7 @@ export const CITY_OPTIONS = [
   'Химки',
   'Мытищи',
   'Подольск',
+  'Дубай',
   'Другой',
 ] as const;
 
