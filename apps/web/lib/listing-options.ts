@@ -6,4 +6,26 @@ export const EYE_COLOR_OPTIONS = ['Голубые', 'Зелёные', 'Кари�
 export const COUNTRY_OPTIONS = ['Россия', 'Беларусь', 'Украина', 'Казахстан', 'ОАЭ', 'Другая'];
 export const CITY_OPTIONS = ['Москва', 'Балашиха', 'Люберцы', 'Одинцово', 'Химки', 'Мытищи', 'Подольск', 'Дубай', 'Другой'];
 
-export const toSelectOptions = (values: string[]) => values.map((v) => ({ value: v, label: v }));
+const GEO_LABELS_EN: Record<string, string> = {
+  Россия: 'Russia',
+  Беларусь: 'Belarus',
+  Украина: 'Ukraine',
+  Казахстан: 'Kazakhstan',
+  ОАЭ: 'UAE',
+  Другая: 'Other',
+  Москва: 'Moscow',
+  Балашиха: 'Balashikha',
+  Люберцы: 'Lyubertsy',
+  Одинцово: 'Odintsovo',
+  Химки: 'Khimki',
+  Мытищи: 'Mytishchi',
+  Подольск: 'Podolsk',
+  Дубай: 'Dubai',
+  Другой: 'Other',
+};
+
+// Country/city values are stored in Russian; translate them for display only.
+export const geoLabel = (value: string, locale: string) =>
+  locale === 'en' ? (GEO_LABELS_EN[value] ?? value) : value;
+
+export const toSelectOptions =(values: string[]) => values.map((v) => ({ value: v, label: v }));

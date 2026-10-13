@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, MapPin, X } from 'lucide-react';
+import { geoLabel } from '@/lib/listing-options';
 
 export interface GeoCountry {
   country: string;
@@ -26,6 +27,7 @@ function SidebarContent({
   geoData,
 }: Omit<IProps, 'mobileOpen'>) {
   const t = useTranslations('locationSidebar');
+  const locale = useLocale();
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(geoData.length > 0 ? [geoData[0].country] : []),
   );
@@ -73,7 +75,7 @@ function SidebarContent({
                   countryActive ? 'bg-accent/[0.08] text-accent' : 'text-white/55 hover:text-white/85'
                 }`}
               >
-                <span className="flex-1 truncate">{country}</span>
+                <span className="flex-1 truncate">{geoLabel(country, locale)}</span>
               </button>
               {cities.length > 0 && (
                 <button
@@ -106,7 +108,7 @@ function SidebarContent({
                         {cityActive && (
                           <span className="absolute left-0 top-0 h-full w-[2px] rounded-r-full bg-accent" aria-hidden />
                         )}
-                        {city}
+                        {geoLabel(city, locale)}
                       </button>
                     </li>
                   );
