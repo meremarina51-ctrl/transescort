@@ -34,6 +34,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           bio={listing.bio}
           priceHour={listing.priceHour}
           priceNight={listing.priceNight}
+          currency={listing.currency}
           ownerLogin={listing.ownerLogin}
           ownerTelegramLinked={listing.ownerTelegramLinked}
           telegramBotUsername={telegramBotUsername}

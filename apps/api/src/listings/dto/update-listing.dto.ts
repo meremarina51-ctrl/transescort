@@ -18,6 +18,7 @@ export const CITY_OPTIONS = [
   'Дубай',
   'Другой',
 ] as const;
+export const CURRENCY_OPTIONS = ['RUB', 'USD', 'EUR', 'AED'] as const;
 
 export class UpdateListingDto {
   @ApiProperty({ required: false, maxLength: 3000 })
@@ -102,17 +103,22 @@ export class UpdateListingDto {
   @IsIn(CITY_OPTIONS)
   city?: string;
 
-  @ApiProperty({ required: false, description: 'Цена за час, ₽', minimum: 0 })
+  @ApiProperty({ required: false, description: 'Цена за час, в валюте currency', minimum: 0 })
   @IsOptional()
   @IsInt()
   @Min(0)
   priceHour?: number;
 
-  @ApiProperty({ required: false, description: 'Цена за ночь, ₽', minimum: 0 })
+  @ApiProperty({ required: false, description: 'Цена за ночь, в валюте currency', minimum: 0 })
   @IsOptional()
   @IsInt()
   @Min(0)
   priceNight?: number;
+
+  @ApiProperty({ required: false, enum: CURRENCY_OPTIONS })
+  @IsOptional()
+  @IsIn(CURRENCY_OPTIONS)
+  currency?: (typeof CURRENCY_OPTIONS)[number];
 
   @ApiProperty({ required: false, maxLength: 32 })
   @IsOptional()

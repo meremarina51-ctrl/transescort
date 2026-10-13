@@ -45,6 +45,7 @@ const REPORT_CATEGORY_LABELS: Record<TelegramReportCategory, string> = {
 const MAX_MEDIA_GROUP_PHOTOS = 10;
 /** Telegram's cap on photo/media-group captions is 1024 chars; stay comfortably under it. */
 const MAX_CAPTION_LENGTH = 900;
+const CURRENCY_SYMBOLS: Record<string, string> = { RUB: '₽', USD: '$', EUR: '€', AED: 'AED' };
 
 /** Anti-spam: caps how many messages one Telegram user can relay (either direction) in a short window. */
 const RELAY_SPAM_RATE_WINDOW_MS = 10_000;
@@ -1094,7 +1095,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const displayName = listing.name || row.performerName || 'Исполнитель';
     const lines: string[] = [`✨ <b>${this.escapeHtml(displayName)}</b>${listing.age ? `, ${listing.age} лет` : ''}`];
     if (listing.city) lines.push(`📍 ${this.escapeHtml(listing.city)}`);
-    if (listing.priceHour) lines.push(`💰 от ${listing.priceHour}₽/час`);
+    if (listing.priceHour) {
+      const symbol = CURRENCY_SYMBOLS[listing.currency] ?? '₽';
+      lines.push(`💰 от ${listing.priceHour} ${symbol}/час`);
+    }
     if (listing.bio) lines.push('', this.escapeHtml(listing.bio));
     return this.truncate(lines.join('\n'), MAX_CAPTION_LENGTH);
   }

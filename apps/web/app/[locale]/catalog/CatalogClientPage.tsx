@@ -381,7 +381,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                   </p>
                   {listing.priceHour ? (
                     <p className="mt-2 font-body text-sm font-semibold text-accent">
-                      {formatPrice(listing.priceHour)} / {t('priceHourSuffix')}
+                      {formatPrice(listing.priceHour, listing.currency)} / {t('priceHourSuffix')}
                     </p>
                   ) : null}
                 </div>

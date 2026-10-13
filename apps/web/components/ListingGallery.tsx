@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { BadgeCheck, Eye, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { ReportButton } from '@/components/ui/ReportButton';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, type Currency } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
 import { Role } from '@/lib/enums';
@@ -31,6 +31,7 @@ interface IProps {
   bio: string | null;
   priceHour: number | null;
   priceNight: number | null;
+  currency: Currency;
   ownerLogin: string | null;
   ownerTelegramLinked: boolean;
   telegramBotUsername: string | null;
@@ -79,6 +80,7 @@ export function ListingGallery({
   bio,
   priceHour,
   priceNight,
+  currency,
   ownerLogin,
   ownerTelegramLinked,
   telegramBotUsername,
@@ -280,12 +282,12 @@ export function ListingGallery({
             <div className="mb-2 flex flex-wrap gap-2">
               {priceHour ? (
                 <span className="badge bg-accent text-white shadow-md shadow-black/40">
-                  {formatPrice(priceHour)} / {tCatalog('priceHourSuffix')}
+                  {formatPrice(priceHour, currency)} / {tCatalog('priceHourSuffix')}
                 </span>
               ) : null}
               {priceNight ? (
                 <span className="badge bg-accent text-white shadow-md shadow-black/40">
-                  {formatPrice(priceNight)} / {t('priceNightSuffix')}
+                  {formatPrice(priceNight, currency)} / {t('priceNightSuffix')}
                 </span>
               ) : null}
             </div>

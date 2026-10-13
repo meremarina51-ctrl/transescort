@@ -70,9 +70,14 @@ export const listings = pgTable(
     country: varchar('country', { length: 50 }),
     city: varchar('city', { length: 50 }),
 
-    /** Rubles. Shown to clients only once the performer has a paid tariff (not enforced yet). */
+    /** In `currency`. Shown to clients only once the performer has a paid tariff (not enforced yet). */
     priceHour: integer('price_hour'),
     priceNight: integer('price_night'),
+    /** ISO 4217 code for both prices. */
+    currency: varchar('currency', { length: 3 })
+      .$type<'RUB' | 'USD' | 'EUR' | 'AED'>()
+      .notNull()
+      .default('RUB'),
 
     /** Same visibility rule as pricing. */
     contactPhone: varchar('contact_phone', { length: 32 }),

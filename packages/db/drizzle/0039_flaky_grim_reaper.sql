@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "currency" varchar(3) DEFAULT 'RUB' NOT NULL;

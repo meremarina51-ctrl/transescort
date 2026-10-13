@@ -43,6 +43,7 @@ import {
   toSelectOptions,
 } from '@/lib/listing-options';
 import type { ListingAttributes } from '@/lib/listing.types';
+import { CURRENCY_OPTIONS, CURRENCY_SYMBOLS } from '@/lib/format';
 import { parseBody } from '@/lib/parse-body';
 import { ROUTES } from '@/lib/routes';
 
@@ -73,6 +74,7 @@ function getEmptyParams(defaultName: string): ListingParams {
     city: CITY_OPTIONS[0],
     priceHour: null,
     priceNight: null,
+    currency: 'RUB',
     contactPhone: '',
     contactTelegram: '',
     contactWhatsapp: '',
@@ -180,6 +182,7 @@ export default function ListingPage() {
               city: data.city ?? EMPTY_PARAMS.city,
               priceHour: data.priceHour ?? null,
               priceNight: data.priceNight ?? null,
+              currency: data.currency ?? EMPTY_PARAMS.currency,
               contactPhone: data.contactPhone ?? '',
               contactTelegram: data.contactTelegram ?? '',
               contactWhatsapp: data.contactWhatsapp ?? '',
@@ -235,6 +238,7 @@ export default function ListingPage() {
       if (params.city) payload.city = params.city;
       if (params.priceHour !== null) payload.priceHour = params.priceHour;
       if (params.priceNight !== null) payload.priceNight = params.priceNight;
+      payload.currency = params.currency;
       payload.contactPhone = params.contactPhone;
       payload.contactTelegram = params.contactTelegram;
       payload.contactWhatsapp = params.contactWhatsapp;
@@ -738,24 +742,33 @@ export default function ListingPage() {
           <div className="card p-6">
             <TileHeader icon={Wallet} title={t('pricingHeading')} description={t('pricingDescription')} />
             <div className="mt-5 grid grid-cols-2 gap-4">
-              <Field label={t('priceHourLabel')}>
+              <div className="col-span-2">
+                <Field label={t('currencyLabel')}>
+                  <Select
+                    value={params.currency}
+                    onChange={(v) => setParams((p) => ({ ...p, currency: v as ListingParams['currency'] }))}
+                    options={CURRENCY_OPTIONS.map((c) => ({ value: c, label: t(`currency${c}`) }))}
+                  />
+                </Field>
+              </div>
+              <Field label={t('priceHourLabel', { symbol: CURRENCY_SYMBOLS[params.currency] })}>
                 <NumberStepper
                   value={params.priceHour}
                   onChange={(v) => setParams((p) => ({ ...p, priceHour: v }))}
                   min={0}
                   max={100000}
                   step={500}
-                  placeholder={t('rubPlaceholder')}
+                  placeholder={CURRENCY_SYMBOLS[params.currency]}
                 />
               </Field>
-              <Field label={t('priceNightLabel')}>
+              <Field label={t('priceNightLabel', { symbol: CURRENCY_SYMBOLS[params.currency] })}>
                 <NumberStepper
                   value={params.priceNight}
                   onChange={(v) => setParams((p) => ({ ...p, priceNight: v }))}
                   min={0}
                   max={500000}
                   step={1000}
-                  placeholder={t('rubPlaceholder')}
+                  placeholder={CURRENCY_SYMBOLS[params.currency]}
                 />
               </Field>
             </div>

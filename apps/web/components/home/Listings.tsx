@@ -54,7 +54,7 @@ export const Listings: FC<IProps> = ({ listings }) => {
                                     </p>
                                     {listing.priceHour ? (
                                         <p className="mt-1 font-body text-xs font-semibold text-accent">
-                                            {formatPrice(listing.priceHour)} / {t('priceHourSuffix')}
+                                            {formatPrice(listing.priceHour, listing.currency)} / {t('priceHourSuffix')}
                                         </p>
                                     ) : null}
                                 </div>

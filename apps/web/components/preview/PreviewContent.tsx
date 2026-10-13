@@ -55,6 +55,7 @@ export const PreviewContent = () => {
         bio={listing.bio}
         priceHour={listing.priceHour}
         priceNight={listing.priceNight}
+        currency={listing.currency}
         contactPhone={listing.contactPhone}
         contactTelegram={listing.contactTelegram}
         contactWhatsapp={listing.contactWhatsapp}
