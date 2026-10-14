@@ -1,4 +1,4 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ROUTES } from "@/lib/routes";
 import { Link, useRouter } from '@/i18n/navigation';
 import { computeVitals, getListingVitalsConfig } from "@/lib/listing-vitals";
@@ -10,6 +10,7 @@ export const PreviewContent = () => {
   const router = useRouter();
   const t = useTranslations('preview');
   const tVitals = useTranslations('vitals');
+  const locale = useLocale();
   const { listing, reviews, isLoading, errorMessage } = usePreviewListing();
 
   if (isLoading) {
@@ -42,7 +43,7 @@ export const PreviewContent = () => {
     );
   }
 
-  const vitals = computeVitals(listing, getListingVitalsConfig(tVitals));
+  const vitals = computeVitals(listing, getListingVitalsConfig(tVitals, locale));
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">

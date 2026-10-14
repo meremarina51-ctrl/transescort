@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { BadgeCheck, ChevronLeft, ChevronRight, ImageOff, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { LocationSidebar, type GeoCountry } from '@/components/LocationSidebar';
 import { useOutsideClose } from '@/hooks/useOutsideClose';
-import { toSelectOptions } from '@/lib/listing-options';
+import { geoLabel, toSelectOptions } from '@/lib/listing-options';
 import { formatPrice } from '@/lib/format';
 import { getOrCreateRotationSeed, getRotatedListings } from './catalog-rotation';
 import type { CategoricalField, CatalogListing, NumericField, SortOption } from './catalog.types';
@@ -73,6 +73,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations('catalog');
+  const locale = useLocale();
   const RANGE_FILTERS = useMemo(() => getRangeFilters(t), [t]);
   const SELECT_FILTERS = useMemo(() => getSelectFilters(t), [t]);
   const ALL_CATEGORICAL_FIELDS = useMemo(() => getAllCategoricalFields(t), [t]);
@@ -377,7 +378,7 @@ export function CatalogClientPage({ initialListings }: { initialListings: Catalo
                     ) : null}
                   </div>
                   <p className="mt-1 font-body text-sm text-white/40">
-                    {[listing.age ? `${listing.age} ${t('ageSuffix')}` : null, listing.city].filter(Boolean).join(' · ')}
+                    {[listing.age ? `${listing.age} ${t('ageSuffix')}` : null, listing.city && geoLabel(listing.city, locale)].filter(Boolean).join(' · ')}
                   </p>
                   {listing.priceHour ? (
                     <p className="mt-2 font-body text-sm font-semibold text-accent">

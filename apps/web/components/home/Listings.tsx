@@ -2,7 +2,8 @@ import { CatalogListing } from "@/app/[locale]/catalog/catalog.types";
 import { formatPrice } from "@/lib/format";
 import { ROUTES, catalogListing } from "@/lib/routes";
 import { ImageOff } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { geoLabel } from "@/lib/listing-options";
 import { Link } from '@/i18n/navigation';
 import { FC } from "react";
 
@@ -12,6 +13,7 @@ interface IProps {
 
 export const Listings: FC<IProps> = ({ listings }) => {
     const t = useTranslations('home.listings');
+    const locale = useLocale();
 
     return (
         <section className="border-t border-white/[0.04] py-20 md:py-28">
@@ -50,7 +52,7 @@ export const Listings: FC<IProps> = ({ listings }) => {
                                         {listing.name || t('unnamed')}
                                     </h3>
                                     <p className="mt-1 font-body text-xs text-white/40">
-                                        {[listing.age ? `${listing.age} ${t('ageSuffix')}` : null, listing.city].filter(Boolean).join(' · ')}
+                                        {[listing.age ? `${listing.age} ${t('ageSuffix')}` : null, listing.city && geoLabel(listing.city, locale)].filter(Boolean).join(' · ')}
                                     </p>
                                     {listing.priceHour ? (
                                         <p className="mt-1 font-body text-xs font-semibold text-accent">

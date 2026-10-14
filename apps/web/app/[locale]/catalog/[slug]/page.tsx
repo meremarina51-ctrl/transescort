@@ -19,7 +19,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     getTranslations({ locale, namespace: 'vitals' }),
   ]);
 
-  const vitals = computeVitals(listing, getListingVitalsConfig(tVitals));
+  const vitals = computeVitals(listing, getListingVitalsConfig(tVitals, locale));
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">

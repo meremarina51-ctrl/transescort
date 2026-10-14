@@ -28,4 +28,5 @@ const GEO_LABELS_EN: Record<string, string> = {
 export const geoLabel = (value: string, locale: string) =>
   locale === 'en' ? (GEO_LABELS_EN[value] ?? value) : value;
 
-export const toSelectOptions =(values: string[]) => values.map((v) => ({ value: v, label: v }));
+export const toSelectOptions = (values: string[], label: (v: string) => string = (v) => v) =>
+  values.map((v) => ({ value: v, label: label(v) }));

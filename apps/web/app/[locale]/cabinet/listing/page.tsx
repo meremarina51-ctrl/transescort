@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
   AlertCircle,
@@ -40,6 +40,7 @@ import {
   EYE_COLOR_OPTIONS,
   COUNTRY_OPTIONS,
   CITY_OPTIONS,
+  geoLabel,
   toSelectOptions,
 } from '@/lib/listing-options';
 import type { ListingAttributes } from '@/lib/listing.types';
@@ -114,6 +115,7 @@ const MIN_PHOTOS_FOR_REVIEW = 3;
 export default function ListingPage() {
   const { user } = useAuth();
   const t = useTranslations('cabinet.listing');
+  const locale = useLocale();
   const tPhotos = useTranslations('cabinet.photos');
   const tReview = useTranslations('photoReview');
   const tStatus = useTranslations('listingStatus');
@@ -724,14 +726,14 @@ export default function ListingPage() {
                 <Select
                   value={params.country}
                   onChange={(v) => setParams((p) => ({ ...p, country: v }))}
-                  options={toSelectOptions(COUNTRY_OPTIONS)}
+                  options={toSelectOptions(COUNTRY_OPTIONS, (v) => geoLabel(v, locale))}
                 />
               </Field>
               <Field label={t('cityLabel')}>
                 <Select
                   value={params.city}
                   onChange={(v) => setParams((p) => ({ ...p, city: v }))}
-                  options={toSelectOptions(CITY_OPTIONS)}
+                  options={toSelectOptions(CITY_OPTIONS, (v) => geoLabel(v, locale))}
                 />
               </Field>
             </div>
