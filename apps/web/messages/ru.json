@@ -218,6 +218,8 @@
     "prevSlide": "Предыдущее",
     "nextSlide": "Следующее",
     "closePreview": "Закрыть просмотр анкеты",
+    "openFullscreen": "Открыть фото на весь экран",
+    "closeLightbox": "Закрыть фото",
     "photosUnit": "фото",
     "photosWord": "Фото",
     "videoSuffix": ", 1 видео",

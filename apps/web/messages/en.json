@@ -218,6 +218,8 @@
     "prevSlide": "Previous",
     "nextSlide": "Next",
     "closePreview": "Close profile view",
+    "openFullscreen": "Open photo full screen",
+    "closeLightbox": "Close photo",
     "photosUnit": "photos",
     "photosWord": "Photos",
     "videoSuffix": ", 1 video",

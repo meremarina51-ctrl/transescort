@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
-import { BadgeCheck, Eye, ImageOff, Loader2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
+import { BadgeCheck, Eye, ImageOff, Loader2, Maximize2, MessageCircle, Phone, Play, Send, Star, X } from 'lucide-react';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { Lightbox } from '@/components/ui/Lightbox';
 import { ReportButton } from '@/components/ui/ReportButton';
 import { formatPrice, type Currency } from '@/lib/format';
 import { useAuth } from '@/components/AuthProvider';
@@ -105,10 +106,24 @@ export function ListingGallery({
   const total = media.length;
   const current = media[active];
 
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   const [contactOpen, setContactOpen] = useState(false);
   const [contactInfoOpen, setContactInfoOpen] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
   const [startChatError, setStartChatError] = useState('');
+
+  // Photos come first in `media`, so a photo's media index is the same as its index in `photos`.
+  const openLightbox = (url: string) => {
+    const photoIndex = photos.indexOf(url);
+    if (photoIndex >= 0) setLightboxIndex(photoIndex);
+  };
+
+  /** Keep the anketa's main slide on whatever the visitor last viewed fullscreen. */
+  const changeLightboxIndex = (photoIndex: number) => {
+    setLightboxIndex(photoIndex);
+    setActive(photoIndex);
+  };
 
   /** Fire-and-forget — analytics must never block or fail the actual contact flow. */
   const trackContact = (action: 'click' | 'platform' | 'telegram') => {
@@ -208,8 +223,16 @@ export function ListingGallery({
       <div className="relative h-[60vh] bg-black lg:h-[calc(100vh-4rem)] lg:flex-1">
         {current ? (
           current.type === 'photo' ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={current.url} src={current.url} alt={name} className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => openLightbox(current.url)}
+              aria-label={t('openFullscreen')}
+              title={t('openFullscreen')}
+              className="block h-full w-full cursor-zoom-in"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img key={current.url} src={current.url} alt={name} className="h-full w-full object-cover" />
+            </button>
           ) : (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video key={current.url} src={current.url} controls className="h-full w-full object-contain" />
@@ -247,6 +270,17 @@ export function ListingGallery({
               {active + 1} / {total}
             </div>
           )}
+          {current?.type === 'photo' ? (
+            <button
+              type="button"
+              onClick={() => openLightbox(current.url)}
+              aria-label={t('openFullscreen')}
+              title={t('openFullscreen')}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          ) : null}
           {preview ? null : <FavoriteButton listingId={id} positionClassName="" />}
           <button
             type="button"
@@ -551,6 +585,17 @@ export function ListingGallery({
           )}
         </div>
       </div>
+
+      {lightboxIndex !== null ? (
+        <Lightbox
+          photos={photos}
+          index={lightboxIndex}
+          alt={name}
+          labels={{ close: t('closeLightbox'), prev: t('prevSlide'), next: t('nextSlide') }}
+          onIndexChange={changeLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
 
       {contactOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
