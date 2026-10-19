@@ -16,6 +16,7 @@ export const CITY_OPTIONS = [
   'Мытищи',
   'Подольск',
   'Дубай',
+  'Абу-Даби',
   'Другой',
 ] as const;
 export const CURRENCY_OPTIONS = ['RUB', 'USD', 'EUR', 'AED'] as const;

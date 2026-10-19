@@ -4,7 +4,7 @@ export const TEMPERAMENT_OPTIONS = ['Нежная', 'Страстная', 'До�
 export const HAIR_COLOR_OPTIONS = ['Блондинка', 'Брюнетка', 'Шатенка', 'Рыжая', 'Другой'];
 export const EYE_COLOR_OPTIONS = ['Голубые', 'Зелёные', 'Карие', 'Серые', 'Чёрные'];
 export const COUNTRY_OPTIONS = ['Россия', 'Беларусь', 'Украина', 'Казахстан', 'ОАЭ', 'Другая'];
-export const CITY_OPTIONS = ['Москва', 'Балашиха', 'Люберцы', 'Одинцово', 'Химки', 'Мытищи', 'Подольск', 'Дубай', 'Другой'];
+export const CITY_OPTIONS = ['Москва', 'Балашиха', 'Люберцы', 'Одинцово', 'Химки', 'Мытищи', 'Подольск', 'Дубай', 'Абу-Даби', 'Другой'];
 
 const GEO_LABELS_EN: Record<string, string> = {
   Россия: 'Russia',
@@ -21,6 +21,7 @@ const GEO_LABELS_EN: Record<string, string> = {
   Мытищи: 'Mytishchi',
   Подольск: 'Podolsk',
   Дубай: 'Dubai',
+  'Абу-Даби': 'Abu Dhabi',
   Другой: 'Other',
 };
 
