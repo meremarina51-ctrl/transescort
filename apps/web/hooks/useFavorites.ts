@@ -3,16 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth-fetch';
-import { Role } from '@/lib/enums';
 
-/** Client-only favorites state, shared by the catalog cards and the "Избранное" cabinet page. */
+/** Favorites state for any logged-in user, shared by the catalog cards and the "Избранное" cabinet page. */
 export function useFavorites() {
   const { user } = useAuthOrGuest();
-  const isClient = user?.role === Role.Client;
+  const isLoggedIn = !!user;
   const [ids, setIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!isClient) {
+    if (!isLoggedIn) {
       setIds(new Set());
       return;
     }
@@ -30,7 +29,7 @@ export function useFavorites() {
     return () => {
       cancelled = true;
     };
-  }, [isClient]);
+  }, [isLoggedIn]);
 
   const isFavorite = useCallback((id: string) => ids.has(id), [ids]);
 
@@ -59,5 +58,5 @@ export function useFavorites() {
     [ids],
   );
 
-  return { isClient, isFavorite, toggle };
+  return { isFavorite, toggle };
 }

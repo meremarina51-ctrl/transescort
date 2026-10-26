@@ -26,6 +26,7 @@ export const getPerformerOverviewTiles = (tNav: Translate, tDesc: Translate) => 
   { href: ROUTES.CABINET_REVIEWS, icon: Star, title: tNav('reviews'), description: tDesc('reviewsPerformer') },
   { href: ROUTES.CABINET_STATS, icon: BarChart3, title: tNav('stats'), description: tDesc('stats') },
   { href: ROUTES.CABINET_CHATS, icon: MessageSquare, title: tNav('chats'), description: tDesc('chatsPerformer') },
+  { href: ROUTES.CABINET_FAVORITES, icon: Heart, title: tNav('favorites'), description: tDesc('favorites') },
   { href: ROUTES.CABINET_SETTINGS, icon: Settings, title: tNav('settings'), description: tDesc('settings') },
 ] as const;
 
@@ -41,6 +42,7 @@ export const getClientOverviewTiles = (tNav: Translate, tDesc: Translate) => [
 export const getDefaultOverviewTiles = (tNav: Translate, tDesc: Translate) => [
   { href: ROUTES.CABINET_PROFILE, icon: User, title: tNav('profile'), description: tDesc('profile') },
   { href: ROUTES.CABINET_MESSAGES, icon: MessageSquare, title: tNav('chats'), description: tDesc('chatsDefault') },
+  { href: ROUTES.CABINET_FAVORITES, icon: Heart, title: tNav('favorites'), description: tDesc('favorites') },
   { href: ROUTES.CABINET_SETTINGS, icon: Settings, title: tNav('settings'), description: tDesc('settings') },
 ] as const;
 
@@ -53,6 +55,7 @@ export const getPerformerNav = (t: Translate) => [
   { href: ROUTES.CABINET_REVIEWS, label: t('reviews'), icon: Star },
   { href: ROUTES.CABINET_STATS, label: t('stats'), icon: BarChart3 },
   { href: ROUTES.CABINET_CHATS, label: t('chats'), icon: MessageSquare },
+  { href: ROUTES.CABINET_FAVORITES, label: t('favorites'), icon: Heart },
   // { href: ROUTES.CABINET_TARIFF, label: t('tariff'), icon: CreditCard },
 ] as const;
 
@@ -66,6 +69,7 @@ export const getClientNav = (t: Translate) => [
 export const getDefaultNav = (t: Translate) => [
   { href: ROUTES.CABINET_PROFILE, label: t('profile'), icon: User },
   { href: ROUTES.CABINET_MESSAGES, label: t('chats'), icon: MessageSquare },
+  { href: ROUTES.CABINET_FAVORITES, label: t('favorites'), icon: Heart },
 ] as const;
 
 export const getTailNav = (t: Translate) => [{ href: ROUTES.CABINET_SETTINGS, label: t('settings'), icon: Settings }] as const;

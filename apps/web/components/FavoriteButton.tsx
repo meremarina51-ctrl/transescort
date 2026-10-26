@@ -5,7 +5,6 @@ import { useRouter } from '@/i18n/navigation';
 import { Heart } from 'lucide-react';
 import { useAuthOrGuest } from '@/components/AuthProvider';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Role } from '@/lib/enums';
 import { ROUTES } from '@/lib/routes';
 import { reachGoal } from '@/lib/metrika';
 
@@ -25,8 +24,6 @@ export function FavoriteButton({
   const t = useTranslations('favorite');
   const { user } = useAuthOrGuest();
   const { isFavorite, toggle } = useFavorites();
-
-  if (user && user.role !== Role.Client) return null;
 
   const isActive = user ? isFavorite(listingId) : false;
 
