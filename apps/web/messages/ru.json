@@ -248,6 +248,9 @@
     "platformOptionSubtitle": "Откроется чат в личном кабинете",
     "errorStartChat": "Не удалось начать чат",
     "contactsModalTitle": "Контакты {name}",
+    "contactsAuthRequired": "Просмотр контактов доступен только зарегистрированным пользователям",
+    "createAccount": "Создать аккаунт",
+    "login": "Войти",
     "phoneLabel": "Телефон",
     "whatsappLabel": "WhatsApp",
     "noContacts": "Исполнитель пока не указал контакты для прямой связи."

@@ -94,7 +94,7 @@ export function ListingGallery({
   onClose,
 }: IProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const t = useTranslations('listingGallery');
   const tCatalog = useTranslations('catalog');
   const locale = useLocale();
@@ -557,9 +557,10 @@ export function ListingGallery({
               type="button"
               onClick={() => {
                 setContactInfoOpen(true);
-                reachGoal('contact_info_view');
+                if (user) reachGoal('contact_info_view');
               }}
-              className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white"
+              disabled={authLoading}
+              className="flex items-center justify-center gap-1.5 rounded-full border border-white/15 px-2 py-2 font-body text-xs font-semibold text-white/80 transition-all hover:border-accent hover:text-white disabled:opacity-50"
             >
               <Phone className="h-3.5 w-3.5" />
               {t('contactsButton')}
@@ -659,7 +660,19 @@ export function ListingGallery({
               </button>
             </div>
 
-            {contactPhone || contactTelegram || contactWhatsapp ? (
+            {!user ? (
+              <div>
+                <p className="font-body text-sm text-white/70">{t('contactsAuthRequired')}</p>
+                <div className="mt-6 flex flex-col gap-3">
+                  <Link href={ROUTES.REGISTER} className="btn-primary w-full">
+                    {t('createAccount')}
+                  </Link>
+                  <Link href={ROUTES.LOGIN} className="btn-secondary w-full">
+                    {t('login')}
+                  </Link>
+                </div>
+              </div>
+            ) : contactPhone || contactTelegram || contactWhatsapp ? (
               <div className="space-y-2">
                 {contactPhone ? (
                   <a

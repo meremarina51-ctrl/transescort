@@ -248,6 +248,9 @@
     "platformOptionSubtitle": "Opens a chat in your personal cabinet",
     "errorStartChat": "Failed to start the chat",
     "contactsModalTitle": "{name}'s contacts",
+    "contactsAuthRequired": "Contact details are available only to registered users",
+    "createAccount": "Create account",
+    "login": "Log in",
     "phoneLabel": "Phone",
     "whatsappLabel": "WhatsApp",
     "noContacts": "The performer hasn't provided direct contact details yet."
